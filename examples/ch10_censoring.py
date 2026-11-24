@@ -2,8 +2,7 @@
 """Chapter 10: a report that drops timeouts."""
 import random
 
-from examples.ch22_budget import known
-from swmetro.stats import ecdf_quantile
+from swmetro.stats import ecdf_quantile, known
 from swmetro.stats import ecdf_rank
 
 TIMEOUT = 1000.0  # ms; the client gives up here
@@ -24,26 +23,30 @@ def week(n, stuck, median, rng):
     return out
 
 
-def p95_completed(xs):
-    """p95 of the requests that completed."""
+def completions(xs):
+    """Completions in order, all below TIMEOUT."""
     done = sorted(known(x for x in xs
                         if x is not None))
-    return ecdf_quantile(done, 0.95)
+    if not all(0 <= x < TIMEOUT for x in done):
+        raise ValueError("need 0 <= x < TIMEOUT")
+    return done
+
+
+def p95_completed(xs):
+    """p95 of the requests that completed."""
+    return ecdf_quantile(completions(xs), 0.95)
 
 
 def p95_all(xs):
     """p95 of all requests, by the inverse
-    empirical CDF convention. A timed-out
-    request is right-censored: its latency is
-    known only to be at least TIMEOUT, so it
-    is ranked after every completed request.
-    Returns the value and a flag that is True
-    when the order statistic of that rank is
-    censored and the value is only a bound.
-    A NaN is no timeout: it sets no bound,
-    and known() of Listing 22.1 refuses it."""
-    done = sorted(known(x for x in xs
-                        if x is not None))
+    empirical CDF convention. A timeout is
+    right-censored: at least TIMEOUT, and so
+    ranked after every completion. Returns
+    the value and a flag, True when the order
+    statistic of that rank is censored and
+    the value only a bound. A NaN is no
+    timeout: completions() refuses it."""
+    done = completions(xs)
     k = ecdf_rank(0.95, len(xs))
     if k <= len(done):
         return done[k - 1], False
@@ -56,15 +59,14 @@ def main():
     w2 = week(10_000, 0.08, 150, rng)
     print(f"{'':<8}{'timeouts':>9}"
           f"{'p95 done':>10}{'p95 all':>10}  ms")
-    weeks = (("week 1", w1), ("week 2", w2))
-    for name, xs in weeks:
-        lost = sum(x is None for x in xs)
-        value, bound = p95_all(xs)
+    for name, w in ("week 1", w1), ("week 2", w2):
+        lost = sum(x is None for x in w)
+        value, bound = p95_all(w)
         text = f"{value:.0f}"
         if bound:
             text = ">= " + text
         print(f"{name:<8}{lost:>9}"
-              f"{p95_completed(xs):>10.0f}"
+              f"{p95_completed(w):>10.0f}"
               f"{text:>10}")
 
 

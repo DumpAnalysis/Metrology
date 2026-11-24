@@ -45,6 +45,32 @@ def as_count(x, name="n", least=0):
     return int(x)
 
 
+def known(xs, what="duration"):
+    """xs as a list, each of them a finite real
+    number in the type in which it came: an int,
+    a float, a Fraction or a Decimal. A NaN has
+    no rank among the others, and sorting a
+    record that holds one can make a percentile
+    depend on the order of its rows; to drop it
+    would be to judge another population. It is
+    refused as missing, and so is an infinity or
+    a number beyond the range of a float. A
+    boolean, a text and None are no numbers."""
+    xs = list(xs)
+    gone = f"a {what} is missing or too large"
+    for x in xs:
+        real = isinstance(x, (Real, Decimal))
+        if isinstance(x, bool) or not real:
+            raise ValueError(f"no number: {x!r}")
+        try:
+            there = math.isfinite(float(x))
+        except (ValueError, OverflowError):
+            there = False
+        if not there:
+            raise ValueError(gone)
+    return xs
+
+
 def _floor(f):
     return f.numerator // f.denominator
 

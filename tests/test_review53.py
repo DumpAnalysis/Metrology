@@ -417,8 +417,11 @@ class Sketches(unittest.TestCase):
         sk = h9.LogSketch(0.01)
         sk.add(2.2250738585072014e-308)                  # the least normal float has neighbors within 1 %
         self.assertLessEqual(abs(sk.quantile(0.5) / 2.2250738585072014e-308 - 1), 0.01)
-        for x in (0, -1.0, math.inf, math.nan, -math.inf):
+        for x in (0, -1.0):
             with self.assertRaisesRegex(ValueError, "need 2..-1022 <= x < inf"):
+                h9.LogSketch(0.01).add(x)
+        for x in (math.inf, math.nan, -math.inf):        # since Version 57 refused by known() of the package
+            with self.assertRaisesRegex(ValueError, "a duration is missing or too large"):
                 h9.LogSketch(0.01).add(x)
 
     def test_the_reported_value_is_the_one_of_the_text(self):

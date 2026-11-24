@@ -3,10 +3,11 @@
 import math
 import random
 import statistics as st
+from decimal import Decimal
 from fractions import Fraction
 
 from swmetro.stats import as_count
-from swmetro.stats import exact_q
+from swmetro.stats import exact_q, known
 from swmetro.stats import weighted_quantile
 
 # (class, requests, mean duration in ms)
@@ -74,7 +75,7 @@ def weighted(rec, mix=None, partial=False,
     if mix is None:
         return [(x, Fraction(1))
                 for xs in rec.values()
-                for x in xs]
+                for x in observed(xs)]
     if not any(mix.values()):
         raise ValueError("empty reference mix")
     gone = absent(rec, mix)
@@ -87,14 +88,16 @@ def weighted(rec, mix=None, partial=False,
         xs = rec.get(name)
         if ref and xs:
             w = Fraction(len(ref), len(xs))
-            out += [(x, w) for x in xs]
+            out += [(x, w) for x in observed(xs)]
         elif ref and fill is not None:
             out.append((fill, Fraction(len(ref))))
     return out
 
 
 def mean(pairs):
-    pairs = list(pairs)
+    pairs = [(Fraction(x), w)
+             if isinstance(x, Decimal) else (x, w)
+             for x, w in pairs]
     total = sum(w for _, w in pairs)
     if not total:
         raise ValueError("no requests")
@@ -114,7 +117,24 @@ def p95(pairs):
 def unknown(x):
     """A request that is in the record with
     no duration: None, or not a number."""
+    if isinstance(x, Decimal):
+        return x.is_nan()
     return x is None or x != x
+
+
+def observed(xs):
+    """The entries of a class as they stand,
+    if each is a duration that known() admits:
+    a flag is none, and Python would count
+    False as 0. What side() reads otherwise
+    stays: None, a NaN, an infinity, and a
+    bound, whose time is held to the same."""
+    ends = (math.inf, -math.inf)
+    for x in xs:
+        x = x[-1] if isinstance(x, tuple) else x
+        if not (unknown(x) or x in ends):
+            known([x])
+    return xs
 
 
 def side(x, limit):
@@ -154,7 +174,7 @@ def within(rec, mix, limit):
         raise ValueError("no limit")
     low = high = Fraction(0)
     for name, ref in mix.items():
-        xs = rec.get(name) or [None]
+        xs = observed(rec.get(name) or [None])
         size = len(xs) * total
         sides = [side(x, limit) for x in xs]
         ok = sum(s is True for s in sides)

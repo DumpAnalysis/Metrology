@@ -58,7 +58,8 @@ class ADurationThatIsNotThere(unittest.TestCase):
         xs[-1] = float("nan")                                                    # one of the two slow durations is lost
         count, share = version_37_over(xs)
         self.assertEqual((count, f"{share:.4f}"), (1, "99.9828"))                # a missed objective would pass
-        self.assertEqual(refusal(omission.over, xs), "need durations: finite and not below zero")
+        # Since Version 57 the refusal is that of known() of the package, with its message.
+        self.assertEqual(refusal(omission.over, xs), "a duration is missing or too large")
 
     def test_what_is_a_duration(self):
         for bad in ([], [1.0, float("nan")], [float("inf")], [-0.5, 3.0], [1.0, -math.inf]):

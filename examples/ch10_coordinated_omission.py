@@ -1,9 +1,9 @@
 # replay: exact
 """Chapter 10: coordinated omission."""
-import math
 import statistics as st
 
 from swmetro.stats import ecdf_quantile, quantile
+from swmetro.stats import known
 
 MS = 1_000_000        # nanoseconds in 1 ms
 INTERVAL = 10 * MS    # intended spacing
@@ -102,13 +102,11 @@ def over(xs, limit=500.0):
     within it, and would be counted as
     within: a record with unknown durations
     is for quantile_verdict() of Listing 16.3."""
-    xs = list(xs)
+    xs = known(xs)
     if not xs:
         raise ValueError("no entries")
-    if not all(0 <= x < math.inf
-               for x in xs + [limit]):
-        raise ValueError("need durations: finite"
-                         " and not below zero")
+    if min(xs + known([limit], "limit")) < 0:
+        raise ValueError("need durations >= 0")
     n = sum(x > limit for x in xs)
     return n, 100 * (len(xs) - n) / len(xs)
 

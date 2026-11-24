@@ -4,8 +4,8 @@ import bisect
 import math
 import random
 
-from swmetro.stats import exact_q, lower_rank
-from swmetro.stats import order_stat, quantile
+from swmetro.stats import exact_q, known, quantile
+from swmetro.stats import lower_rank, order_stat
 
 BOUNDS = [0.005, 0.01, 0.025, 0.05, 0.1, 0.25,
           0.5, 1.0, 2.5, 5.0, 10.0]  # seconds
@@ -17,17 +17,16 @@ def bucket_quantile(xs, q, bounds=BOUNDS):
     """Quantile from cumulative bucket counts,
     interpolated linearly inside the bucket,
     as Prometheus histogram_quantile does.
-    With no observations there is no quantile
-    and the result is NaN. When the rank
-    falls in the open-ended last bucket the
-    last finite bound is returned, and the
-    quantile is only known to exceed it. The
-    first bucket begins at 0, and a negative
-    value or a NaN is refused. For q = 0 the
-    result is the lower end of the first
-    bucket that holds a value. The bounds
-    are finite, rise, and begin at 0 or
-    above it."""
+    Without observations the result is NaN.
+    When the rank falls in the open-ended
+    last bucket the last finite bound is
+    returned, and the quantile is only known
+    to exceed it. The first bucket begins at
+    0: the values pass known(), and one below
+    0 is refused. For q = 0 the result is the
+    lower end of the first bucket that holds
+    a value. The bounds are finite, rise, and
+    begin at 0 or above it."""
     bounds = list(bounds)
     ends = [*bounds, math.inf]
     rise = all(a < b for a, b
@@ -35,9 +34,10 @@ def bucket_quantile(xs, q, bounds=BOUNDS):
     if not (bounds and rise
             and bounds[0] >= 0):
         raise ValueError("no rising bounds >= 0")
+    xs = known(xs)
     if not xs:
         return math.nan
-    if not all(x >= 0 for x in xs):
+    if min(xs) < 0:
         raise ValueError("need values >= 0")
     counts = [0] * (len(bounds) + 1)
     for x in xs:
@@ -70,9 +70,8 @@ class LogSketch:
     relative error |reported - x| / x. In
     the tests the floats of this class kept
     it to alpha + 1e-12 for normal doubles:
-    a tolerance observed, and no bound that
-    was derived. Below them, where doubles
-    lie further apart, add() refuses."""
+    a tolerance observed, no derived bound.
+    Below the normal doubles add() refuses."""
 
     def __init__(self, alpha):
         if not 0 < alpha < 1:
@@ -86,6 +85,7 @@ class LogSketch:
         self.counts, self.n = {}, 0
 
     def add(self, x):
+        known([x])
         if not LEAST <= x < math.inf:
             raise ValueError(
                 "need 2**-1022 <= x < inf")

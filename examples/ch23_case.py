@@ -5,11 +5,10 @@ import random
 import statistics as st
 
 from examples import ch09_histogram as h9
-from examples.ch22_budget import known
 from swmetro import Result, type_a
 from swmetro.dist import phi, z_ppf
 from swmetro.stats import as_count, bootstrap
-from swmetro.stats import ecdf_quantile
+from swmetro.stats import ecdf_quantile, known
 from swmetro.stats import quiet_bound, rate_limits
 
 # Telemetry configuration before and after the
@@ -99,7 +98,7 @@ def canary(config, n, rng):
 def p95(xs):
     """Inverse empirical CDF convention, of
     durations that are all known: known() of
-    Listing 22.1 refuses a missing one."""
+    the package refuses a missing one."""
     return ecdf_quantile(sorted(known(xs)), 0.95)
 
 

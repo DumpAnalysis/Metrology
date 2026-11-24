@@ -2,7 +2,7 @@
 
 Code examples for the book *Metrology in Software Diagnostics, Observability,
 and Debugging: With Applications to Machine Learning and AI* by Dmitry Vostokov
-(OpenTask, ISBN 978-1-919135-15-1). Book Version 56, November 2026.
+(OpenTask, ISBN 978-1-919135-15-1). Book Version 57, November 2026.
 
 Repository: https://github.com/DumpAnalysis/Metrology
 
@@ -78,7 +78,7 @@ will print different numbers on your machine; that is what they are for.
 | `expected/` | The transcript of each example, as printed in the book. |
 | `data/` | The trace fixture of Chapter 16 (`app_trace.log`) and its seeded generator (`make_trace.py`); the measurement record of Chapter 22 (`measurement_record.json`), a blank template with the same fields (`record_template.json`), a description of the form, of the decision procedure and of what the checker examines (`RECORD_FORMAT.md`), and the program that writes both (`make_record.py`). |
 | `figures/` | `make_figures.py` draws the book's thirty-two figures from the same functions as the examples. Needs matplotlib and Pillow at the versions in `requirements.txt`; output goes to `figures/out/`. |
-| `tests/` | `test_swmetro.py`: unit tests of the package. `test_review.py`, `test_review2.py` to `test_review5.py`, `test_review7.py` to `test_review46.py` and `test_review48.py` to `test_review54.py`: regression tests, numbered by the version of the book whose review they followed; each checks the code against an independent fact (a closed form, a definition evaluated by brute force, a published table, a simulated coverage), not against saved output. `test_release.py`: the license text is the published one, and the record and this file name the repository and the release. |
+| `tests/` | `test_swmetro.py`: unit tests of the package. `test_review.py`, `test_review2.py` to `test_review5.py`, `test_review7.py` to `test_review46.py` and `test_review48.py` to `test_review56.py`: regression tests, numbered by the version of the book whose review they followed; each checks the code against an independent fact (a closed form, a definition evaluated by brute force, a published table, a simulated coverage), not against saved output. `test_release.py`: the license text is the published one, and the record and this file name the repository and the release. |
 | `tools/` | Two optional checks of the Student t quantile against high-precision arithmetic. They need mpmath. |
 | `run_all.py` | The replay program. |
 | `LICENSE` | PolyForm Strict License 1.0.0. |
@@ -151,6 +151,15 @@ float is taken as the decimal number that Python prints for it, so that
 in integer arithmetic. The two readings differ at boundaries:
 `ecdf_rank(0.9, 10)` is 9, and `ecdf_rank(Fraction(0.9), 10)` is 10, because
 the stored number for 0.9 lies above nine tenths.
+
+A duration enters the examples through `known()` of `swmetro/stats.py`: a
+finite real number (an `int`, a `float`, a `Fraction` or a `Decimal`), kept
+in its type. A NaN, an infinity and a number beyond the range of a float are
+refused as missing, and a Boolean flag, a text and `None` as no numbers.
+Where an entry that is no duration has a meaning, the listing says so:
+`None` is a timeout in `ch10_censoring`, whose completions lie below the
+deadline of the client, and `None`, a NaN, an infinity and a bound such as
+`(">=", 1000)` keep their meanings in `ch23_mix`.
 
 ## Using the measurement record
 
@@ -249,7 +258,7 @@ archive, published with the release. Seeds alone do not specify a result: the
 stored transcripts, the trace fixture and the measurement record are part of
 each release for that reason.
 
-This is the release for Version 56 of the book.
+This is the release for Version 57 of the book.
 
 ## License
 

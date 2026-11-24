@@ -1,14 +1,12 @@
 # replay: exact
 """Chapter 22: one percentile, two records."""
-import math
 import random
 import statistics as st
-from decimal import Decimal
-from numbers import Real
+from fractions import Fraction
 
 from examples import ch09_histogram as h9
 from swmetro import Budget, Result, u_rect
-from swmetro.stats import bootstrap, wilson
+from swmetro.stats import bootstrap, known, wilson
 from swmetro.stats import ecdf_quantile, ecdf_rank
 
 LIMIT = 200.0  # objective: p95 <= 200 ms
@@ -26,30 +24,14 @@ def record(rng):
             for x in xs]
 
 
-def known(xs):
-    """The durations as a list, every one of
-    them a finite number, in the type in
-    which it came. A missing one, a NaN, is
-    refused before anything is sorted, counted
-    or resampled: a sort leaves a NaN where
-    it met it, and to drop it would be to
-    judge another population. A boolean, a
-    text and None are no durations."""
-    xs, lost = list(xs), "a duration is missing"
-    for x in xs:
-        real = isinstance(x, (Real, Decimal))
-        if isinstance(x, bool) or not real:
-            raise ValueError(f"no number: {x!r}")
-        if x != x or abs(x) == math.inf:
-            raise ValueError(lost)
-    return xs
-
-
 def p95(xs):
     """The p95 of the objective, by the inverse
     empirical CDF convention: the smallest
     recorded value with at least 95 % of the
-    values at or below it."""
+    values at or below it. The durations
+    enter through known() of the package,
+    which refuses one that is missing and
+    whatever is no number."""
     return ecdf_quantile(sorted(known(xs)), 0.95)
 
 
@@ -62,16 +44,20 @@ def from_raw(ms):
     step; the bound is modeled rectangular.
     'Between runs' is a variance component
     with the within-run sampling removed,
-    taken from an earlier study of 8 runs."""
+    taken from an earlier study of 8 runs.
+    The readings are taken as the exact
+    numbers they are, a decimal as a decimal,
+    and the correction as nine tenths."""
     ms = known(ms)
     reps = bootstrap(ms, p95, 500, seed=22)
+    spread = st.stdev(Fraction(r) for r in reps)
     bud = Budget("ms")
-    bud.add("sampling in the run", "A",
-            st.stdev(reps))
+    bud.add("sampling in the run", "A", spread)
     bud.add("between runs", "A", 2.5, 7)
     bud.add("probe correction", "B", 0.30)
     bud.add("stored step", "B", u_rect(STEP / 2))
-    value = p95(ms) - PROBE
+    probe = Fraction(str(PROBE))
+    value = float(Fraction(p95(ms)) - probe)
     return bud, Result(value, bud.u_c(), "ms",
                        bud.dof())
 

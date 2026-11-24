@@ -223,7 +223,9 @@ class TheLimitIsADurationToo(unittest.TestCase):
     def test_the_example_of_the_review(self):
         self.assertEqual(omission.over([100, 600], 500), (1, 50.0))
         self.assertEqual(version_38_over([100, 600], float("nan")), (0, 100.0))  # every request "within" no limit
-        self.assertEqual(refusal(omission.over, [100, 600], float("nan")), "need durations: finite and not below zero")
+        # Since Version 57 the refusal is that of known() of the package, which names what is missing.
+        self.assertEqual(refusal(omission.over, [100, 600], float("nan")), "a limit is missing or too large")
+        self.assertEqual(refusal(omission.over, [100, 600], -1), "need durations >= 0")
 
     def test_what_is_a_limit(self):
         for limit in (float("nan"), math.inf, -math.inf, -1, -0.001):
@@ -232,7 +234,8 @@ class TheLimitIsADurationToo(unittest.TestCase):
         self.assertEqual(omission.over([100, 600], 600), (0, 100.0))
         self.assertEqual(omission.over(iter([100, 600]), 99.5), (2, 0.0))
         self.assertEqual(refusal(omission.over, [], float("nan")), "no entries")
-        self.assertEqual(refusal(omission.over, [float("nan")], 500), "need durations: finite and not below zero")
+        self.assertEqual(refusal(omission.over, [float("nan")], 500), "a duration is missing or too large")
+        self.assertEqual(refusal(omission.over, [-1.0], 500), "need durations >= 0")
 
     def test_decided_before_every_duration_is_known(self):
         # 99.97 % of 5800 within the limit is 5799 or more of them.

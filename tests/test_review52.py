@@ -415,13 +415,19 @@ class Histograms(unittest.TestCase):
         self.assertNotIn("(-inf", text)
 
     def test_only_observations_enter_a_bucket_quantile(self):
-        for xs in ([math.nan], [0.1, math.nan], [-0.001], [0.2, -5]):
-            with self.assertRaisesRegex(ValueError, "need values >= 0"):
+        # Since Version 57 a NaN is refused by known() of the package, before the sign is asked for.
+        for xs, why in (([math.nan], "a duration is missing"), ([0.1, math.nan], "a duration is missing"),
+                        ([-0.001], "need values >= 0"), ([0.2, -5], "need values >= 0")):
+            with self.assertRaisesRegex(ValueError, why):
                 h9.bucket_quantile(xs, 0.95)                                      # Version 52: 0.00475 for [nan]
         self.assertTrue(math.isnan(h9.bucket_quantile([], 0.95)))
         # Twenty zeros lie in the first bucket, which begins at 0: rank 19 of its 20, interpolated.
         self.assertAlmostEqual(h9.bucket_quantile([0.0] * 20, 0.95, [50, 100]), 50 * 19 / 20, places=12)
-        self.assertEqual(h9.bucket_quantile([0.0, math.inf], 1, [50, 100]), 100)
+        # A value beyond the last bound lies in the open-ended bucket. Until Version 56 an infinity was
+        # counted there too; since Version 57 it is no observed duration, and known() of the package refuses it.
+        self.assertEqual(h9.bucket_quantile([0.0, 1e9], 1, [50, 100]), 100)
+        with self.assertRaisesRegex(ValueError, "a duration is missing or too large"):
+            h9.bucket_quantile([0.0, math.inf], 1, [50, 100])
 
     def test_the_convention_at_zero(self):
         self.assertEqual(h9.bucket_quantile([1], 0, [0.25, 0.5, 1, 2]), 0.5)

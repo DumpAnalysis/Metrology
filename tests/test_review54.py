@@ -75,8 +75,9 @@ class MissingDurationOnTheRawRoute(unittest.TestCase):
         return ([NAN] + self.KNOWN, [100.0] * 18 + [NAN, 250.0], self.KNOWN + [NAN])
 
     def test_what_a_sort_makes_of_the_three_orders(self):
-        # A sort leaves a NaN where it met it. Rank 19 of the sorted list, for the NaN first, between the
-        # eighteen and the one, and last: the three answers of Version 54.
+        # A NaN has no rank, and a sort puts it where the order of the input leads it. Rank 19 of the
+        # sorted list, for the NaN first, between the eighteen and the one, and last: the three answers of
+        # Version 54. (Until Version 56 this comment said that a sort leaves a NaN where it met it.)
         got = [sorted(xs)[18] for xs in self.orders()]
         self.assertEqual((got[0], got[2]), (100.0, 250.0))
         self.assertTrue(math.isnan(got[1]))
@@ -600,8 +601,11 @@ class TheSketchInFloats(unittest.TestCase):
         # Sixty of the least step: the doubles on either side are 1/60 away, 1.67 %.
         self.assertEqual(math.nextafter(60 * least, math.inf), 61 * least)
         self.assertEqual(f"{100 / 60:.2f}", "1.67")
-        for x in (60 * least, least, math.nextafter(h9.LEAST, 0), 0.0, -1.0, math.inf, NAN):
+        for x in (60 * least, least, math.nextafter(h9.LEAST, 0), 0.0, -1.0):
             with self.assertRaisesRegex(ValueError, "need 2..-1022 <= x < inf"):   # Version 54: 59 for the first
+                h9.LogSketch(0.01).add(x)
+        for x in (math.inf, NAN):                        # since Version 57 refused by known() of the package
+            with self.assertRaisesRegex(ValueError, "a duration is missing or too large"):
                 h9.LogSketch(0.01).add(x)
         self.assertLessEqual(self.error(h9.LEAST, 0.01), Fraction(1, 100) + self.EXTRA)
 
