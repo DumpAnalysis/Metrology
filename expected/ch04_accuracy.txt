@@ -1,0 +1,14 @@
+instrument              bias      s
+A true, precise        -0.00   0.18
+B true, imprecise       0.05   2.01
+C biased, precise       3.08   0.18
+D biased, imprecise     2.78   1.87
+indication (x10)    12.000 ms
+Type A, s            0.000 ms
+Type B, step         0.289 ms
+error               -0.345 ms
+corrected value     12.500 ms
+error after          0.155 ms
+rectangular on [-1, 1]: u = 0.577
+1.96 u = 1.132, past the bound
+central 95 % interval: +-0.950, k = 1.645

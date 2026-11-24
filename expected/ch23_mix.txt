@@ -1,0 +1,103 @@
+            before             after
+class     n  mean  p95      n  mean  p95
+fast    900   100  158    100    90  150
+slow    100   500  806    900   450  683
+mean, as observed     140 ->  414
+mean, after, at the mix of before   126
+p95, as observed     469 ->  674
+p95, after, at the mix of before   432
+mean of the class p95s, after     417
+mean, 140 -> 414 ms: +274 ms
+  class means first, via 126 ms:
+    within -14, mix +288
+  mix first, via 460 ms:
+    within -46, mix +320
+  average of the two orders:
+    within -30, mix +304
+p95, 469 -> 674 ms: +205 ms
+  class distributions first, via 432 ms:
+    within -37, mix +242
+  mix first, via 806 ms:
+    within -132, mix +337
+  average of the two orders:
+    within -84, mix +289
+p95 of both periods at one mix,
+by its share of slow requests:
+  4.0 %: 190.98 -> 159.62 ms
+  4.1 %: 194.92 -> 216.25 ms
+  4.7 %: 220.15 -> 216.25 ms
+the two largest of the 100 fast
+requests after: 159.62, 216.25 ms
+at 4.1 %, with one fast request
+of the 100 after left out:
+  the largest: 159.62 ms
+  any other:   216.25 ms
+after, no records of the slow
+class, 10 % of the mix of before:
+  mean and p95 at that mix:
+    not determined
+  fast class alone:
+    mean 90, p95 150
+  all slow requests at 450 ms:
+    mean 126, p95 450
+  all slow requests at 900 ms:
+    mean 171, p95 900
+  half at 300 ms, half at 600 ms:
+    mean 126, p95 300
+  within 200 ms: 89.1 % to 99.1 %
+  p95 at most 200 ms: unresolved
+  with the slow mean of 450 ms and
+  no other limit:
+    to 99.09 %, unresolved
+  none above 800 ms:
+    to 94.93 %, missed
+  none above 810 ms:
+    to 95.00 %, unresolved
+  none above 810 ms, one recovered
+    at 100 ms: to 94.99 %, missed
+    at 110 ms: to 95.00 %, unresolved
+    at 700 ms: to 94.99 %, missed
+  at 100 ms, the mean as it prints
+    450.00 ms: to 94.99 %, missed
+    450.0 ms: to 95.00 %, unresolved
+    450 ms: to 95.00 %, unresolved
+  720 ms, of one request or of all
+    one: to 95.00 %, unresolved
+    the longest: to 94.29 %, missed
+  98 % known within, 2 % missing: met
+90 fast requests and 10 slow, one
+of the slow without a duration:
+  within 200 ms: 94 % to 95 %
+  p95 at most 200 ms: unresolved
+and known only to exceed 200 ms:
+  within 200 ms: 94 % to 94 %
+  p95 at most 200 ms: missed
+  within 250 ms: 94 % to 95 %
+  p95 at most 250 ms: unresolved
+and stored as infinity:
+  within 250 ms: 94 % to 94 %
+  p95 at most 250 ms: missed
+after, with a new class, bulk:
+workload         mean      p95  <=200 ms
+after          414.00   673.92  10.80 %
+with bulk      467.27  1000.00   9.82 %
+at old mix     126.00   432.40  89.20 %
+mean, 140 -> 467 ms: +327 ms
+  class means first, via 126 ms:
+    within -14, mix +341
+  mix first: not determined,
+    no bulk requests before
+99 common requests in each period,
+one bulk request of 500 ms after:
+mean, 82 -> 76 ms: -6 ms
+  class means first, via 72 ms:
+    within -10, mix +4
+  mix first: not determined,
+    no bulk requests before
+p95, 100 -> 90 ms: -10 ms
+  class distributions first, via 90 ms:
+    within -10, mix +0
+  mix first, via 100 ms:
+    within -10, mix +0
+  average of the two orders:
+    within -10, mix +0

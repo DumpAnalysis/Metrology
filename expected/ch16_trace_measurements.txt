@@ -1,0 +1,13 @@
+Time Delta: 2346.00(41) ms
+db current,  0-30 s: 18.80(79) msg/s
+db current, 30-60 s: 4.23(38) msg/s
+svc, 30-60 s: 0 messages, 30 s verified
+  if messages arrive singly:
+  at most 0.09986 msg/s at 95 %
+E1042 period, mean of gaps: 7.503(42) s
+E1042 period, fitted slope: 7.501(10) s
+lost 40 of 799 messages (5.0 %)
+sequence gap spans 2088 ms
+verified time, 0-30 s: 27.912 s
+db current, 0-30 s, if all the lost
+  messages were db: 20.13(82) msg/s

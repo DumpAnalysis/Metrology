@@ -1,0 +1,16 @@
+       value   step, f32   step, f64
+           1    1.19e-07    2.22e-16
+        1000     6.1e-05    1.14e-13
+    16777216           2    3.73e-09
+  1000000000          64    1.19e-07
+f32: 2**24 + 1 == 2**24 is True
+f64 time in 2027: step 238 ns
+f64 ns since 1970: step 256 ns
+  stamps 1 ns apart, as f64:
+    +0 and +1 ns: 0 ns
+    +128 and +129 ns: 256 ns
+10**6 sums of 0.1, f32: 100958.34
+10**6 sums of 0.1, f64: 100000.000001333
+sum as recorded     -5 ulp
+sum reversed       +21 ulp
+sum ascending       +0 ulp

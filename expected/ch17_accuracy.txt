@@ -1,0 +1,43 @@
+observed accuracy 87.0 %
+n =   500: [83.8, 89.7] %  (±3.0)
+n =  2000: [85.5, 88.4] %  (±1.5)
+n = 10000: [86.3, 87.6] %  (±0.7)
+accuracy A 86.10 %, B 87.90 %
+only A right 112, only B right 148
+correlation of right answers +0.427
+difference B - A  1.80 percentage points
+u, unpaired   1.06 points, difference / u = 1.69
+u, paired     0.81 points, difference / u = 2.24
+exact test for the pairs that differ:
+  B ahead, one-sided  p = 0.014882
+  two-sided           p = 0.029765
+the same scores, other pairs:
+accuracy A 86.10 %, B 87.90 %
+only A right 222, only B right 258
+correlation of right answers -0.060
+difference B - A  1.80 percentage points
+u, unpaired   1.06 points, difference / u = 1.69
+u, paired     1.09 points, difference / u = 1.64
+exact test for the pairs that differ:
+  B ahead, one-sided  p = 0.055027
+  two-sided           p = 0.110053
+two-sided p that 1722 and b allow:
+  b = 1727: 0.062500 to 0.864711
+  b = 1758: 2.91e-11 to 0.124738
+  b = 1767: 5.68e-14 to 0.051495
+  b = 1768: 2.84e-14 to 0.046195
+and with B level or behind:
+  b = 1722: 1.000000 to 1.000000
+  b = 1676: 2.84e-14 to 0.066555
+  b = 1672: 1.78e-15 to 0.046448
+23 items to B alone, none to A alone:
+  p = 1.19e-07, two-sided 2.38e-07
+1950 pairs verified, 50 not:
+  as they are:      0.043128 to 0.053854
+  6 wrong for both: 0.043128 to 0.049510
+  10 for A alone:   0.050229 to 0.053854
+the 50 in two batches of 25:
+  A 23, 7; B 23, 12: 0.043128 to 0.049510
+  A 23, 7; B 13, 22: 0.050229 to 0.053854
+  A 23, 7; B 22, 13: 0.043828 to 0.050229
+  A 23, 7; B 14, 21: 0.049510 to 0.053854

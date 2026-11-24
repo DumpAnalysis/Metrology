@@ -1,0 +1,93 @@
+{
+  "format": "measurement record, version 5",
+  "measurand": {
+    "quantity": "<what is measured>",
+    "convention": "<e.g. quantile rule>",
+    "target": "<record, process, next run ...>",
+    "conditions": "<load, versions, hardware>",
+    "start_event": "<where the interval starts>",
+    "end_event": "<where the interval ends>",
+    "unit": "<unit of every value below>"
+  },
+  "data": {
+    "origin": "<capture or simulation id>",
+    "runs": null,
+    "requests_per_run": null,
+    "run_weighting": "<equal, by requests ...>"
+  },
+  "capture": {
+    "kind": "<observed or stipulated>",
+    "clock": "<the one clock of both events>",
+    "clock_relations": [
+      {
+        "clocks": [
+          "<this clock>",
+          "<another clock>"
+        ],
+        "of": "<rate or offset>",
+        "state": "<established, or not>",
+        "evidence": "<how it is known>"
+      }
+    ],
+    "stored_step": null,
+    "sampling": "<rule and probabilities>",
+    "records_lost": null
+  },
+  "components": [
+    {
+      "name": "<component of the budget>",
+      "type": "<A or B>",
+      "kind": "<observed, derived ...>",
+      "u": null,
+      "dof": null,
+      "source": "<study, runs, date>"
+    },
+    {
+      "name": "<a correction, if one is applied>",
+      "type": "<A or B>",
+      "kind": "<observed, derived ...>",
+      "value": null,
+      "u": null,
+      "source": "<calibration and its date>",
+      "valid_for": "<range and conditions>"
+    }
+  ],
+  "covariances": null,
+  "result": {
+    "kind": "derived",
+    "value": null,
+    "u": null,
+    "dof": null,
+    "significant_digits": "<all, or a count>",
+    "value_step": null,
+    "interval_95": [
+      null,
+      null
+    ],
+    "method": "<how u and the interval arise>"
+  },
+  "decision": {
+    "kind": "derived",
+    "procedure": "<a procedure the checker has>",
+    "limit": null,
+    "rule": "<fixed before the measurement>",
+    "k": "<coverage factor of the rule>",
+    "risk": null,
+    "risk_is": "<model probability or rate>",
+    "outcome": null
+  },
+  "assumed": [
+    "<what the result takes for granted>"
+  ],
+  "not_claimed": [
+    "<what lies outside the target>"
+  ],
+  "not_evaluated": [
+    "<required, never evaluated>"
+  ],
+  "sources": {
+    "repo": "<address>",
+    "release": "<tag or commit>",
+    "files": []
+  }
+}

@@ -1,0 +1,21 @@
+p99 of one trace       270.4 ms
+sd, iid bootstrap        9.1 ms
+sd, block bootstrap     19.2 ms
+sd, 300 traces          26.2 ms
+sd by block length:
+    10    12.5 ms
+    25    15.7 ms
+    50    19.1 ms
+   100    19.2 ms
+   200    18.1 ms
+   400    23.2 ms
+p99.9 from 500 independent values:
+  lower bound 113.2 ms, upper bound none
+  the largest of them is above the
+  p99.9 in 39.36 % of samples
+values for an upper end at 95 %,
+one-sided and with equal tails:
+  p90       29     36
+  p95       59     72
+  p99      299    368
+  p99.9   2995   3688

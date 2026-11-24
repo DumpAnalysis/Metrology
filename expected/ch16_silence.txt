@@ -1,0 +1,193 @@
+svc, 30-60 s: 0 messages, 30 s verified
+  in the verified time: 0
+  messages arriving singly:
+    at most 0.09986 msg/s at 95 %
+  requests arriving, each with a
+  start and an end 2.346 s apart:
+    starts covered: 32.346 s
+    at most 0.18523 msg/s at 95 %
+    silent at 0.09986 msg/s: 19.9 %
+requests of 60 s, window of 30 s:
+  starts covered: 60 s
+    at most 0.09986 msg/s at 95 %
+first half minute, verified from
+  0 to 20.099 and 22.187 to 30 s:
+  27.912 s, and for pairs 2.346 s
+  apart, starts covered: 32.346 s
+silence of 30 s, requests with a
+mean duration of 30 s:
+  all of 30 s:
+    starts covered: 60 s
+    at most 0.09986 msg/s at 95 %
+  half of 10 s, half of 50 s:
+    starts covered: 50 s
+    at most 0.11983 msg/s at 95 %
+  0.9 of 1 s, 0.1 of 291 s:
+    starts covered: 33.9 s
+    at most 0.17674 msg/s at 95 %
+  at 0.09986 msg/s the second
+  stays silent: 8.24 %
+durations sampled with windows of
+30 s; a request is taken if it
+  starts in a window:
+    from 30 s and 30 s of start times
+    50 % of 10 s, 50 % of 50 s
+    starts covered: 50 s
+    0.11983 msg/s at a nominal 95 %
+    the source is silent at that: 5.00 %
+  ends in a window:
+    from 30 s and 30 s of start times
+    50 % of 10 s, 50 % of 50 s
+    starts covered: 50 s
+    0.11983 msg/s at a nominal 95 %
+    the source is silent at that: 5.00 %
+  starts and ends in it:
+    from 20 s and 0 s of start times
+    100 % of 10 s, 0 % of 50 s
+    starts covered: 40 s
+    0.14979 msg/s at a nominal 95 %
+    the source is silent at that: 2.36 %
+  starts or ends in it:
+    from 40 s and 60 s of start times
+    40 % of 10 s, 60 % of 50 s
+    starts covered: 52 s
+    0.11522 msg/s at a nominal 95 %
+    the source is silent at that: 5.61 %
+durations of 10 s and 50 s, the mix
+from 20 requests taken by their
+start: 2 of 10 s. A silence of 30 s:
+  the 10 % taken as known:
+    starts covered: 58 s
+    0.10330 msg/s at a nominal 95 %
+  at most 31.698 % of 10 s, at 97.5 %:
+    starts covered: 53.6603 s
+    silent at 0.10330 msg/s: 6.26 %
+    at most 0.13749 msg/s at 95 %
+  no sample, all of 10 s:
+    starts covered: 40 s
+    at most 0.14979 msg/s at 95 %
+one message in 30 s: 0.033(33) msg/s
+  normal, 95 %: -0.03200 to 0.09867
+  exact, 95 %: 0.00084 to 0.18572
+  at most 0.15813 msg/s at 95 %
+one message in 30 s, from pairs
+  2.346 s apart:
+    at most 0.21000 msg/s at 95 %
+  60 s apart:
+    at most 0.15813 msg/s at 95 %
+  10 s apart:
+    at most 0.20565 msg/s at 95 %
+  10 s apart, the 30 s given as
+  0 to 20 s and 10 to 30 s:
+    at most 0.20565 msg/s at 95 %
+verified 30 to 40 and 50 to 60 s,
+one message in the record:
+at 45 s
+svc, 30-60 s: 1 message, 20 s verified
+  in the verified time: 0
+  messages arriving singly:
+    at most 0.14979 msg/s at 95 %
+  no request to take the time
+  between a start and an end from
+at 35 s
+svc, 30-60 s: 1 message, 20 s verified
+  in the verified time: 1
+  messages arriving singly:
+    at most 0.23719 msg/s at 95 %
+  no request to take the time
+  between a start and an end from
+lines 1, 2, 5, 9 and 10, stamped
+30, 40, 40, 50 and 60 s:
+  verified time has lines 1 to 2 and 9
+  the line of the service, counted
+  by number, and by stamp alone:
+    line 2: 1, and 0 to 1
+    line 5: 0, and 0 to 1
+    line 10: 0, and 0
+lines 1, 2, 5 and 6, stamped
+30, 40, 50 and 60 s:
+  verified time has lines 1 to 2 and 5
+  the line of the service, counted
+  by number, and by stamp alone:
+    line 2: 1, and 1
+silence in a capture of 60 s, by
+verified time and share kept:
+  60 s, 100 %: 60 s,
+    at most 0.04993 msg/s at 95 %
+  40 s, 100 %: 40 s,
+    at most 0.07489 msg/s at 95 %
+  40 s,  25 %: 10 s,
+    at most 0.29957 msg/s at 95 %
+  20 s, 100 %: 20 s,
+    at most 0.14979 msg/s at 95 %
+an empty record of that capture:
+  counter at 1, and at 1:
+    60 s verified
+  counter at 1, and at 41:
+    exposure unknown, no bound
+  no counter readings:
+    exposure unknown, no bound
+four consecutive lines stamped 1, 26,
+6 and 29 s: exposure unknown, no bound
+silence of 30 s, one message in
+four kept; effective exposure:
+  single messages: 7.5 s
+    at most 0.39943 msg/s at 95 %
+  pairs 10 s apart, a decision
+  for each message: 6.875 s
+    at most 0.43574 msg/s at 95 %
+    silent at 0.39943 msg/s: 6.42 %
+  pairs 10 s apart, a decision
+  for both messages: 5 s
+    at most 0.59915 msg/s at 95 %
+    silent at 0.39943 msg/s: 13.57 %
+an empty window of 30 s:
+  chosen in advance:
+    at most 0.09986 msg/s at 95 %
+  found by a search of ten:
+    at most 0.17584 msg/s at 95 %
+  all ten empty:
+    at most 0.00999 msg/s at 95 %
+  at 0.09986 msg/s a search of ten
+  finds an empty window: 40.13 %
+  a gap of 30 s anywhere in 300 s:
+    at most 0.23854 msg/s at 95 %
+  at 0.17584 msg/s such a gap
+  is found somewhere: 22.48 %
+  with 60 messages counted, a gap of
+    30 s or more: 10.68 %
+    35 s or more: 3.55 %
+    40 s or more: 1.14 %
+    45 s or more: 0.36 %
+  a rate of 0.10 msg/s for 150 s, then
+  0.30 msg/s for 150 s, 60 counted:
+    60 s to 90 s spans 3 expected messages
+      chosen in advance, empty: 4.607 %
+      a gap of 3 or more: 98.16 %
+    210 s to 240 s spans 9 expected messages
+      chosen in advance, empty: 0.005823 %
+      a gap of 9 or more: 0.3551 %
+  a second record of 60 messages as
+  the reference, k in the window,
+  and none in it here:
+    k = 3: 12.18 %
+    k = 6: 1.371 %
+    k = 9: 0.1414 %
+  the same 60 requests twice, 9
+  in the window and then 3; by
+  those in it both times:
+    0: 7.30 %
+    1: 5.47 %
+    2: 3.52 %
+    3: 1.56 %
+  two independent records: 6.27 %
+the same for requests of 10 s that
+write two messages:
+  chosen in advance:
+    at most 0.14979 msg/s at 95 %
+  found by a search of ten:
+    at most 0.26313 msg/s at 95 %
+  all ten empty:
+    at most 0.01933 msg/s at 95 %
+  at 0.17584 msg/s a search of
+  ten finds an empty window: 25.17 %

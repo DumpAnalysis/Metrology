@@ -1,0 +1,28 @@
+a restart between two readings,
+events/s in that interval
+  events handled      108.0
+  naive difference   -540.0
+  reset rule    >=     60.0
+a restart that leaves no decrease
+  events handled      200.0
+  naive difference     50.0
+  reset rule           50.0
+  start time    >=    150.0
+a 32-bit byte counter at 50 MB/s
+read every 10 s, at the wrap, MB/s
+  naive              -379.5
+  reset                20.5
+  modulo               50.0
+read every 100 s, all intervals, MB/s
+  modulo          7.1 to 7.1
+readings 0 and 705032704, at most
+60 MB/s for 100 s: an increase of
+   705032704 bytes, 7.05 MB/s
+  5000000000 bytes, 50.00 MB/s
+with the reading 2500000000 at 50 s
+  2500000000 bytes, 50.00 MB/s
+  2500000000 bytes, 50.00 MB/s
+one answer for every gap below 71.58 s
+readings 0 and 0, the gap rounded to
+  71.58 s: 0 or 4294967296 bytes
+  71.57 s: 0 bytes

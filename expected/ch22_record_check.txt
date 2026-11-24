@@ -1,0 +1,67 @@
+stored record
+  decision inputs missing: 0
+  status: accept
+loss count unknown
+  decision inputs missing: 1
+  status: unresolved
+    wants capture.records_lost
+  stored outcome, stale: accept
+a component unknown
+  decision inputs missing: 1
+  status: unresolved
+    wants components[1].u
+  stored outcome, stale: accept
+a component changed
+  decision inputs missing: 0
+  status: invalid
+    result.u does not follow from the components
+  stored outcome, stale: accept
+negative uncertainty
+  decision inputs missing: 0
+  status: invalid
+    result.u is not a finite number >= 0
+  stored outcome, stale: accept
+another rule declared
+  decision inputs missing: 0
+  status: invalid
+    decision.rule is not that of the procedure
+  stored outcome, stale: accept
+outcome edited
+  decision inputs missing: 0
+  status: accept
+  stored outcome, stale: reject
+rounded to two digits
+  decision inputs missing: 0
+  status: accept
+  components allow: 2.982 to 3.122
+  with the stated u: 3.050 to 3.122
+rounded, estimate 194.6
+  decision inputs missing: 0
+  status: unresolved
+    rounding decides: wants working values
+  stored outcome, stale: accept
+  estimate + band: 199.87 to 200.11
+rounded, estimate 194.8
+  decision inputs missing: 0
+  status: undecided
+  stored outcome, stale: accept
+  estimate + band: 200.07 to 200.31
+working values, estimate 194.6
+  decision inputs missing: 0
+  status: accept
+  estimate + band: 199.95
+against a record at twice the load
+  differs in: conditions
+  comparable across conditions: yes
+against a record of other telemetry
+  differs in: start_event
+  differs in: convention
+  differs in: clock rate relation
+  to convert: 1 s = 1000 ms
+  its result: 241.4 ms, u not evaluated
+  its status: unresolved
+blank template
+  decision inputs missing: 25
+  status: unresolved
+    wants measurand.quantity
+    wants measurand.convention

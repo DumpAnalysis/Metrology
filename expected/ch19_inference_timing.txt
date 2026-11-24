@@ -1,0 +1,7 @@
+first call            12.855 ms
+mean of all calls      1.467 ms
+steady median          1.160 ms
+u(median)              0.014 ms
+rate at median     55160 tokens/s
+u(rate)              646 tokens/s
+throughput         50626 tokens/s

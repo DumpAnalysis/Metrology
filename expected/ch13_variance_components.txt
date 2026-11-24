@@ -1,0 +1,17 @@
+grand mean, ms            251.75
+repeatability s_w, ms       1.65
+between-run s_b, ms         2.20
+intraclass correlation      0.64
+naive u (n = 80), ms        0.30
+u from run means, ms        0.80
+design, runs x iterations: u, ms
+   8 x 10   0.80
+  40 x 2    0.39
+  80 x 1    0.31
+a launch costs 16 iterations, 323 in all:
+  19 x 1    0.631
+  17 x 3    0.582
+  12 x 10   0.654
+runs of 2, 4 and 6 iterations:
+  mean of runs 12.00 ms, of iterations 12.67 ms
+  variance between runs 3.27 ms^2

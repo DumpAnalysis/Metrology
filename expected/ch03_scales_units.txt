@@ -1,0 +1,10 @@
+ranks   mean A  2.6  mean B  3.4  worse: B
+weights mean A 11.6  mean B  3.4  worse: A
+median level of A: INFO
+median level of B: WARNING
+1 KiB = 1.024 kB  (+2.4 %)
+1 MiB = 1.04858 MB  (+4.9 %)
+1 GiB = 1.07374 GB  (+7.4 %)
+1 TiB = 1.09951 TB  (+10.0 %)
+64 GiB = 68.7195 GB
+5 ms + 4 KiB: information is not time

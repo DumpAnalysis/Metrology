@@ -1,0 +1,11 @@
+true pass rate, these tasks 0.630
+u from task sampling        0.024
+raters  pass rate  wrong by:
+                    noise   traps
+     1      0.650   0.163   0.098
+     3      0.710   0.085   0.100
+     9      0.730   0.000   0.100
+    27      0.730   0.000   0.100
+two raters agree on
+  ordinary outputs 0.75
+  trap     outputs 0.78

@@ -1,0 +1,24 @@
+fitted temperature T = 2.04
+on test set      ECE   Brier     NLL
+as reported    0.102   0.187   0.589
+corrected      0.014   0.176   0.525
+stated   observed   n   (as reported)
+ 0.064     0.171  1582
+ 0.298     0.404   633
+ 0.499     0.535   564
+ 0.703     0.589   627
+ 0.932     0.819  1594
+perfectly calibrated model:
+  n =   200: mean ECE 0.072
+  n =  2000: mean ECE 0.022
+  n = 20000: mean ECE 0.007
+100 cases at logit 40, one negative:
+  T = 8.70, NLL 0.400 -> 0.056
+  95 % interval for T: 4.83 to 14.01
+  with two negative: T = 10.28
+  resampled, they hold no negative
+  case in 36.6 %, one in 37.0 %
+  55 positive: T from 64.76, no upper end
+  100 positive: T up to 12.19
+  35 positive: no T above zero
+  1 positive at -40: 4.83 to 14.01

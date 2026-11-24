@@ -1,0 +1,25 @@
+profiler, true share 7.00 %
+n =    100:  6.00 %  [ 2.78, 12.48]
+n =   1000:  5.50 %  [ 4.25,  7.09]
+n =  10000:  7.12 %  [ 6.63,  7.64]
+n = 100000:  7.07 %  [ 6.91,  7.23]
+to tell 7 % from 8 %: n = 10887
+sampled trace, 350 true errors
+rate 0.01: mean 342, s 183, model 186
+  runs with no error kept: 3.2 %, model 3.0 %
+rate 0.10: mean 349, s 56, model 56
+  runs with no error kept: 0.0 %, model 0.0 %
+one decision for 10 errors,
+rate 0.01: mean 352, s 598, model 589
+  runs with no error kept: 70.5 %, model 70.3 %
+one trace of 180, 34 of 5,
+rate 0.01: mean 382, s 2020, model 1814
+  runs with no error kept: 71.5 %, model 70.3 %
+20 errors kept at rate 0.10, on
+  traces of  1: estimate 200, u = 42.4
+  traces of 10: estimate 200, u = 134.2
+  traces of 20: estimate 200, u = 189.7
+an empty record: at 95 %, at most
+  rate 0.01: 298 units
+  rate 0.10:  28 units
+  10 of 100 kept: 24 units

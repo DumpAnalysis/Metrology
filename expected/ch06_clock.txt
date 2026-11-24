@@ -1,0 +1,7 @@
+clock         declared    incr.    cost  ns
+perf_counter         1       45    62.4
+monotonic            1       45    67.0
+time                 1       45    63.0
+env: perf_counter: clock_gettime(CLOCK_MONOTONIC)
+env: monotonic: clock_gettime(CLOCK_MONOTONIC)
+env: time: clock_gettime(CLOCK_REALTIME)

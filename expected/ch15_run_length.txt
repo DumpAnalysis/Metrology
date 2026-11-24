@@ -1,0 +1,7 @@
+Shewhart, exact ARL at a shift of
+limits, ms             0    1 s    2 s
+[95.50, 104.50]    370.4   43.9    6.3
+[94.41, 105.21]   2813.0  148.8   14.2
+no signal in 40 nights at 1 s
+[95.50, 104.50]     39.8 %
+[94.41, 105.21]     76.4 %

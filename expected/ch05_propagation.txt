@@ -1,0 +1,40 @@
+r = 0.0  S = 1.2855  u_c = 0.0347
+r = 0.6  S = 1.2855  u_c = 0.0236
+c*u(T_old) = +0.0183  c*u(T_new) = -0.0295
+a factor of 1.0(1) on both durations:
+r = 1.0  S = 1.2500  u_c = 0.0013
+c*u(T_old) = +0.1250  c*u(T_new) = -0.1263
+the factor as the input:  u_c = 0.0000
+one constant error of the rate of a
+clock, u = 1e-9; two stamps, 1 s
+apart, 10**17 ns after it was set:
+r = 1.0  D = 1000000000 ns  u_c = 1.0000 ns
+c*u(start) = -100000000.00 ns
+c*u(end)   = +100000001.00 ns
+the rate as the input:  u_c = 1.0000 ns
+half a second, 0.75 s later:
+c*u(start) = -100000000.75 ns
+c*u(end)   = +100000001.25 ns
+u_c = 0.5000 ns; the rate as the
+input:  u_c = 0.5000 ns
+1e-9 as a limit, rectangular, on
+the second:  u_c = 0.5774 ns
+three stages of 10(1) ms, summed;
+r = 0.9 for the first two and the
+last two; first and third left out:
+  the correlations cannot hold together
+first and third r = 0.62:  u_c = 2.800 ms
+first and third r = 0.81:  u_c = 2.867 ms
+first and third r = 1.00:  u_c = 2.933 ms
+MC, independent normal, 200000 draws:
+  sample mean 1.2862  sample sd 0.0348
+  95 % of draws  [1.220, 1.356]
+exact, independent lognormal:
+  mean 1.2862  sd 0.0347
+  central 95 %  [1.220, 1.355]
+LPU    R = 500  u_c = 122
+LPU k=2  [256, 744]
+MC     R = 530  u = 131
+MC 95 %  [362, 806]
+exact  R = 529.56  u = 131.09
+exact 95 %  [362.32, 806.45]

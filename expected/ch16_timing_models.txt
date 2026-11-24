@@ -1,0 +1,11 @@
+error of a truncated duration, ticks
+ fraction  simulated   model
+     0.00      0.000   0.000
+     0.25      0.430   0.433
+     0.50      0.500   0.500
+     0.60      0.489   0.490
+fraction unknown: 0.408
+spread of a period estimate, s
+timing noise      gaps   slope
+phase jitter    0.0037  0.0019
+accumulating    0.0115  0.0123

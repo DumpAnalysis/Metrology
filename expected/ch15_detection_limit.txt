@@ -1,0 +1,5 @@
+critical value  L_C = 3.29 /min
+detection limit L_D = 6.58 /min
+true excess zero (blank) flagged   5.0 %
+true excess equal to L_C flagged  50.0 %
+true excess equal to L_D flagged  95.1 %

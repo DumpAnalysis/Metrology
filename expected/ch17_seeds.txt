@@ -1,0 +1,10 @@
+varying: seed
+  A, 1 epoch   0.754  sd 0.013
+  B, 3 epochs  0.758  sd 0.011
+  B - A        +0.0043  u 0.0028
+  B ahead in 11 seeds, behind in 7, of 20
+varying: seed + split
+  A, 1 epoch   0.762  sd 0.021
+  B, 3 epochs  0.765  sd 0.019
+  B - A        +0.0023  u 0.0032
+  B ahead in 8 seeds, behind in 10, of 20

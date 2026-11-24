@@ -1,0 +1,29 @@
+sensitivity 0.895, specificity 0.845
+Cohen's kappa 0.740
+sens + spec - 1 = 0.740
+kappa with 10 % reference passes: 0.470
+outputs judged: 5000
+  observed 0.593, corrected 0.592, u 0.024
+  from obs, sens, spec: 0.0094, 0.0174, 0.0141
+outputs projected: 50000
+  observed 0.593, corrected 0.592, u 0.023
+  from obs, sens, spec: 0.0030, 0.0174, 0.0141
+true rate 0.04: judged 0.18,
+  P(at most 2 of 20 pass) 0.2748
+2 of 20 judged passes:
+  corrected -0.0667, below 0
+  95 % interval 0.000 to 0.223
+0 of 25 judged passes:
+  corrected -0.2000, below 0
+  judged rate 0.000 to 0.137,
+  no overlap with the judge
+  model, 0.15 to 0.90, at 95 %
+40 of 40 judged passes:
+  corrected +1.1333, above 1
+  judged rate 0.912 to 1.000,
+  no overlap with the judge
+  model, 0.15 to 0.90, at 95 %
+sens 0.10, spec 0.15: reversed judge
+  verdicts exchanged, 60 of 100:
+  corrected +0.6000,
+  95 % interval 0.463 to 0.729

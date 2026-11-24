@@ -1,0 +1,10 @@
+no drift at all; the columns > 0.1
+and > crit. count pairs out of 1000:
+     n   mean  model   > 0.1  crit.  > crit.
+   100  0.171  0.180     803  0.338       49
+   200  0.089  0.090     343  0.169       46
+   500  0.035  0.036       1  0.068       36
+  2000  0.009  0.009       0  0.017       49
+mean moved by 0.2 sd:
+   500  median PSI 0.070, above crit. 160 of 300
+  5000  median PSI 0.041, above crit. 300 of 300

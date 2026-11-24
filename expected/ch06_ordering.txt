@@ -1,0 +1,12 @@
+u(gap) = 2.83 ms
+ true gap  simulated      model
+   0.5 ms   43.196 %   42.984 %
+   1.0 ms   36.018 %   36.184 %
+   2.0 ms   24.076 %   23.975 %
+   5.0 ms    3.942 %    3.855 %
+  10.0 ms    0.014 %    0.020 %
+gap for 95 % order: 4.7 ms
+ten pairs 1 ms apart, reversed:
+                        none     all ten  mean
+  errors drawn anew   1.12 %   0.00385 %  3.62
+  one offset kept    63.82 %  36.18368 %  3.62

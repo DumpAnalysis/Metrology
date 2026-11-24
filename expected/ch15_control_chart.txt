@@ -1,0 +1,10 @@
+center 99.81 ms
+sigma  1.80 ms
+limits [94.41, 105.21] ms
+points from the shift to a signal:
+  Shewhart none in 40
+  CUSUM    10
+ARL, shift       0    1 s    2 s
+Shewhart     363.3   42.5    6.1
+CUSUM        475.7   10.0    4.0
+2 in a row   977.4   44.9    5.9

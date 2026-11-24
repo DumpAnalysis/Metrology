@@ -1,0 +1,24 @@
+name: replay
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Unit tests
+        run: python -m unittest discover -s tests
+      - name: Line-width rule
+        run: python run_all.py --lint
+      - name: Replay the examples against the transcripts
+        run: python run_all.py

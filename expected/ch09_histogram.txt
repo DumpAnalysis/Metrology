@@ -1,0 +1,13 @@
+q      interp.   order  buckets  sketch   s
+0.5     0.0802  0.0802   0.0833  0.0796
+0.9     0.1959  0.1959   0.2275  0.1959
+0.99    0.4107  0.4107   0.4712  0.4106
+0.999   0.7127  0.7127   0.9043  0.7189
+two values, 1 and 1000, q = 0.5:
+  interpolated     500.50
+  order statistic    1.00
+  sketch             0.99
+p99 by instance  0.127  0.128  1.015
+mean of the p99s 0.423
+p99 of all data  0.670
+merged sketches  0.664

@@ -1,0 +1,23 @@
+1000 requests, 960 outcomes captured,
+20 of them failures
+failure share: 2 % to 6 %
+  at most 1 %: missed
+  at most 3 %: unresolved
+  at most 7 %: met
+p95 of the 1000 from the latencies
+captured, by their rank:
+  960 captured: rank 910 to rank 950
+  949 captured: rank 899, no upper bound
+p95 at most 200 ms: 910 within,
+20 beyond, 70 with no completion
+  all 70 unknown:
+    910 to 980 within, unresolved
+  40 known outstanding at 500 ms:
+    910 to 940 within, missed
+928 within 180 ms, 25 between 180
+and 250 ms, 12 lost: unresolved
+a bound at 200 ms, with k of the 25
+at or below it:
+  k 0 to 9: missed
+  k 10 to 21: unresolved
+  k 22 to 25: met

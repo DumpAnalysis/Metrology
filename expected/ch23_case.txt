@@ -1,0 +1,23 @@
+reported p95: 191.57 -> 241.35 ms
+empty window: no observations -> no observations
+  its arrival rate at most 0.02996 req/s at 95 %
+  one request: 0.00025 to 0.05572 req/s at 95 %
+arrival rate before 19.05(44) req/s
+arrival rate after  19.55(44) req/s
+after period, reported p95, ms
+start     old bounds  new bounds
+handler       190.45      240.66
+accept        194.45      241.35
+canary before 49.989(36) ms
+canary after  56.08(39) ms
+placement adds 6.09(40) ms
+after: mean wait     6.03 ms
+after: raw p95 shift 5.60 ms
+handler p95: 181.5 ms -> 181.4 ms
+difference -0.1(30) ms
+detection limit 9.7 ms
+power at 5 ms: 0.52
+upper bound, 95 %: 4.7 ms
+interval, 95 %: [-5.9, 5.6] ms
+margin 5 ms: slowdown below the margin
+margin 2 ms: not established

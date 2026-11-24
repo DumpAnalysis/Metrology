@@ -1,0 +1,4 @@
+# Needed only to draw the figures (figures/make_figures.py).
+# The examples, the replay and the tests use the standard library alone.
+matplotlib==3.11.2
+Pillow==12.3.0

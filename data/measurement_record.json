@@ -1,0 +1,123 @@
+{
+  "format": "measurement record, version 5",
+  "measurand": {
+    "quantity": "p95 of request latency",
+    "convention": "inverse empirical CDF",
+    "target": "mean of the run p95 over runs",
+    "conditions": "test load",
+    "start_event": "request accepted",
+    "end_event": "last byte sent",
+    "unit": "ms"
+  },
+  "data": {
+    "origin": "simulated test run",
+    "generator": "examples.ch22_budget.record",
+    "seed": 22,
+    "runs": 1,
+    "requests_per_run": 2000,
+    "run_weighting": "equal"
+  },
+  "capture": {
+    "kind": "stipulated",
+    "clock": "one host, monotonic",
+    "clock_relations": [],
+    "stored_step": 1.0,
+    "sampling": "all requests",
+    "records_lost": 0
+  },
+  "components": [
+    {
+      "name": "sampling in the run",
+      "type": "A",
+      "kind": "derived",
+      "u": 1.7165421736934214,
+      "source": "bootstrap of the run, 500 draws"
+    },
+    {
+      "name": "between runs",
+      "type": "A",
+      "kind": "stipulated",
+      "u": 2.5,
+      "dof": 7,
+      "source": "earlier study of 8 runs"
+    },
+    {
+      "name": "probe correction",
+      "type": "B",
+      "kind": "stipulated",
+      "value": -0.9,
+      "u": 0.3,
+      "source": "set in the simulation"
+    },
+    {
+      "name": "stored step",
+      "type": "B",
+      "kind": "derived",
+      "u": 0.2886751345948129,
+      "source": "rectangular, half a step"
+    }
+  ],
+  "covariances": [],
+  "result": {
+    "kind": "derived",
+    "value": 182.1,
+    "u": 3.061021131485614,
+    "dof": 15.732701986622827,
+    "significant_digits": "all",
+    "interval_95": [
+      175.6,
+      188.6
+    ],
+    "method": "budget, Student t interval"
+  },
+  "decision": {
+    "kind": "derived",
+    "procedure": "upper limit, t guard band, v1",
+    "limit": 200.0,
+    "rule": "accept if value + k u <= limit",
+    "k": "t quantile at 1 - risk, result dof",
+    "risk": 0.05,
+    "risk_is": "probability under the model",
+    "outcome": "accept"
+  },
+  "assumed": [
+    "requests independent within a run",
+    "components uncorrelated"
+  ],
+  "not_claimed": [
+    "loads other than the test load",
+    "long-run false-acceptance rate"
+  ],
+  "not_evaluated": [],
+  "sources": {
+    "repo": "github.com/DumpAnalysis/Metrology",
+    "release": "book Version 56, November 2026",
+    "files": [
+      "examples/ch22_budget.py",
+      "examples/ch09_histogram.py",
+      "swmetro/core.py",
+      "swmetro/dist.py",
+      "swmetro/stats.py",
+      "swmetro/record.py",
+      "data/make_record.py"
+    ],
+    "sha256_16_of_each": [
+      "69ec3fe1ec85a198",
+      "96eb068f6d277eb4",
+      "afe6bef7f87379b7",
+      "a93d7b6ed9af0e76",
+      "e5d692f0c3948b6c",
+      "d770c5afb2a85d2f",
+      "4d319f984f1ea800"
+    ],
+    "sha256": [
+      "028cf5c2539510f7761ee017c06dc051",
+      "1bd543acfa4cfa0d6bf74f2330511bae"
+    ],
+    "of": "the files' text, in order, LF ends"
+  },
+  "replay": {
+    "program": "examples/ch22_budget.py",
+    "python": "3.11 or later"
+  }
+}

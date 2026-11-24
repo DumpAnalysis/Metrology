@@ -1,0 +1,12 @@
+error of the mean of m runs, sd, ms
+target             m = 1      4     16
+long-run mean       3.04   1.51   0.77
+  model             3.03   1.52   0.76
+next run            4.26   3.37   3.13
+  model             4.29   3.39   3.13
+mean of run p95s, with runs weighted
+equally or by requests; pooled p95
+runs                equal  by requests  pooled
+all 200 ms            200          200     200
+100 and 300 ms        200          200     300
+300 ms runs short     200          104     100

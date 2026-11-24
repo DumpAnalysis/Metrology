@@ -1,0 +1,14 @@
+acceptance limit 195.1 ms
+ measured  P(conform)  decision
+   188 ms       1.000  accept
+   192 ms       0.996  accept
+   195 ms       0.952  accept
+   197 ms       0.841  undecided
+   200 ms       0.500  undecided
+   203 ms       0.159  undecided
+   206 ms       0.023  reject
+runs  true shift  fixed 1 %   k * u
+   5         0 %      0.142   0.049
+   5         2 %      0.845   0.600
+  20         0 %      0.015   0.046
+  20         2 %      0.984   0.993

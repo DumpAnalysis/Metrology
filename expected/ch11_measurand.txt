@@ -1,0 +1,4 @@
+container only            782.2 KiB
+container + elements     3126.0 KiB
+traced, still live       3125.8 KiB
+traced, peak             3125.9 KiB

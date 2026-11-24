@@ -1,0 +1,18 @@
+300 questions, 60 passages
+            score   naive  clustered
+model A     0.753   0.025      0.043
+model B     0.787   0.024      0.041
+B - A       0.033   0.018      0.020
+B - A, unpaired u  0.059
+B - A in answers, by passage:
+  -2: 1  -1: 6  0: 40  +1: 8  +2: 5
+labels exchanged, exact tests:
+  by question
+    for A 9, for B 19, none 272
+    B ahead 0.04358, two-sided 0.08716
+  by passage, gain in answers
+    for A 7, for B 13, none 40
+    B ahead 0.07245, two-sided 0.14490
+  by passage, won or lost
+    for A 7, for B 13, none 40
+    B ahead 0.13159, two-sided 0.26318

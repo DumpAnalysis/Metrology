@@ -1,0 +1,9 @@
+component            type         u    share
+repeatability        A       0.0092   91.1 %
+timer resolution     B       0.0029    8.9 %
+combined u_c                 0.0097
+effective dof 10.8
+with standard uncertainty:
+   12.3110(97) ms
+with expanded uncertainty:
+   (12.311 ± 0.021) ms, k = 2.20, p = 0.95

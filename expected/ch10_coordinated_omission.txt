@@ -1,0 +1,12 @@
+latency, ms     n    p50    p99  p99.9 p99.99 mean
+as measured  5800      1      1      1   1001  1.3
+back-filled  6000      1    701    971   1001 17.8
+intended     6000      1    731    974   1001 19.7
+p99.97 as measured: interpolated 261.3 ms,
+  inverse of the empirical CDF 1001 ms
+over 500 ms     n  over     within
+as measured  5800     2  99.9655 %
+back-filled  6000   102  98.3000 %
+intended     6000   112  98.1333 %
+5 ms if busy 6000   202  96.6333 %
+5 ms if busy 6000      1    855    990   1005 34.8

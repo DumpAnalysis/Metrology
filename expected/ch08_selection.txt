@@ -1,0 +1,9 @@
+40000 requests, 908 traces kept
+                       mean    p95    slow
+traceable requests     96.8  217.2   1.3 %
+kept, unweighted      207.1  460.4  40.5 %
+kept, weighted 1/p     96.4  214.9   1.3 %
+all requests           69.0  195.0   0.9 %
+weighted, over 400 retention draws
+  average              96.9  217.4  1.32 %
+  sd                    2.2    9.7  0.05 %

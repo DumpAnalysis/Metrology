@@ -1,0 +1,6 @@
+unprobed loop          1406 ns  x1.00
+probe indication       1445 ns  x1.03
+blank indication         84 ns  x0.06
+corrected              1361 ns  x0.97
+probed loop            1583 ns  x1.13
+profile hook          11815 ns  x8.41
