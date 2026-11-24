@@ -463,7 +463,7 @@ class PercentileWithAMissingClass(unittest.TestCase):
         self.assertTrue(out.startswith("99 common requests in each period,\none bulk request of 500 ms after:\nmean, 82 -> 76 ms: -6 ms\n"))
         self.assertIn("p95, 100 -> 90 ms: -10 ms\n", out)
         self.assertIn("  mix first, via 100 ms:\n    within -10, mix +0\n", out)
-        self.assertEqual(len(text.splitlines()), 103)            # 69 in Version 21, 73 until 48, 84 in 49, 96 in 50, 100 in 51
+        self.assertEqual(len(text.splitlines()), 108)            # 69 in Version 21, 73 until 48, 84 in 49, 96 in 50, 100 in 51, 103 until 57
 
 
 class BothPeriodsAtOneMix(unittest.TestCase):

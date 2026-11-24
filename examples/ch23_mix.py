@@ -15,6 +15,8 @@ BEFORE = (("fast", 900, 100.0),
           ("slow", 100, 500.0))
 AFTER = (("fast", 100, 90.0),
          ("slow", 900, 450.0))
+SIGNS = (">", ">=")  # of a bound on a duration
+ENDS = (math.inf, -math.inf)
 
 
 def durations(n, mean, rng):
@@ -72,10 +74,11 @@ def weighted(rec, mix=None, partial=False,
     enclose whatever the missing durations
     were, for a statistic that does not fall
     when a duration rises."""
+    rec = classes(rec)
     if mix is None:
         return [(x, Fraction(1))
                 for xs in rec.values()
-                for x in observed(xs)]
+                for x in xs]
     if not any(mix.values()):
         raise ValueError("empty reference mix")
     gone = absent(rec, mix)
@@ -88,7 +91,7 @@ def weighted(rec, mix=None, partial=False,
         xs = rec.get(name)
         if ref and xs:
             w = Fraction(len(ref), len(xs))
-            out += [(x, w) for x in observed(xs)]
+            out += [(x, w) for x in xs]
         elif ref and fill is not None:
             out.append((fill, Fraction(len(ref))))
     return out
@@ -123,18 +126,33 @@ def unknown(x):
 
 
 def observed(xs):
-    """The entries of a class as they stand,
-    if each is a duration that known() admits:
-    a flag is none, and Python would count
-    False as 0. What side() reads otherwise
-    stays: None, a NaN, an infinity, and a
-    bound, whose time is held to the same."""
-    ends = (math.inf, -math.inf)
+    """The entries of a class as a list, the
+    list itself if it is one: a class that can
+    be read only once is read here, and none
+    of its requests is lost to the check. Each
+    entry is a duration that known() admits: a
+    flag is none, and Python would count False
+    as 0. What side() reads otherwise stays:
+    None, a NaN, an infinity, and a bound, a
+    pair of ">" or ">=" and such a duration."""
+    if not isinstance(xs, list):
+        xs = list(xs)
+    form = "a bound is > or >="
     for x in xs:
-        x = x[-1] if isinstance(x, tuple) else x
-        if not (unknown(x) or x in ends):
+        if isinstance(x, tuple):
+            if len(x) != 2 or x[0] not in SIGNS:
+                raise ValueError(form)
+            known([x[1]], "bound")
+        elif not (unknown(x) or x in ENDS):
             known([x])
     return xs
+
+
+def classes(rec):
+    """The record with every class as a list,
+    read once and held to observed()."""
+    return {name: observed(xs)
+            for name, xs in rec.items()}
 
 
 def side(x, limit):
@@ -172,9 +190,11 @@ def within(rec, mix, limit):
         raise ValueError("empty reference mix")
     if unknown(limit):
         raise ValueError("no limit")
-    low = high = Fraction(0)
+    if limit not in ENDS:
+        known([limit], "limit")
+    rec, low, high = classes(rec), 0, 0
     for name, ref in mix.items():
-        xs = observed(rec.get(name) or [None])
+        xs = rec.get(name) or [None]
         size = len(xs) * total
         sides = [side(x, limit) for x in xs]
         ok = sum(s is True for s in sides)
@@ -344,6 +364,31 @@ def one_unknown():
                   f" {100 * float(high):.0f} %")
             print(f"  p95 at most {limit} ms:"
                   f" {verdict(low, high)}")
+
+
+def two_missing():
+    """Eighteen fast requests and two slow
+    ones without a duration: the slow class
+    as a list, as an iterator, which can be
+    read once, and with its two rows lost on
+    the way. What is missing is not what was
+    discarded."""
+    gone = [None, None]
+    cases = (("in a list:", gone),
+             ("in an iterator:", iter(gone)),
+             ("dropped:", None))
+    print("18 fast requests and 2 slow without")
+    print("a duration, within 200 ms")
+    for text, slow in cases:
+        rec = {"fast": [100.0] * 18}
+        if slow is not None:
+            rec["slow"] = slow
+        rec = classes(rec)
+        low, high = within(rec, rec, 200)
+        print(f"  {text:<16}"
+              f"{100 * float(low):.0f} % to"
+              f" {100 * float(high):.0f} %,"
+              f" {verdict(low, high)}")
 
 
 def new_class(before, after):
@@ -531,6 +576,7 @@ def main():
     one_mix(before, after)
     lost_class(before, after)
     one_unknown()
+    two_missing()
     new_class(before, after)
     one_bulk()
 

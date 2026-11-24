@@ -3,6 +3,7 @@
 import math
 import random
 import statistics as st
+from fractions import Fraction
 
 from examples import ch09_histogram as h9
 from swmetro import Result, type_a
@@ -39,10 +40,22 @@ def period(rng):
 
 def recorded(rows, config):
     """Durations as a configuration records
-    them: from accept, or from handler entry."""
-    if config["start"] == "accept":
-        return [q + h for q, h in rows]
-    return [h for _, h in rows]
+    them. From handler entry it is the handler
+    time as it stands, and the queueing delay
+    is not read. From accept the two are
+    added: each is then a duration that
+    known() admits, and the sum is exact
+    before it is a float. A configuration
+    names one of the two starts."""
+    start, rows = config["start"], list(rows)
+    if start == "handler":
+        return [h for _, h in rows]
+    if start != "accept":
+        raise ValueError(f"no start: {start!r}")
+    qs = known(q for q, _ in rows)
+    hs = known(h for _, h in rows)
+    return [float(Fraction(q) + Fraction(h))
+            for q, h in zip(qs, hs)]
 
 
 def reported(rows, config):
@@ -105,12 +118,15 @@ def p95(xs):
 def handler_change(before, after):
     """Change of the p95 of the handler time
     between the periods, with a bootstrap
-    standard uncertainty."""
+    standard uncertainty. The percentiles and
+    their replicates are taken as the exact
+    numbers they are, whatever their types."""
     hb = [h for _, h in before]
     ha = [h for _, h in after]
-    ub = st.stdev(bootstrap(hb, p95, 300, 23))
-    ua = st.stdev(bootstrap(ha, p95, 300, 23))
-    return Result(p95(ha) - p95(hb),
+    ub, ua = (st.stdev(map(Fraction, bootstrap(
+        hs, p95, 300, 23))) for hs in (hb, ha))
+    d = Fraction(p95(ha)) - Fraction(p95(hb))
+    return Result(float(d),
                   math.hypot(ua, ub), "ms")
 
 

@@ -310,7 +310,7 @@ class OneRequestLess(unittest.TestCase):
         self.assertTrue(out.endswith("at 4.1 %, with one fast request\nof the 100 after left out:\n  the largest: 159.62 ms\n"
                                      "  any other:   216.25 ms\n"))
         self.assertIn(out, expected("ch23_mix"))
-        self.assertEqual(len(expected("ch23_mix").splitlines()), 103)
+        self.assertEqual(len(expected("ch23_mix").splitlines()), 108)   # 103 until Version 57
 
 
 class StatisticsTheRuleCovers(unittest.TestCase):

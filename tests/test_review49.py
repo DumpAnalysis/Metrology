@@ -199,7 +199,7 @@ class ABoundKeptWithTheRequest(unittest.TestCase):
 
     def test_the_transcript(self):
         lines = expected("ch23_mix").splitlines()
-        self.assertEqual(len(lines), 103)                                        # 96 in Version 50, 100 in 51
+        self.assertEqual(len(lines), 108)                                        # 96 in Version 50, 100 in 51, 103 until 57
         at = lines.index("90 fast requests and 10 slow, one")
         rows = ["90 fast requests and 10 slow, one"]
         cases = (("of the slow without a duration:", None, (200,)), ("and known only to exceed 200 ms:", (">", 200), (200, 250)),
@@ -216,7 +216,8 @@ class ABoundKeptWithTheRequest(unittest.TestCase):
         self.assertEqual(rows[5:], ["  within 200 ms: 94 % to 94 %", "  p95 at most 200 ms: missed",
                                     "  within 250 ms: 94 % to 95 %", "  p95 at most 250 ms: unresolved",
                                     "and stored as infinity:", "  within 250 ms: 94 % to 94 %", "  p95 at most 250 ms: missed"])
-        self.assertEqual(lines[at + 12], "after, with a new class, bulk:")
+        self.assertEqual(lines[at + 12], "18 fast requests and 2 slow without")   # five lines of Version 58
+        self.assertEqual(lines[at + 17], "after, with a new class, bulk:")
         self.assertEqual(printed(mix.one_unknown).splitlines(), rows)
         self.assertEqual(printed(mix.main), expected("ch23_mix"))
 

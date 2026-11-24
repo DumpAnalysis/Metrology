@@ -35,7 +35,7 @@ def p95(xs):
     return ecdf_quantile(sorted(known(xs)), 0.95)
 
 
-def from_raw(ms):
+def from_raw(ms, step=STEP):
     """Target: the mean, over runs under
     these conditions, of the p95 of a run,
     estimated from one run. Rounding commutes
@@ -47,15 +47,18 @@ def from_raw(ms):
     taken from an earlier study of 8 runs.
     The readings are taken as the exact
     numbers they are, a decimal as a decimal,
-    and the correction as nine tenths."""
-    ms = known(ms)
+    and the correction as nine tenths. The
+    step is that of the instrument which
+    stored the readings, here the probe's."""
+    ms, (step,) = known(ms), known([step], "step")
     reps = bootstrap(ms, p95, 500, seed=22)
     spread = st.stdev(Fraction(r) for r in reps)
     bud = Budget("ms")
     bud.add("sampling in the run", "A", spread)
     bud.add("between runs", "A", 2.5, 7)
     bud.add("probe correction", "B", 0.30)
-    bud.add("stored step", "B", u_rect(STEP / 2))
+    half = float(step) / 2
+    bud.add("stored step", "B", u_rect(half))
     probe = Fraction(str(PROBE))
     value = float(Fraction(p95(ms)) - probe)
     return bud, Result(value, bud.u_c(), "ms",

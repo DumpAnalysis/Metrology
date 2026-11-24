@@ -25,8 +25,8 @@ def bucket_quantile(xs, q, bounds=BOUNDS):
     0: the values pass known(), and one below
     0 is refused. For q = 0 the result is the
     lower end of the first bucket that holds
-    a value. The bounds are finite, rise, and
-    begin at 0 or above it."""
+    a value. The bounds are finite, rise from
+    0 or above, and interpolate as floats."""
     bounds = list(bounds)
     ends = [*bounds, math.inf]
     rise = all(a < b for a, b
@@ -47,10 +47,10 @@ def bucket_quantile(xs, q, bounds=BOUNDS):
         if c and seen + c >= rank:
             if i == len(bounds):
                 break
-            lo = bounds[i - 1] if i else 0.0
-            width = bounds[i] - lo
+            lo = bounds[i - 1] if i else 0
+            lo, hi = float(lo), float(bounds[i])
             part = float((rank - seen) / c)
-            return lo + width * part
+            return lo + (hi - lo) * part
         seen += c
     return bounds[-1]
 

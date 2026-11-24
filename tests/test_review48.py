@@ -403,7 +403,8 @@ class ADurationThatIsNotKnown(unittest.TestCase):
         self.assertEqual(lines[at:at + 4], ["90 fast requests and 10 slow, one", "of the slow without a duration:",
                                             "  within 200 ms: 94 % to 95 %", "  p95 at most 200 ms: unresolved"])
         # Version 50 goes on with a bound for that request, eight lines, before the new class.
-        self.assertEqual(lines[at + 12], "after, with a new class, bulk:")
+        self.assertEqual(lines[at + 12], "18 fast requests and 2 slow without")   # five lines of Version 58
+        self.assertEqual(lines[at + 17], "after, with a new class, bulk:")
         self.assertEqual(printed(mix.one_unknown).splitlines()[:4], lines[at:at + 4])
 
 
@@ -552,7 +553,7 @@ class AMeanAndAnUpperLimit(unittest.TestCase):
 
     def test_the_transcript(self):
         lines = expected("ch23_mix").splitlines()
-        self.assertEqual(len(lines), 103)                                        # 84 in Version 49, 96 in 50, 100 in 51
+        self.assertEqual(len(lines), 108)                                        # 84 in Version 49, 96 in 50, 100 in 51, 103 until 57
         at = lines.index("  within 200 ms: 89.1 % to 99.1 %")
         rows = ["  p95 at most 200 ms: unresolved", "  with the slow mean of 450 ms and"]
         for cap, name in ((None, "no other limit"), (800, "none above 800 ms"), (810, "none above 810 ms")):

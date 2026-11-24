@@ -77,6 +77,11 @@ and known only to exceed 200 ms:
 and stored as infinity:
   within 250 ms: 94 % to 94 %
   p95 at most 250 ms: missed
+18 fast requests and 2 slow without
+a duration, within 200 ms
+  in a list:      90 % to 100 %, unresolved
+  in an iterator: 90 % to 100 %, unresolved
+  dropped:        100 % to 100 %, met
 after, with a new class, bulk:
 workload         mean      p95  <=200 ms
 after          414.00   673.92  10.80 %
