@@ -18,8 +18,8 @@ def conformity():
     guard = z_ppf(1 - RISK) * U
     low = downward(LIMIT - guard, 2)
     high = upward(LIMIT + guard, 2)
-    print(f"accept up to {low},"
-          f" reject above {high} ms")
+    print(f"accept <= {low},"
+          f" reject >= {high} ms")
     print(f"{'measured':>9}{'P(conform)':>12}"
           "  decision")
     for y in (188, 192, 195, 197, 200, 203, 206):

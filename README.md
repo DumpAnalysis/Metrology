@@ -2,7 +2,7 @@
 
 Code examples for the book *Metrology in Software Diagnostics, Observability,
 and Debugging: With Applications to Machine Learning and AI* by Dmitry Vostokov
-(OpenTask, ISBN 978-1-919135-15-1). Book Version 60, November 2026.
+(OpenTask, ISBN 978-1-919135-15-1). Book Version 61, November 2026.
 
 Repository: https://github.com/DumpAnalysis/Metrology
 
@@ -78,7 +78,7 @@ will print different numbers on your machine; that is what they are for.
 | `expected/` | The transcript of each example, as printed in the book. |
 | `data/` | The trace fixture of Chapter 16 (`app_trace.log`) and its seeded generator (`make_trace.py`); the measurement record of Chapter 22 (`measurement_record.json`), a blank template with the same fields (`record_template.json`), a description of the form, of the decision procedure and of what the checker examines (`RECORD_FORMAT.md`), and the program that writes both (`make_record.py`). |
 | `figures/` | `make_figures.py` draws the book's thirty-two figures from the same functions as the examples. Needs matplotlib and Pillow at the versions in `requirements.txt`; output goes to `figures/out/`. |
-| `tests/` | `test_swmetro.py`: unit tests of the package. `test_review.py`, `test_review2.py` to `test_review5.py`, `test_review7.py` to `test_review46.py` and `test_review48.py` to `test_review59.py`: regression tests, numbered by the version of the book whose review they followed; each checks the code against an independent fact (a closed form, a definition evaluated by brute force, a published table, a simulated coverage), not against saved output. `test_release.py`: the license text is the published one, and the record and this file name the repository and the release. |
+| `tests/` | `test_swmetro.py`: unit tests of the package. `test_review.py`, `test_review2.py` to `test_review5.py`, `test_review7.py` to `test_review46.py` and `test_review48.py` to `test_review60.py`: regression tests, numbered by the version of the book whose review they followed; each checks the code against an independent fact (a closed form, a definition evaluated by brute force, a published table, a simulated coverage), not against saved output. `test_release.py`: the license text is the published one, and the record and this file name the repository and the release. |
 | `tools/` | Two optional checks of the Student t quantile against high-precision arithmetic. They need mpmath. |
 | `run_all.py` | The replay program. |
 | `LICENSE` | PolyForm Strict License 1.0.0. |
@@ -164,10 +164,21 @@ deadline of the client, and `None`, a NaN, an infinity and a bound such as
 A bound that an example prints is rounded to its safe side, an upper bound
 upward and a lower bound downward, by `upward()` and `downward()` of
 `swmetro/stats.py`, in exact arithmetic. A limit is compared with the bound
-as it was computed, not with its printed form. Two floats are added and
-subtracted as floats; where a duration came as a `Decimal`, a `Fraction` or
-an `int`, sums and differences are exact, so that a duration on a bucket
-bound stays on it and a change equal to a margin is not reported as below it.
+as it was computed, not with its printed form, and the bound is computed
+without rounding: in `ch23_case` a change of a percentile and an upper bound
+are exact differences and sums, a float only where a float holds the result,
+so that a bound equal to a margin, or just above it, is not reported as below
+it. The two fields of a row are added as floats where both are floats, since
+that sum is the duration a configuration records, and exactly otherwise, so
+that a decimal duration on a bucket bound stays on it.
+
+A `Result` of `swmetro/core.py` takes its value, its uncertainty, a limit and
+a level of coverage as an `int`, a `float`, a `Fraction` or a `Decimal`. The
+distance of a limit from the value, in units of the uncertainty, is formed
+from the exact numbers and rounded once, so that one limit gives one
+probability in whatever type it is written. The limits of an interval are
+floats where the value is a float or a float holds it, and exact fractions
+otherwise.
 
 ## Using the measurement record
 
@@ -266,7 +277,7 @@ of the versions before it. Seeds alone do not specify a result: the stored
 transcripts, the trace fixture and the measurement record are part of the
 repository for that reason.
 
-These are the files for Version 60 of the book.
+These are the files for Version 61 of the book.
 
 ## License
 

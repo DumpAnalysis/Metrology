@@ -417,7 +417,7 @@ class AReadingAndALimit(unittest.TestCase):
         # above the working limit of 195.0654 ms. The decisions of the rows are what they were.
         self.assertEqual(len(text.splitlines()), 14)
         self.assertIn("   195 ms       0.952  accept\n", text)
-        self.assertTrue(text.startswith("accept up to 195.06, reject above 204.94 ms\n"))
+        self.assertTrue(text.startswith("accept <= 195.06, reject >= 204.94 ms\n"))      # "up to", "above" in Version 60
         self.assertEqual((decisions.LIMIT, decisions.U, decisions.RISK), (200.0, 3.0, 0.05))
 
 

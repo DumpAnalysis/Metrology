@@ -1,4 +1,4 @@
-accept up to 195.06, reject above 204.94 ms
+accept <= 195.06, reject >= 204.94 ms
  measured  P(conform)  decision
    188 ms       1.000  accept
    192 ms       0.996  accept

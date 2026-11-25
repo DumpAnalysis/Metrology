@@ -332,27 +332,26 @@ class TheCutoffsOfChapterFourteen(unittest.TestCase):
 
     def test_the_two_lines_hold_as_printed(self):
         text = expected("ch14_decisions")
-        self.assertTrue(text.startswith("accept up to 195.06, reject above 204.94 ms\n measured"))
+        self.assertTrue(text.startswith("accept <= 195.06, reject >= 204.94 ms\n measured"))  # reworded in Version 61
         self.assertEqual(printed(decisions.conformity), "".join(text.splitlines(True)[:9]))
         self.assertEqual(len(text.splitlines()), 14)                           # as many lines as it had
         accept, reject = 200 - 3 * self.Z, 200 + 3 * self.Z
         low, high = Fraction("195.06"), Fraction("204.94")
         self.assertTrue(low <= accept < low + Fraction(1, 100))                # downward, and by less than a unit
         self.assertTrue(high - Fraction(1, 100) < reject <= high)              # upward
-        # Every reading on a grid of 0.01 ms: up to the first number accepted, above the second rejected. The
-        # line claims no more than that, and the rule decides one reading that it leaves unnamed: 204.94 ms.
-        unnamed = []
+        # Every reading on a grid of 0.01 ms: at or below the first number accepted, at or above the second
+        # rejected, and undecided between. The line of Version 60, "reject above 204.94 ms", left 204.94 ms
+        # itself unnamed; the rule rejects it.
         for hundredths in range(18500, 21501):
             y = hundredths / 100
             verdict = self.decision(y)
             self.assertEqual(verdict, "accept" if y <= accept else "reject" if y > reject else "undecided", y)
             if Fraction(hundredths, 100) <= low:
                 self.assertEqual(verdict, "accept", y)
-            elif Fraction(hundredths, 100) > high:
+            elif Fraction(hundredths, 100) >= high:
                 self.assertEqual(verdict, "reject", y)
-            elif verdict != "undecided":
-                unnamed.append((y, verdict))
-        self.assertEqual(unnamed, [(204.94, "reject")])
+            else:
+                self.assertEqual(verdict, "undecided", y)
         # On a grid of 0.1 ms the three ranges are those of the review.
         tenths = {t / 10: self.decision(t / 10) for t in range(1850, 2151)}
         self.assertEqual(max(y for y, v in tenths.items() if v == "accept"), 195.0)
@@ -436,11 +435,12 @@ class ASecondBoundByRanks(unittest.TestCase):
                       "margin 5 ms: not established\nmargin 2 ms: not established\n"
                       "20 requests of 100 ms, twice:\n", text)
         self.assertEqual(printed(case.main), text)
-        self.assertEqual(len(text.splitlines()), 35)
+        self.assertEqual(len(text.splitlines()), 41)                            # 35 in Version 60
 
     def test_too_few_for_an_upper_end(self):
         rows = [(0.0, 100.0)] * 20
-        self.assertEqual(case.rank_bound(rows, rows), (None, None, None))
+        # Version 60 returned None for all three. The lower end of twenty requests exists, and is returned.
+        self.assertEqual(case.rank_bound(rows, rows), (100.0, None, None))
         self.assertTrue(Fraction(19, 20) ** 72 <= Fraction(25, 1000) < Fraction(19, 20) ** 71)
         self.assertTrue(Fraction(19, 20) ** 59 <= Fraction(5, 100) < Fraction(19, 20) ** 58)
         self.assertEqual((stats.run_length(0.95, 0.025), stats.run_length(0.95, 0.05)), (72, 59))
@@ -448,11 +448,11 @@ class ASecondBoundByRanks(unittest.TestCase):
         rng = random.Random(72)
         short = [(0.0, rng.uniform(90, 110)) for _ in range(71)]
         long = [(0.0, rng.uniform(90, 110)) for _ in range(72)]
-        self.assertEqual(case.rank_bound(long, short), (None, None, None))
+        self.assertEqual(case.rank_bound(long, short)[1:], (None, None))
         low, high, top = case.rank_bound(short, long)
         self.assertEqual(high, max(h for _, h in long))
         self.assertEqual(top, high - low)
-        self.assertIn("  bound by ranks: None; requests for one: 72\n", expected("ch23_case"))
+        self.assertIn("  no upper end with fewer than 72 after\n", expected("ch23_case"))
         # Exact readings keep an exact bound, and a time below zero is refused here as elsewhere.
         exact = [(0, D(100 + i)) for i in range(80)]
         self.assertEqual(case.rank_bound(exact, exact)[2], Fraction(179) - Fraction(case.rank_bound(exact, exact)[0]))
@@ -543,11 +543,16 @@ class ExactNumbersAtTheBoundary(unittest.TestCase):
         point = Result(Fraction(3, 10), 0)
         self.assertEqual([point.prob_below(x) for x in (D("0.3"), D("0.29999"), 0.3, math.inf, D("-Infinity"))],
                          [1.0, 0.0, 0.0, 1.0, 0.0])
+        # For floats Version 60 divided the float difference by u: two roundings. Since Version 61 the distance
+        # is the exact ratio, rounded once; the two differ in the last places at most.
         rng = random.Random(180)
         for _ in range(500):
             value, u, limit = rng.gauss(0, 5), rng.uniform(0.1, 3), rng.gauss(0, 5)
             dof = rng.choice((math.inf, 4, 30))
-            self.assertEqual(Result(value, u, dof=dof).prob_below(limit), t_cdf((limit - value) / u, dof))
+            z = float((Fraction(limit) - Fraction(value)) / Fraction(u))
+            got = Result(value, u, dof=dof).prob_below(limit)
+            self.assertEqual(got, t_cdf(z, dof))
+            self.assertAlmostEqual(got, t_cdf((limit - value) / u, dof), places=13)
 
 
 if __name__ == "__main__":

@@ -167,11 +167,14 @@ class ATailThatTheTraceDidNotReach(unittest.TestCase):
         self.assertEqual(first, 59)
         self.assertEqual(stats.run_length(0.95, 0.05), 59)
         text = expected("ch23_case")
-        # Version 60 added a sixth line, on the bound by ranks; the five of Version 59 stand before it.
-        self.assertTrue(text.endswith("20 requests of 100 ms, twice:\n  difference 0.0(0) ms\n"
-                                      "  no slow one among them: 12.16 %\n  the largest above the p95: 64.15 %\n"
-                                      "  requests for 95 %: 59\n  bound by ranks: None; requests for one: 72\n"))
-        self.assertEqual(printed(case.short_trace), "".join(text.splitlines(True)[-6:]))
+        # The five lines of Version 59. Version 60 added a line on the bound by ranks; since Version 61 three lines
+        # say which end is missing, and the transcript goes on with the requests that are reported twice.
+        lines = ("20 requests of 100 ms, twice:\n  difference 0.0(0) ms\n"
+                 "  no slow one among them: 12.16 %\n  the largest above the p95: 64.15 %\n"
+                 "  requests for 95 %: 59\nthe p95 by ranks:\n  requests: 20 before, 20 after\n"
+                 "  no upper end with fewer than 72 after\n")
+        self.assertIn(lines + "100 requests reported twice, 1 ms apart:\n", text)
+        self.assertEqual(printed(case.short_trace), lines)
 
 
 class BoundsArePrintedOnTheirSafeSide(unittest.TestCase):

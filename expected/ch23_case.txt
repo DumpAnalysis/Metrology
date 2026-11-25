@@ -32,4 +32,10 @@ margin 2 ms: not established
   no slow one among them: 12.16 %
   the largest above the p95: 64.15 %
   requests for 95 %: 59
-  bound by ranks: None; requests for one: 72
+the p95 by ranks:
+  requests: 20 before, 20 after
+  no upper end with fewer than 72 after
+100 requests reported twice, 1 ms apart:
+  as two periods: 1.0(33) ms
+    at most 6.49 ms at 95 %
+  as pairs, one draw for both: 1(0) ms

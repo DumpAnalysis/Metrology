@@ -154,30 +154,45 @@ def observed(xs):
 def classes(rec):
     """The record with every class as a list,
     read once and held to observed(): every
-    class, also one without weight in a mix."""
+    class, also one without weight in a mix.
+    A request belongs to one class, and a
+    stream that can be read once stands under
+    one name: under a second it would be read
+    as empty, and is refused."""
+    once = [id(xs) for xs in rec.values()
+            if iter(xs) is xs]
+    if len(set(once)) < len(once):
+        raise ValueError("stream in two classes")
     return {name: observed(xs)
             for name, xs in rec.items()}
+
+
+def size(ref):
+    """How many entries: by len() where there
+    is one, and else by reading to the end."""
+    try:
+        return len(ref)
+    except TypeError:
+        return sum(1 for _ in ref)
 
 
 def both(rec, mix):
     """The record by classes(), and the mix
     as ranges of its class counts: its
     entries stand for requests and are only
-    counted, in no list. A class that the
-    record holds too, as in a copy of it, is
-    read once and counted from the record:
-    an iterator is at its end after that."""
+    counted, in no list. Each object is
+    counted once, and the count serves every
+    class that names it: one of the record,
+    as in a copy of it, or two of the mix.
+    An iterator is at its end after that."""
     held = classes(rec)
-    seen = {id(xs): held[name]
-            for name, xs in rec.items()}
+    count = {id(xs): len(held[name])
+             for name, xs in rec.items()}
     sizes = {}
     for name, ref in mix.items():
-        ref = seen.get(id(ref), ref)
-        try:
-            n = len(ref)
-        except TypeError:
-            n = sum(1 for _ in ref)
-        sizes[name] = range(n)
+        if id(ref) not in count:
+            count[id(ref)] = size(ref)
+        sizes[name] = range(count[id(ref)])
     return held, sizes
 
 

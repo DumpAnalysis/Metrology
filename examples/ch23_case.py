@@ -51,15 +51,32 @@ def elapsed(xs):
 
 
 def pair(x, y):
-    """Two numbers before they are added or
-    subtracted. Two floats stay floats, as
-    the replay has them. Anything else is
-    taken as the exact fractions that the two
-    are, so that 200.3 ms after no wait is
-    still on a bucket bound of 200.3 ms."""
+    """The two fields of a row before they are
+    added. Two floats stay floats: their sum
+    is the duration that a configuration
+    records. Anything else is taken as the
+    exact fractions that the two are, so that
+    200.3 ms after no wait is still on a
+    bucket bound of 200.3 ms."""
     if type(x) is type(y) is float:
         return x, y
     return Fraction(x), Fraction(y)
+
+
+def exact(x, y, sign=1):
+    """x + y, or x - y for a sign of -1, as
+    the number that it is: a float where the
+    two are floats and a float holds the
+    result, and a fraction otherwise. A bound
+    that is put to a margin is not rounded
+    across it first. As floats, 1.3 - 0.1 is
+    below 1.2, and the two numbers that are
+    stored differ by more than 1.2."""
+    total = Fraction(x) + sign * Fraction(y)
+    floats = type(x) is type(y) is float
+    if floats and float(total) == total:
+        return float(total)
+    return total
 
 
 def recorded(rows, config):
@@ -147,26 +164,25 @@ def handler_change(before, after):
     between the periods, with a bootstrap
     standard uncertainty. The replicates are
     taken as the exact numbers they are, and
-    the two percentiles by pair(): the change
-    of exact readings is exact."""
+    the two percentiles are subtracted by
+    exact(): no change is rounded."""
     hb = [h for _, h in before]
     ha = [h for _, h in after]
     ub, ua = (st.stdev(map(Fraction, bootstrap(
         hs, p95, 300, 23))) for hs in (hb, ha))
-    new, old = pair(p95(ha), p95(hb))
-    return Result(new - old,
+    change = exact(p95(ha), p95(hb), -1)
+    return Result(change,
                   math.hypot(ua, ub), "ms")
 
 
 def upper_bound(d):
     """One-sided upper bound at 95 %, by the
     normal approximation, u taken as known.
-    The half-width is the float that it is.
-    To an exact change it is added exactly,
-    so that a bound which equals a margin is
-    seen to equal it."""
-    value, half = pair(d.value, Z * d.u)
-    return value + half
+    The half-width is the float that it is,
+    and it is added by exact(), so that a
+    bound which equals a margin, or lies just
+    above it, is seen to."""
+    return exact(d.value, Z * d.u)
 
 
 def within(upper, margin):
@@ -189,17 +205,16 @@ def rank_bound(before, after):
     two with 5 % at most, whether or not they
     depend on each other. The requests of a
     period are still taken as independent.
-    The two ends and the bound, or None for
-    all three where a period is too short
-    for its end."""
+    The two ends and the bound. An end is
+    None where its period is too short for
+    it, and there is no bound then."""
     hb = sorted(elapsed(h for _, h in before))
     ha = sorted(elapsed(h for _, h in after))
     low = quantile_interval(hb, 0.95)[0]
     high = quantile_interval(ha, 0.95)[1]
     if low is None or high is None:
-        return None, None, None
-    new, old = pair(high, low)
-    return low, high, new - old
+        return low, high, None
+    return low, high, exact(high, low, -1)
 
 
 def margins(upper):
@@ -213,6 +228,67 @@ def margins(upper):
         print(f"margin {margin:.0f} ms: {text}")
 
 
+def ranked(before, after):
+    """The lines of the bound by ranks and of
+    its margins. Where an end is missing they
+    name it instead, with the two counts and
+    the least count that has such an end: at
+    2.5 % a side, 2 requests for a lower end
+    of the p95 and 72 for an upper one."""
+    low, high, top = rank_bound(before, after)
+    print("the p95 by ranks:")
+    if top is None:
+        print(f"  requests: {len(before)} before,"
+              f" {len(after)} after")
+    if low is None:
+        need = run_length(0.05, 0.025)
+        print("  no lower end with fewer"
+              f" than {need} before")
+    if high is None:
+        need = run_length(0.95, 0.025)
+        print("  no upper end with fewer"
+              f" than {need} after")
+    if top is None:
+        return
+    print("  before, at least"
+          f" {downward(low, 2)} ms at 97.5 %")
+    print("  after, at most"
+          f" {upward(high, 2)} ms at 97.5 %")
+    print("  change at most"
+          f" {upward(top, 2)} ms at 95 %")
+    margins(top)
+
+
+def side_by_side(n=100, offset=1):
+    """The follow-up for the instrument, in
+    small: n requests reported by both
+    configurations, the second `offset` ms
+    above the first. Taken as two periods,
+    the change of the p95 has the spread of
+    two separate bootstraps. Resampled in
+    pairs, one draw of requests for both
+    reports, every replicate here is the
+    offset: the spread is that of the change
+    on the same requests."""
+    one = [(0, 100 + i) for i in range(n)]
+    two = [(0, h + offset) for _, h in one]
+
+    def change(ids):
+        new = p95(two[i][1] for i in ids)
+        old = p95(one[i][1] for i in ids)
+        return exact(new, old, -1)
+    d = handler_change(one, two)
+    top = upward(upper_bound(d), 2)
+    reps = bootstrap(range(n), change, 300, 23)
+    u = st.stdev(map(Fraction, reps))
+    print(f"{n} requests reported twice,"
+          f" {offset} ms apart:")
+    print(f"  as two periods: {d}")
+    print(f"    at most {top} ms at 95 %")
+    print("  as pairs, one draw for both:"
+          f" {Result(d.value, u, 'ms')}")
+
+
 def short_trace(n=20):
     """Two periods of n requests of 100 ms.
     No resample differs from another, and
@@ -224,7 +300,8 @@ def short_trace(n=20):
     continuous population lies above its p95
     with the second. The bound says nothing of
     a tail that the trace did not reach, and
-    ranks give no bound for so few."""
+    ranks give no bound for so few: ranked()
+    says which end is missing."""
     rows = [(0.0, 100.0)] * n
     d = handler_change(rows, rows)
     miss, reach = 0.9 ** n, 1 - 0.95 ** n
@@ -236,10 +313,7 @@ def short_trace(n=20):
           f" {100 * reach:.2f} %")
     need = run_length(0.95, 0.05)
     print(f"  requests for 95 %: {need}")
-    top = rank_bound(rows, rows)[2]
-    need = run_length(0.95, 0.025)
-    print(f"  bound by ranks: {top}; requests"
-          f" for one: {need}")
+    ranked(rows, rows)
 
 
 def main():
@@ -297,19 +371,12 @@ def main():
     print(f"power at 5 ms: {power:.2f}")
     print("upper bound, 95 %:"
           f" {upward(upper, 1)} ms")
-    print(f"interval, 95 %: "
-          f"[{lo:.1f}, {hi:.1f}] ms")
+    print("interval, 95 %:"
+          f" [{fixed(lo, 1)}, {fixed(hi, 1)}] ms")
     margins(upper)
-    low, high, ranks = rank_bound(before, after)
-    print("the p95 by ranks:")
-    print("  before, at least"
-          f" {downward(low, 2)} ms at 97.5 %")
-    print("  after, at most"
-          f" {upward(high, 2)} ms at 97.5 %")
-    print("  change at most"
-          f" {upward(ranks, 2)} ms at 95 %")
-    margins(ranks)
+    ranked(before, after)
     short_trace()
+    side_by_side()
 
 
 if __name__ == "__main__":

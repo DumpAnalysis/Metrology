@@ -2,6 +2,7 @@
 import math
 import statistics as st
 from dataclasses import dataclass
+from decimal import Decimal
 from fractions import Fraction
 
 from .dist import t_cdf, t_isf, t_within
@@ -17,13 +18,28 @@ def _units(u, d):
     return round(Fraction(u) * Fraction(10) ** d)
 
 
-def _gap(a, b):
-    """a - b as the exact numbers that the
-    two are, for a decimal and a fraction or
-    a float. An infinity keeps its sign."""
-    if math.isinf(a) or math.isinf(b):
-        return float(a) - float(b)
-    return Fraction(a) - Fraction(b)
+def _exact(x):
+    """x as the fraction that it is. A text is
+    no number here, although Fraction() would
+    read one."""
+    if isinstance(x, str):
+        raise TypeError("a text is no number")
+    return Fraction(x)
+
+
+def _ratio(a, b, u):
+    """(a - b) / u from the exact numbers that
+    the three are, as a float rounded once.
+    An infinite a keeps its sign, and a ratio
+    beyond the range of a float is the
+    infinity on its side."""
+    if a in (math.inf, -math.inf):
+        return float(a)
+    z = (_exact(a) - _exact(b)) / _exact(u)
+    try:
+        return float(z)
+    except OverflowError:
+        return math.inf if z > 0 else -math.inf
 
 
 def decimals(u, digits=2):
@@ -161,8 +177,11 @@ class Result:
         one half it is found from p / 2, the
         distance from the middle: there the
         tail would round to 1/2, and the
-        factor of a small p to zero."""
+        factor of a small p to zero. A decimal
+        p is the fraction that it is."""
         _level(p)
+        if isinstance(p, Decimal):
+            p = Fraction(p)
         if not p:
             return 0.0
         if p < 0.5:
@@ -170,20 +189,27 @@ class Result:
         return t_isf((1 - p) / 2, self.dof)
 
     def expanded(self, p=0.95):
-        """Expanded uncertainty U = k * u."""
-        return self.k(p) * self.u
+        """Expanded uncertainty U = k * u: the
+        exact product, as a float."""
+        ku = Fraction(self.k(p)) * _exact(self.u)
+        return float(ku)
 
     def interval(self, p=0.95):
         """Coverage interval for probability p.
-        With u = 0 both limits are the value
-        as it is stored. A float zero added to
-        a whole number makes a float of it,
-        and a time stamp of nineteen digits
-        would move by up to 128 ns."""
+        With u = 0, and at p = 0, both limits
+        are the value as it is stored. Else
+        the half-width is added and subtracted
+        exactly: the limits are floats where a
+        float holds the value, and fractions
+        where it does not, as for a time stamp
+        of nineteen digits."""
         _level(p)
-        if self.u == 0:
+        w = self.expanded(p)
+        if not w:
             return self.value, self.value
-        v, w = self.value, self.expanded(p)
+        v, w = _exact(self.value), Fraction(w)
+        if float(v) == v:
+            return float(v - w), float(v + w)
         return v - w, v + w
 
     def prob_below(self, limit):
@@ -193,19 +219,16 @@ class Result:
         result is a point mass: the probability
         is 1 for a limit at or above the value
         and 0 for a limit below it. A limit
-        that is no number is refused. A limit
-        and a value that Python does not
-        subtract, a decimal and a fraction or
-        a float, are taken by _gap()."""
+        that is no number is refused. The
+        distance to the limit is that of
+        _ratio(): 10 ** 18 is one limit as a
+        whole number and as a float."""
         if limit != limit:
             raise ValueError("limit is no number")
         if self.u == 0:
             at_most = limit >= self.value
             return 1.0 if at_most else 0.0
-        try:
-            z = (limit - self.value) / self.u
-        except TypeError:
-            z = _gap(limit, self.value) / self.u
+        z = _ratio(limit, self.value, self.u)
         return t_cdf(z, self.dof)
 
     def report(self, p=0.95):
