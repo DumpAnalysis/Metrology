@@ -413,9 +413,11 @@ class AReadingAndALimit(unittest.TestCase):
 
     def test_the_listing_is_what_it_was(self):
         text = expected("ch14_decisions")
+        # Until Version 59 the transcript began "acceptance limit 195.1 ms": the limit rounded to the nearest,
+        # above the working limit of 195.0654 ms. The decisions of the rows are what they were.
         self.assertEqual(len(text.splitlines()), 14)
         self.assertIn("   195 ms       0.952  accept\n", text)
-        self.assertIn("acceptance limit 195.1 ms\n", text)
+        self.assertTrue(text.startswith("accept up to 195.06, reject above 204.94 ms\n"))
         self.assertEqual((decisions.LIMIT, decisions.U, decisions.RISK), (200.0, 3.0, 0.05))
 
 

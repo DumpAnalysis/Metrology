@@ -626,7 +626,8 @@ class PrefixesAndRelease(unittest.TestCase):
         self.assertGreaterEqual(int(version.group(1)), 55)
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         self.assertIn(f"Book Version {version.group(1)},", readme)
-        self.assertIn(f"release for Version {version.group(1)} of the book", readme)
+        # "This is the release for Version N of the book" until Version 59; no release is published.
+        self.assertIn(f"These are the files for Version {version.group(1)} of the book.", readme)
 
 
 if __name__ == "__main__":

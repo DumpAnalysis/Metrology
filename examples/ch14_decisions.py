@@ -5,6 +5,7 @@ import random
 import statistics as st
 
 from swmetro.dist import phi, t_ppf, z_ppf
+from swmetro.stats import downward, upward
 
 LIMIT = 200.0  # upper specification limit, ms
 U = 3.0        # standard uncertainty, ms
@@ -15,8 +16,10 @@ def conformity():
     """Probability that the measurand is below
     the limit, given the measured value."""
     guard = z_ppf(1 - RISK) * U
-    accept = LIMIT - guard
-    print(f"acceptance limit {accept:.1f} ms")
+    low = downward(LIMIT - guard, 2)
+    high = upward(LIMIT + guard, 2)
+    print(f"accept up to {low},"
+          f" reject above {high} ms")
     print(f"{'measured':>9}{'P(conform)':>12}"
           "  decision")
     for y in (188, 192, 195, 197, 200, 203, 206):

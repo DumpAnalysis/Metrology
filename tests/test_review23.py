@@ -557,7 +557,7 @@ class TheMixFromTwentyRequests(unittest.TestCase):
                               "start: 2 of 10 s. A silence of 30 s:\n  the 10 % taken as known:\n"
                               "    starts covered: 58 s\n    0.10331 msg/s at a nominal 95 %\n"
                               "  at most 31.699 % of 10 s, at 97.5 %:\n    starts covered: 53.6603 s\n"
-                              "    silent at 0.10331 msg/s: 6.26 %\n    at most 0.13749 msg/s at 95 %\n"
+                              "    silent at the nominal rate: 6.26 %\n    at most 0.13749 msg/s at 95 %\n"
                               "  no sample, all of 10 s:\n    starts covered: 40 s\n    at most 0.14979 msg/s at 95 %\n")
         self.assertIn(out + printed(silence.first_count), expected("ch16_silence"))
         # At the rate drawn from the 10 % as known, a source at the limit of what the sample allows is silent more

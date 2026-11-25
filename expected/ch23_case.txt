@@ -21,8 +21,15 @@ upper bound, 95 %: 4.8 ms
 interval, 95 %: [-5.9, 5.6] ms
 margin 5 ms: slowdown below the margin
 margin 2 ms: not established
+the p95 by ranks:
+  before, at least 177.04 ms at 97.5 %
+  after, at most 185.70 ms at 97.5 %
+  change at most 8.66 ms at 95 %
+margin 5 ms: not established
+margin 2 ms: not established
 20 requests of 100 ms, twice:
   difference 0.0(0) ms
   no slow one among them: 12.16 %
   the largest above the p95: 64.15 %
   requests for 95 %: 59
+  bound by ranks: None; requests for one: 72

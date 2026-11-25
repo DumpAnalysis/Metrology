@@ -167,10 +167,11 @@ class ATailThatTheTraceDidNotReach(unittest.TestCase):
         self.assertEqual(first, 59)
         self.assertEqual(stats.run_length(0.95, 0.05), 59)
         text = expected("ch23_case")
+        # Version 60 added a sixth line, on the bound by ranks; the five of Version 59 stand before it.
         self.assertTrue(text.endswith("20 requests of 100 ms, twice:\n  difference 0.0(0) ms\n"
                                       "  no slow one among them: 12.16 %\n  the largest above the p95: 64.15 %\n"
-                                      "  requests for 95 %: 59\n"))
-        self.assertEqual(printed(case.short_trace), "".join(text.splitlines(True)[-5:]))
+                                      "  requests for 95 %: 59\n  bound by ranks: None; requests for one: 72\n"))
+        self.assertEqual(printed(case.short_trace), "".join(text.splitlines(True)[-6:]))
 
 
 class BoundsArePrintedOnTheirSafeSide(unittest.TestCase):
@@ -224,8 +225,8 @@ class BoundsArePrintedOnTheirSafeSide(unittest.TestCase):
         self.assertIn("  at most 31.699 % of 10 s, at 97.5 %:\n", text)
         # A rate that is named where a chance is taken at it is printed as the bound that it is.
         for line in ("    0.11523 msg/s at a nominal 95 %", "    0.10331 msg/s at a nominal 95 %",
-                     "    silent at 0.10331 msg/s: 6.26 %", "    silent at 0.39944 msg/s: 6.42 %",
-                     "  at 0.17585 msg/s such a gap", "  at 0.17585 msg/s a search of"):
+                     "    silent at the nominal rate: 6.26 %", "    silent at the first bound: 6.42 %",
+                     "  at the second bound such a gap", "  at the single-message search bound"):
             self.assertIn(line + "\n", text)
         self.assertEqual(silence.up(0.39943097), "0.39944 msg/s")
         self.assertEqual(silence.most(0.5), "at most 0.50000 msg/s at 95 %")
@@ -298,7 +299,8 @@ class TheReferenceAndTheRecord(unittest.TestCase):
         pairs = mix.weighted(rec, rec)
         self.assertEqual((len(pairs), mix.p95(pairs)), (20, 500))
         held, ref = mix.both(self.REC, self.REC)
-        self.assertIs(held, ref)
+        # Version 59 returned the held record as its own mix. Since Version 60 a mix is the counts of its classes.
+        self.assertEqual({name: len(xs) for name, xs in ref.items()}, {"fast": 18, "slow": 2})
         self.assertIs(held["slow"], self.REC["slow"])
 
     def test_every_class_of_a_record_is_held_to_the_check(self):

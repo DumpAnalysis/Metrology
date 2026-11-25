@@ -17,6 +17,15 @@ def _units(u, d):
     return round(Fraction(u) * Fraction(10) ** d)
 
 
+def _gap(a, b):
+    """a - b as the exact numbers that the
+    two are, for a decimal and a fraction or
+    a float. An infinity keeps its sign."""
+    if math.isinf(a) or math.isinf(b):
+        return float(a) - float(b)
+    return Fraction(a) - Fraction(b)
+
+
 def decimals(u, digits=2):
     """Decimal places that keep `digits`
     significant digits of the uncertainty u,
@@ -184,13 +193,19 @@ class Result:
         result is a point mass: the probability
         is 1 for a limit at or above the value
         and 0 for a limit below it. A limit
-        that is no number is refused."""
+        that is no number is refused. A limit
+        and a value that Python does not
+        subtract, a decimal and a fraction or
+        a float, are taken by _gap()."""
         if limit != limit:
             raise ValueError("limit is no number")
         if self.u == 0:
             at_most = limit >= self.value
             return 1.0 if at_most else 0.0
-        z = (limit - self.value) / self.u
+        try:
+            z = (limit - self.value) / self.u
+        except TypeError:
+            z = _gap(limit, self.value) / self.u
         return t_cdf(z, self.dof)
 
     def report(self, p=0.95):

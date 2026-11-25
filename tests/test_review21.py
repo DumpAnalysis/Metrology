@@ -415,7 +415,7 @@ class RequestsOfSeveralDurations(unittest.TestCase):
         self.assertEqual(out, "silence of 30 s, requests with a\nmean duration of 30 s:\n  all of 30 s:\n    starts covered: 60 s\n"
                               "    at most 0.09986 msg/s at 95 %\n  half of 10 s, half of 50 s:\n    starts covered: 50 s\n"
                               "    at most 0.11983 msg/s at 95 %\n  0.9 of 1 s, 0.1 of 291 s:\n    starts covered: 33.9 s\n"
-                              "    at most 0.17674 msg/s at 95 %\n  at 0.09986 msg/s the second\n  stays silent: 8.24 %\n")
+                              "    at most 0.17674 msg/s at 95 %\n  at the first bound the second\n  stays silent: 8.24 %\n")
         self.assertIn(out, text)
         self.assertEqual(len(text.splitlines()), 193)            # 101 in Version 22, 118, 140, 152, 162, 166 in Version 27
 

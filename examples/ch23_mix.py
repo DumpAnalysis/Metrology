@@ -161,14 +161,24 @@ def classes(rec):
 
 def both(rec, mix):
     """The record by classes(), and the mix
-    with its classes as lists: its entries
-    stand for requests and are only counted.
-    A record may be its own mix."""
+    as ranges of its class counts: its
+    entries stand for requests and are only
+    counted, in no list. A class that the
+    record holds too, as in a copy of it, is
+    read once and counted from the record:
+    an iterator is at its end after that."""
     held = classes(rec)
-    if mix is rec:
-        return held, held
-    return held, {name: list(ref)
-                  for name, ref in mix.items()}
+    seen = {id(xs): held[name]
+            for name, xs in rec.items()}
+    sizes = {}
+    for name, ref in mix.items():
+        ref = seen.get(id(ref), ref)
+        try:
+            n = len(ref)
+        except TypeError:
+            n = sum(1 for _ in ref)
+        sizes[name] = range(n)
+    return held, sizes
 
 
 def side(x, limit):
@@ -178,9 +188,12 @@ def side(x, limit):
     is unknown, or only a bound for it is
     known, a pair of ">" or ">=" and a time.
     Every duration is at or below a limit of
-    infinity, an unknown one too."""
+    infinity, an unknown one too, and none
+    is at or below a limit below zero."""
     if limit == math.inf:
         return True
+    if limit < 0:
+        return False
     if unknown(x):
         return None
     if not isinstance(x, tuple):

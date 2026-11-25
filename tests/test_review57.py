@@ -441,8 +441,12 @@ class TheArchiveThatTheChecksumNames(unittest.TestCase):
         from data import make_record
         number = re.fullmatch(r"book Version (\d+), \w+ \d{4}", make_record.RELEASE).group(1)
         readme = " ".join((ROOT / "README.md").read_text(encoding="utf-8").split())
-        self.assertIn(f"MetrologyForSoftwareDiagnostics-Version{number}.zip", readme)
-        self.assertIn("A different checksum identifies a different archive file", readme)
+        # Versions 58 and 59 named an archive here and referred to its checksum. No archive is published: since
+        # Version 60 the README names the version of the book and the repository, and no file with a checksum.
+        self.assertIn(f"These are the files for Version {number} of the book.", readme)
+        self.assertIn(f"Book Version {number}, ", readme)
+        for word in (".zip", "checksum", "archive"):
+            self.assertNotIn(word, readme)
 
 
 if __name__ == "__main__":

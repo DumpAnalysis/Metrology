@@ -609,7 +609,7 @@ def models(rows, span, counter=tm.COUNTER):
     if k == 0:
         one = quiet_bound(t)
         still = math.exp(-one / 2 * covered)
-        print(f"    silent at {up(one)}:"
+        print("    silent at the first bound:"
               f" {100 * still:.1f} %")
 
 
@@ -755,7 +755,7 @@ def durations():
     low = paired_bound(whole, 30)
     a = mean_reach(whole, cases[1][1])
     still = math.exp(-low / 2 * a)
-    print(f"  at {up(low)} the second")
+    print("  at the first bound the second")
     print(f"  stays silent: {100 * still:.2f} %")
 
 
@@ -886,7 +886,7 @@ def calibrated(k=2, n=20):
           " at 97.5 %:")
     a = covered(top)
     still = math.exp(-plain / 2 * a)
-    print(f"    silent at {up(plain)}:"
+    print("    silent at the nominal rate:"
           f" {100 * still:.2f} %")
     held = 2 * quiet_bound(a, 1 - risk)
     print("    " + most(held))
@@ -968,7 +968,7 @@ def retained():
         print("  pairs 10 s apart, a decision")
         print(f"  for {text}: {a:g} s")
         print("    " + most(quiet_bound(a)))
-        print(f"    silent at {up(single)}:"
+        print("    silent at the first bound:"
               f" {100 * still:.2f} %")
 
 
@@ -989,13 +989,13 @@ def search():
     print("  all ten empty:")
     print("    " + most(quiet_bound(300)))
     found = 1 - 0.95 ** 10
-    print(f"  at {up(one)} a search of ten")
+    print("  at the first bound a search of ten")
     print("  finds an empty window:"
           f" {100 * found:.2f} %")
     print("  a gap of 30 s anywhere in 300 s:")
     print("    " + most(gap_bound(300, 30)))
     found = gap_somewhere(single, 300, 30)
-    print(f"  at {up(single)} such a gap")
+    print("  at the second bound such a gap")
     print("  is found somewhere:"
           f" {100 * found:.2f} %")
     print("  with 60 messages counted, a gap of")
@@ -1019,8 +1019,8 @@ def search():
     print("    " + most(paired_bound(ten, 10)))
     found = some_empty(single,
                        selections(ten, 10))
-    print(f"  at {up(single)} a search of")
-    print("  ten finds an empty window:"
+    print("  at the single-message search bound")
+    print("  a search of ten finds an empty one:"
           f" {100 * found:.2f} %")
 
 

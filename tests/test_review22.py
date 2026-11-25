@@ -349,7 +349,7 @@ class TwoWordings(unittest.TestCase):
         low = 2 * -math.log(0.05) / 60
         self.assertEqual((f"{low:.5f}", f"{100 * math.exp(-low / 2 * 50):.2f}"), ("0.09986", "8.24"))
         self.assertEqual(f"{100 * math.exp(-0.100 / 2 * 50):.2f}", "8.21")              # the rounded rate, taken literally
-        self.assertIn("  at 0.09986 msg/s the second\n  stays silent: 8.24 %\n", expected("ch16_silence"))
+        self.assertIn("  at the first bound the second\n  stays silent: 8.24 %\n", expected("ch16_silence"))
 
 
 if __name__ == "__main__":

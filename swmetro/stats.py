@@ -71,21 +71,36 @@ def known(xs, what="duration"):
     return xs
 
 
+def _placed(n, places):
+    """The whole number n with its last `places`
+    digits after the point. Whole numbers alone
+    take part, so that no decimal context can
+    round the digits a second time."""
+    sign = "-" if n < 0 else ""
+    whole, part = divmod(abs(n), 10 ** places)
+    if not places:
+        return f"{sign}{whole}"
+    return f"{sign}{whole}.{part:0{places}d}"
+
+
 def upward(x, places):
     """x as text with `places` decimals, rounded
     toward +inf in exact arithmetic. An upper
     bound that is printed has to stay one, and
     rounded to the nearest it can lie below the
     bound that was computed. A float is the
-    binary number that it is."""
+    binary number that it is, and `places` is a
+    whole number not below 0."""
+    places = as_count(places, "number of places")
     n = math.ceil(Fraction(x) * 10 ** places)
-    return format(Decimal(n).scaleb(-places), "f")
+    return _placed(n, places)
 
 
 def downward(x, places):
     """The same toward -inf, for a lower bound."""
+    places = as_count(places, "number of places")
     n = math.floor(Fraction(x) * 10 ** places)
-    return format(Decimal(n).scaleb(-places), "f")
+    return _placed(n, places)
 
 
 def _floor(f):

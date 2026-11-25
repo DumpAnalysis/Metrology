@@ -175,6 +175,9 @@ class VerifiedByEvidence(unittest.TestCase):
                 if line.endswith("at 97.5 %:"):               # since Version 24: the limit for a share, at its own level
                     self.assertEqual(line, "  at most 31.699 % of 10 s, at 97.5 %:")
                     continue
+                if line.endswith("at 97.5 %"):                # since Version 60: the upper end by ranks, at its level
+                    self.assertEqual(line, "  after, at most 185.70 ms at 97.5 %")
+                    continue
                 self.assertTrue(line.endswith("at 95 %"), line)
 
 
@@ -206,7 +209,7 @@ class SearchForSilence(unittest.TestCase):
         text = expected("ch16_silence")
         for line in ("  chosen in advance:\n    at most 0.09986 msg/s at 95 %", "  found by a search of ten:\n    at most 0.17585 msg/s at 95 %",
                      "  all ten empty:\n    at most 0.00999 msg/s at 95 %", "  finds an empty window: 40.13 %",
-                     "    at most 0.18524 msg/s at 95 %", "    silent at 0.09986 msg/s: 19.9 %"):
+                     "    at most 0.18524 msg/s at 95 %", "    silent at the first bound: 19.9 %"):
             self.assertIn(line + "\n", text)
 
 

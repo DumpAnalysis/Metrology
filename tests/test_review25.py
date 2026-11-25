@@ -294,7 +294,7 @@ class TenWindowsSearched(unittest.TestCase):
         self.assertTrue(out.endswith("the same for requests of 10 s that\nwrite two messages:\n  chosen in advance:\n"
                                      "    at most 0.14979 msg/s at 95 %\n  found by a search of ten:\n"
                                      "    at most 0.26314 msg/s at 95 %\n  all ten empty:\n    at most 0.01933 msg/s at 95 %\n"
-                                     "  at 0.17585 msg/s a search of\n  ten finds an empty window: 25.17 %\n"))
+                                     "  at the single-message search bound\n  a search of ten finds an empty one: 25.17 %\n"))
         text = expected("ch16_silence")
         self.assertTrue(text.endswith(out))
         self.assertEqual(len(text.splitlines()), 193)        # 152 in Version 25, 162, 166 in Version 27

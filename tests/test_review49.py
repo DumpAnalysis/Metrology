@@ -119,7 +119,9 @@ class ABoundKeptWithTheRequest(unittest.TestCase):
         self.assertEqual((mix.verdict(*open_), mix.verdict(*closed)), ("unresolved", "missed"))
         self.assertTrue(open_[0] == closed[0] == closed[1] < open_[1])
         self.assertIs(mix.side(math.inf, 10 ** 12), False)                       # beyond every limit, as it should be
-        self.assertIs(mix.side(-math.inf, -10 ** 12), True)
+        # Until Version 59 a duration of minus infinity lay below a limit of -10 ** 12. A time below zero is
+        # no duration since Version 59, and since Version 60 no duration is at or below a limit below zero.
+        self.assertIs(mix.side(-math.inf, -10 ** 12), False)
 
     def test_every_completion_above_the_bound(self):
         shares, p95s = set(), set()

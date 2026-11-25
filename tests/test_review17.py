@@ -141,7 +141,7 @@ class LongRequests(unittest.TestCase):
         text = expected("ch16_silence")
         for line in ("    starts covered: 32.346 s\n    at most 0.18524 msg/s at 95 %", "requests of 60 s, window of 30 s:",
                      "  starts covered: 60 s\n    at most 0.09986 msg/s at 95 %", "  0 to 20.099 and 22.187 to 30 s:",
-                     "  27.912 s, and for pairs 2.346 s", "  apart, starts covered: 32.346 s", "    silent at 0.09986 msg/s: 19.9 %"):
+                     "  27.912 s, and for pairs 2.346 s", "  apart, starts covered: 32.346 s", "    silent at the first bound: 19.9 %"):
             self.assertIn(line + "\n", text)
 
     def test_the_figure_has_both_requests(self):

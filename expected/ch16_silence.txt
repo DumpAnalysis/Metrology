@@ -6,7 +6,7 @@ svc, 30-60 s: 0 messages, 30 s verified
   start and an end 2.346 s apart:
     starts covered: 32.346 s
     at most 0.18524 msg/s at 95 %
-    silent at 0.09986 msg/s: 19.9 %
+    silent at the first bound: 19.9 %
 requests of 60 s, window of 30 s:
   starts covered: 60 s
     at most 0.09986 msg/s at 95 %
@@ -25,7 +25,7 @@ mean duration of 30 s:
   0.9 of 1 s, 0.1 of 291 s:
     starts covered: 33.9 s
     at most 0.17674 msg/s at 95 %
-  at 0.09986 msg/s the second
+  at the first bound the second
   stays silent: 8.24 %
 durations sampled with windows of
 30 s; a request is taken if it
@@ -61,7 +61,7 @@ start: 2 of 10 s. A silence of 30 s:
     0.10331 msg/s at a nominal 95 %
   at most 31.699 % of 10 s, at 97.5 %:
     starts covered: 53.6603 s
-    silent at 0.10331 msg/s: 6.26 %
+    silent at the nominal rate: 6.26 %
     at most 0.13749 msg/s at 95 %
   no sample, all of 10 s:
     starts covered: 40 s
@@ -136,11 +136,11 @@ four kept; effective exposure:
   pairs 10 s apart, a decision
   for each message: 6.875 s
     at most 0.43575 msg/s at 95 %
-    silent at 0.39944 msg/s: 6.42 %
+    silent at the first bound: 6.42 %
   pairs 10 s apart, a decision
   for both messages: 5 s
     at most 0.59915 msg/s at 95 %
-    silent at 0.39944 msg/s: 13.57 %
+    silent at the first bound: 13.57 %
 an empty window of 30 s:
   chosen in advance:
     at most 0.09986 msg/s at 95 %
@@ -148,11 +148,11 @@ an empty window of 30 s:
     at most 0.17585 msg/s at 95 %
   all ten empty:
     at most 0.00999 msg/s at 95 %
-  at 0.09986 msg/s a search of ten
+  at the first bound a search of ten
   finds an empty window: 40.13 %
   a gap of 30 s anywhere in 300 s:
     at most 0.23854 msg/s at 95 %
-  at 0.17585 msg/s such a gap
+  at the second bound such a gap
   is found somewhere: 22.48 %
   with 60 messages counted, a gap of
     30 s or more: 10.68 %
@@ -189,5 +189,5 @@ write two messages:
     at most 0.26314 msg/s at 95 %
   all ten empty:
     at most 0.01933 msg/s at 95 %
-  at 0.17585 msg/s a search of
-  ten finds an empty window: 25.17 %
+  at the single-message search bound
+  a search of ten finds an empty one: 25.17 %

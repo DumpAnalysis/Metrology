@@ -7,9 +7,11 @@ from fractions import Fraction
 
 from examples import ch09_histogram as h9
 from swmetro import Result, type_a
+from swmetro.core import fixed
 from swmetro.dist import phi, z_ppf
 from swmetro.stats import as_count, bootstrap
-from swmetro.stats import ecdf_quantile, known
+from swmetro.stats import downward, ecdf_quantile
+from swmetro.stats import known, quantile_interval
 from swmetro.stats import quiet_bound, rate_limits
 from swmetro.stats import run_length, upward
 
@@ -89,10 +91,13 @@ def shown(p95_ms):
     """A reported percentile as the dashboard
     should show it. A window without requests
     has no percentile, and a number in its
-    place would come from the bounds alone."""
+    place would come from the bounds alone.
+    A bound that came as a fraction is
+    written by fixed(), under Python 3.11
+    as under the later ones."""
     if math.isnan(p95_ms):
         return "no observations"
-    return f"{p95_ms:.2f}"
+    return fixed(p95_ms, 2)
 
 
 def arrival(n, seconds=WINDOW):
@@ -173,6 +178,41 @@ def within(upper, margin):
     return upper < margin
 
 
+def rank_bound(before, after):
+    """Upper bound for the change of the p95
+    of the handler time that needs no normal
+    approximation: the upper end of the
+    order-statistic interval of Chapter 9
+    for the later period, less the lower end
+    for the earlier one. Each end fails with
+    a chance of 2.5 % at most, and one of the
+    two with 5 % at most, whether or not they
+    depend on each other. The requests of a
+    period are still taken as independent.
+    The two ends and the bound, or None for
+    all three where a period is too short
+    for its end."""
+    hb = sorted(elapsed(h for _, h in before))
+    ha = sorted(elapsed(h for _, h in after))
+    low = quantile_interval(hb, 0.95)[0]
+    high = quantile_interval(ha, 0.95)[1]
+    if low is None or high is None:
+        return None, None, None
+    new, old = pair(high, low)
+    return low, high, new - old
+
+
+def margins(upper):
+    """What an upper bound shows of margins
+    of slowdown that would have had to be
+    fixed before the measurement."""
+    for margin in (5.0, 2.0):
+        text = "not established"
+        if within(upper, margin):
+            text = "slowdown below the margin"
+        print(f"margin {margin:.0f} ms: {text}")
+
+
 def short_trace(n=20):
     """Two periods of n requests of 100 ms.
     No resample differs from another, and
@@ -183,7 +223,8 @@ def short_trace(n=20):
     printed, and the largest of n values of a
     continuous population lies above its p95
     with the second. The bound says nothing of
-    a tail that the trace did not reach."""
+    a tail that the trace did not reach, and
+    ranks give no bound for so few."""
     rows = [(0.0, 100.0)] * n
     d = handler_change(rows, rows)
     miss, reach = 0.9 ** n, 1 - 0.95 ** n
@@ -195,6 +236,10 @@ def short_trace(n=20):
           f" {100 * reach:.2f} %")
     need = run_length(0.95, 0.05)
     print(f"  requests for 95 %: {need}")
+    top = rank_bound(rows, rows)[2]
+    need = run_length(0.95, 0.025)
+    print(f"  bound by ranks: {top}; requests"
+          f" for one: {need}")
 
 
 def main():
@@ -254,13 +299,16 @@ def main():
           f" {upward(upper, 1)} ms")
     print(f"interval, 95 %: "
           f"[{lo:.1f}, {hi:.1f}] ms")
-    # Margins of slowdown that would have had
-    # to be fixed before the measurement.
-    for margin in (5.0, 2.0):
-        text = "not established"
-        if within(upper, margin):
-            text = "slowdown below the margin"
-        print(f"margin {margin:.0f} ms: {text}")
+    margins(upper)
+    low, high, ranks = rank_bound(before, after)
+    print("the p95 by ranks:")
+    print("  before, at least"
+          f" {downward(low, 2)} ms at 97.5 %")
+    print("  after, at most"
+          f" {upward(high, 2)} ms at 97.5 %")
+    print("  change at most"
+          f" {upward(ranks, 2)} ms at 95 %")
+    margins(ranks)
     short_trace()
 
 
