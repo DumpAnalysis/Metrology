@@ -217,7 +217,8 @@ class FirstPositiveCount(unittest.TestCase):
     def test_one_message_in_30_s(self):
         c = trace.current(1, 30)
         self.assertEqual(f"{c.value:.5f}", "0.03333")
-        self.assertEqual(tuple(f"{x:.5f}" for x in c.interval()), ("-0.03200", "0.09867"))
+        # Since Version 62 the limits are fractions, which Python 3.11 formats only through a float.
+        self.assertEqual(tuple(f"{float(x):.5f}" for x in c.interval()), ("-0.03200", "0.09867"))
         self.assertEqual(tuple(f"{x:.5f}" for x in rate_limits(1, 30)), ("0.00084", "0.18572"))
         self.assertEqual(f"{rate_upper(1, 30):.5f}", "0.15813")
         text = expected("ch16_silence")
@@ -280,7 +281,7 @@ class FirstPositiveCount(unittest.TestCase):
         # The 564 messages of the first half minute, as Chapter 16 quotes them.
         exact, c = rate_limits(564, 30), trace.current(564, 30)
         self.assertEqual(tuple(f"{x:.2f}" for x in exact), ("17.28", "20.42"))
-        self.assertEqual(tuple(f"{x:.2f}" for x in c.interval()), ("17.25", "20.35"))
+        self.assertEqual(tuple(f"{float(x):.2f}" for x in c.interval()), ("17.25", "20.35"))
         self.assertLess(max(abs(a - b) for a, b in zip(exact, c.interval())), c.u / 10)
 
     def test_what_is_refused(self):

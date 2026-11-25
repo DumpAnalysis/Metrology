@@ -153,18 +153,21 @@ def observed(xs):
 
 def classes(rec):
     """The record with every class as a list,
-    read once and held to observed(): every
-    class, also one without weight in a mix.
-    A request belongs to one class, and a
-    stream that can be read once stands under
-    one name: under a second it would be read
-    as empty, and is refused."""
-    once = [id(xs) for xs in rec.values()
-            if iter(xs) is xs]
+    held to observed(): every class, also one
+    without weight in a mix. A list is taken
+    as it is, anything else through the one
+    cursor that iter() gives for it. A cursor
+    under two names would be empty under the
+    second: it is refused before it is read."""
+    opened = {name: xs if isinstance(xs, list)
+              else iter(xs)
+              for name, xs in rec.items()}
+    once = [id(xs) for xs in opened.values()
+            if not isinstance(xs, list)]
     if len(set(once)) < len(once):
         raise ValueError("stream in two classes")
     return {name: observed(xs)
-            for name, xs in rec.items()}
+            for name, xs in opened.items()}
 
 
 def size(ref):

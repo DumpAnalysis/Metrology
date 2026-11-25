@@ -28,7 +28,7 @@ from swmetro import record as checker  # noqa: E402
 SOURCES = ["examples/ch22_budget.py", "examples/ch09_histogram.py",
            "swmetro/core.py", "swmetro/dist.py", "swmetro/stats.py",
            "swmetro/record.py", "data/make_record.py"]
-RELEASE = "book Version 61, November 2026"
+RELEASE = "book Version 62, November 2026"
 REPOSITORY = "github.com/DumpAnalysis/Metrology"
 RISK = 0.05
 # What the record says of each component of the budget beyond its name, its
@@ -81,7 +81,7 @@ def components(bud):
 
 def build():
     bud, r = ch22_budget.from_raw(ch22_budget.record(random.Random(22)))
-    lo, hi = r.interval(0.95)
+    lo, hi = map(float, r.interval(0.95))
     expects = {key: text for _, key, text in checker.EXPECTS}
     rec = {
         "format": checker.FORMAT,

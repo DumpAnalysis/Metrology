@@ -42,15 +42,29 @@ def _ratio(a, b, u):
         return math.inf if z > 0 else -math.inf
 
 
+def _exp10(u):
+    """The e with 10 ** e <= u < 10 ** (e + 1)
+    for a u above zero, in whole numbers: a
+    logarithm would pass through a float."""
+    u = Fraction(u)
+    bits = u.numerator.bit_length()
+    bits -= u.denominator.bit_length()
+    e = bits * 30103 // 100000
+    while u < Fraction(10) ** e:
+        e -= 1
+    while u >= Fraction(10) ** (e + 1):
+        e += 1
+    return e
+
+
 def decimals(u, digits=2):
     """Decimal places that keep `digits`
     significant digits of the uncertainty u,
     counted after rounding, so that 0.0996 is
     shown as 0.10. Negative for the tens."""
-    if not u > 0 or not math.isfinite(u):
+    if not u > 0 or u == math.inf:
         return 3
-    exp = math.floor(math.log10(u))
-    d = digits - 1 - exp
+    d = digits - 1 - _exp10(u)
     if _units(u, d) >= 10 ** digits:
         d -= 1
     return d
@@ -60,14 +74,16 @@ def resolved(at, spread):
     """Refuse a spread that a float of the
     size of `at` cannot show: the step from
     one float to the next has to be at most
-    a thousandth of it. A time stamp that
-    counts nanoseconds from 1970 has a step
-    of 256 ns as a float, and an uncertainty
-    of 1 ns added to it, or drawn around it,
-    is lost. The remedy is to subtract an
-    origin first, in whole numbers."""
-    step = math.ulp(float(at))
-    if spread > 0 and 1000 * step > spread:
+    a thousandth of it. A time stamp of 2023
+    in nanoseconds from 1970, 1.7e18, has a
+    step of 256 ns as a float, and one near
+    1e18 a step of 128 ns: an uncertainty of
+    1 ns added to it, or drawn around it, is
+    lost. The remedy is to subtract an origin
+    first, in whole numbers. The step and the
+    spread are compared exactly."""
+    step = 1000 * Fraction(math.ulp(float(at)))
+    if spread > 0 and step > _exact(spread):
         raise ValueError(
             "too fine for a float of this size")
 
@@ -135,8 +151,13 @@ def fmt(value, u, unit="", digits=2):
 
 
 def _level(p):
+    """A coverage probability: a decimal p as
+    the fraction that it is."""
+    if isinstance(p, Decimal):
+        p = Fraction(p)
     if not 0 <= p < 1:
         raise ValueError("need 0 <= p < 1")
+    return p
 
 
 @dataclass(frozen=True)
@@ -153,7 +174,8 @@ class Result:
     skewed component dominates, propagate the
     distributions instead. The default dof
     treats u as exactly known, which is itself
-    an assumption."""
+    an assumption. A value or a u beyond the
+    range of a float, 1.8e308, is refused."""
     value: float
     u: float
     unit: str = ""
@@ -177,39 +199,62 @@ class Result:
         one half it is found from p / 2, the
         distance from the middle: there the
         tail would round to 1/2, and the
-        factor of a small p to zero. A decimal
-        p is the fraction that it is."""
-        _level(p)
-        if isinstance(p, Decimal):
-            p = Fraction(p)
+        factor of a small p to zero. Below
+        1e-300, where the factor is in
+        proportion to p, it is found for p
+        times a power of two, near 2 ** -600,
+        and divided by that power. As a float,
+        a factor below the least float is 0.0:
+        the widths are formed from _k()."""
+        return float(self._k(p))
+
+    def _k(self, p):
+        """The factor as a fraction."""
+        p = _level(p)
         if not p:
-            return 0.0
+            return Fraction(0)
+        if p < 1e-300:
+            p = Fraction(p)
+            e = p.denominator.bit_length() - 600
+            e -= p.numerator.bit_length()
+            p = float(p * 2 ** e)
+            return self._k(p) / 2 ** e
         if p < 0.5:
-            return t_within(p, self.dof)
-        return t_isf((1 - p) / 2, self.dof)
+            return Fraction(t_within(p, self.dof))
+        t = t_isf((1 - p) / 2, self.dof)
+        return Fraction(t)
+
+    def _half(self, p):
+        """k * u as the fraction that it is."""
+        return self._k(p) * _exact(self.u)
 
     def expanded(self, p=0.95):
         """Expanded uncertainty U = k * u: the
-        exact product, as a float."""
-        ku = Fraction(self.k(p)) * _exact(self.u)
-        return float(ku)
+        exact product, as a float. A product
+        beyond the range of a float is refused
+        here: interval() and report() take it
+        as the fraction that it is."""
+        try:
+            return float(self._half(p))
+        except OverflowError:
+            pass
+        raise OverflowError("U is beyond a float")
 
     def interval(self, p=0.95):
         """Coverage interval for probability p.
         With u = 0, and at p = 0, both limits
-        are the value as it is stored. Else
-        the half-width is added and subtracted
-        exactly: the limits are floats where a
-        float holds the value, and fractions
-        where it does not, as for a time stamp
-        of nineteen digits."""
-        _level(p)
-        w = self.expanded(p)
-        if not w:
+        are the value as it is stored, and no
+        factor is found. Else they are the
+        value less k * u and plus k * u as
+        fractions, the numbers that they are.
+        A limit rounded to a float moves with
+        the origin of the clock, by up to
+        64 ns near 1e18 ns, and prob_below()
+        would not find at it the probability
+        that k stands for."""
+        if not (_level(p) and self.u):
             return self.value, self.value
-        v, w = _exact(self.value), Fraction(w)
-        if float(v) == v:
-            return float(v - w), float(v + w)
+        v, w = _exact(self.value), self._half(p)
         return v - w, v + w
 
     def prob_below(self, limit):
@@ -226,8 +271,10 @@ class Result:
         if limit != limit:
             raise ValueError("limit is no number")
         if self.u == 0:
-            at_most = limit >= self.value
-            return 1.0 if at_most else 0.0
+            if limit in (math.inf, -math.inf):
+                return float(limit > 0)
+            v = _exact(self.value)
+            return float(_exact(limit) >= v)
         z = _ratio(limit, self.value, self.u)
         return t_cdf(z, self.dof)
 
@@ -235,22 +282,29 @@ class Result:
         """(value ± U) unit, with k and p. U
         keeps two significant digits and the
         value is rounded to the same place,
-        which may be the tens or above. With
-        no uncertainty the value is shown in
-        full, since there is no such place. p
-        is printed as it was given: a float as
-        the shortest decimal that reads back
-        as the same float, a fraction in full.
+        which may be the tens or above: both
+        half to even from the numbers that
+        they are, whatever the rounding of
+        the decimal context. With no
+        uncertainty, and at p = 0, U is 0 and
+        the value is shown in full, since
+        there is no such place. p is printed
+        as it was given: a float as the
+        shortest decimal that reads back as
+        the same float, a fraction in full.
         Six digits would show 0.9999999, with
         its k of 5.33, as p = 1."""
-        v, w = self.value, self.expanded(p)
+        v, w = self.value, self._half(p)
         d = decimals(w)
         if d < 0:
-            v, w, d = round(v, d), round(w, d), 0
-        if self.u == 0:
+            scale, d = 10 ** -d, 0
+            v = round(_exact(v) / scale) * scale
+            w = round(w / scale) * scale
+        if not w:
             body = f"({full(v)} ± 0)"
         else:
-            body = f"({fixed(v, d)} ± {w:.{d}f})"
+            v, w = fixed(v, d), fixed(w, d)
+            body = f"({v} ± {w})"
         tail = f"k = {self.k(p):.2f}"
         if isinstance(p, float):
             p = repr(p)

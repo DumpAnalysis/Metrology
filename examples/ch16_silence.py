@@ -899,7 +899,7 @@ def first_count():
     """The first count above zero."""
     c = tm.current(1, 30)
     print(f"one message in 30 s: {c}")
-    lo, hi = c.interval()
+    lo, hi = map(float, c.interval())
     print("  normal, 95 %:"
           f" {lo:.5f} to {hi:.5f}")
     lo, hi = rate_limits(1, 30)

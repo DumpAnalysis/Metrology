@@ -70,12 +70,13 @@ def exact(x, y, sign=1):
     result, and a fraction otherwise. A bound
     that is put to a margin is not rounded
     across it first. As floats, 1.3 - 0.1 is
-    below 1.2, and the two numbers that are
-    stored differ by more than 1.2."""
+    1.2, below the decimal 1.20, and the two
+    that are stored differ by more than it."""
     total = Fraction(x) + sign * Fraction(y)
-    floats = type(x) is type(y) is float
-    if floats and float(total) == total:
-        return float(total)
+    if type(x) is type(y) is float:
+        close = x + sign * y
+        if close == total:
+            return close
     return total
 
 
@@ -178,11 +179,11 @@ def handler_change(before, after):
 def upper_bound(d):
     """One-sided upper bound at 95 %, by the
     normal approximation, u taken as known.
-    The half-width is the float that it is,
-    and it is added by exact(), so that a
-    bound which equals a margin, or lies just
-    above it, is seen to."""
-    return exact(d.value, Z * d.u)
+    The half-width is the exact product of
+    the float Z and u: rounded to a float, it
+    can fall below a margin that it exceeds."""
+    half = Fraction(Z) * Fraction(d.u)
+    return Fraction(d.value) + half
 
 
 def within(upper, margin):
@@ -230,11 +231,12 @@ def margins(upper):
 
 def ranked(before, after):
     """The lines of the bound by ranks and of
-    its margins. Where an end is missing they
-    name it instead, with the two counts and
-    the least count that has such an end: at
-    2.5 % a side, 2 requests for a lower end
-    of the p95 and 72 for an upper one."""
+    its margins. A period is listed first: it
+    may be a stream. A missing end is named,
+    with the two counts and the least count
+    that has such an end: at 2.5 % a side, 2
+    requests for a lower end, 72 for an upper."""
+    before, after = list(before), list(after)
     low, high, top = rank_bound(before, after)
     print("the p95 by ranks:")
     if top is None:
@@ -262,16 +264,16 @@ def ranked(before, after):
 def side_by_side(n=100, offset=1):
     """The follow-up for the instrument, in
     small: n requests reported by both
-    configurations, the second `offset` ms
-    above the first. Taken as two periods,
-    the change of the p95 has the spread of
-    two separate bootstraps. Resampled in
-    pairs, one draw of requests for both
-    reports, every replicate here is the
-    offset: the spread is that of the change
-    on the same requests."""
+    configurations, the second above the
+    first by `offset` ms, added exactly. As
+    two periods, the change of the p95 has
+    the spread of two separate bootstraps.
+    Resampled in pairs, one draw of requests
+    for both reports, every replicate here
+    is the offset: the spread is that of the
+    change on the same requests."""
     one = [(0, 100 + i) for i in range(n)]
-    two = [(0, h + offset) for _, h in one]
+    two = [(0, exact(h, offset)) for _, h in one]
 
     def change(ids):
         new = p95(two[i][1] for i in ids)

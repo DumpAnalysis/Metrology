@@ -17,7 +17,7 @@ import io
 import math
 import random
 import unittest
-from decimal import ROUND_CEILING, ROUND_FLOOR, Decimal
+from decimal import ROUND_CEILING, ROUND_FLOOR, Decimal, Inexact, localcontext
 from fractions import Fraction
 from pathlib import Path
 
@@ -49,7 +49,13 @@ def printed(function, *args):
 
 
 def up(x, places):
-    """x rounded toward +inf at so many places, by the decimal module: a float as the binary number it is."""
+    """x rounded toward +inf at so many places, by the decimal module: a float as the binary number it is. Since
+    Version 62 the upper bound of Listing 23.1 is a fraction with a power of two below the line: its decimal ends."""
+    if isinstance(x, Fraction):
+        with localcontext() as context:
+            context.prec = 4000
+            context.traps[Inexact] = True
+            x = Decimal(x.numerator) / Decimal(x.denominator)
     return str(Decimal(x).quantize(Decimal(1).scaleb(-places), rounding=ROUND_CEILING))
 
 
@@ -132,7 +138,9 @@ class AMarginThatIsReached(unittest.TestCase):
         self.assertEqual(d.value, Fraction(3, 10))
         self.assertGreater(d.u, 0)
         upper = case.upper_bound(d)
-        self.assertEqual(upper, Fraction(3, 10) + Fraction(case.Z * d.u))       # the half-width as the float it is
+        # Version 61 and before: Fraction(case.Z * d.u), the half-width as the float product. The review of
+        # Version 61 showed a product that rounds below a margin which the bound exceeds: now the exact product.
+        self.assertEqual(upper, Fraction(3, 10) + Fraction(case.Z) * Fraction(d.u))
         self.assertIs(case.within(upper, upper), False)
         self.assertIs(case.within(upper, upper + Fraction(1, 10 ** 30)), True)
         self.assertIs(case.within(upper, upper - Fraction(1, 10 ** 30)), False)
@@ -245,7 +253,7 @@ class BoundsArePrintedOnTheirSafeSide(unittest.TestCase):
         rng = random.Random(23)
         before, after = case.period(rng), case.period(rng)
         upper = case.upper_bound(case.handler_change(before, after))
-        self.assertEqual((f"{upper:.1f}", up(upper, 1)), ("4.7", "4.8"))
+        self.assertEqual((f"{float(upper):.1f}", up(upper, 1)), ("4.7", "4.8"))            # a fraction since Version 62
         self.assertIn("upper bound, 95 %: 4.8 ms\n", expected("ch23_case"))               # Version 58: 4.7
         self.assertIs(case.within(upper, 5.0), True)                                      # decided on the bound itself
 

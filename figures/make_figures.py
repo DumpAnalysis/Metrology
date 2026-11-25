@@ -333,7 +333,8 @@ EMPTY_ERRORS, EMPTY_RATE = 350, 0.01
 def counter_readings():
     """Two streams of bytes at constant rates that leave the same two readings
     of a 32-bit counter 100 s apart, and the reading at 50 s that tells them
-    apart: the readings and the totals are those of Listing 8.2."""
+    apart: the readings and the totals are those of Listing 8.2. The slower
+    rate is 7.05032704 MB/s, and its label, to two places, says about."""
     first, last = c8c.wrapping(100, 2)
     middle = c8c.wrapping(50, 2)[1]
     slow, fast = c8c.increments(first, last, 60_000_000 * 100)
@@ -356,7 +357,7 @@ def counter_readings():
     ax.text(83.5, last / gb + 0.3, f"both end at\n{last / gb:.3f} GB",
             ha="right", va="bottom")
     ax.text(64, 3.55, f"{fast / 1e8:.0f} MB/s", ha="right", va="bottom")
-    ax.text(40, 0.42, f"{slow / 1e8:.2f} MB/s", ha="right", va="bottom")
+    ax.text(40, 0.42, f"\u2248 {slow / 1e8:.2f} MB/s", ha="right", va="bottom")
     ax.text(wrap - 3, c8c.WRAP / gb + 0.05, "wrap", ha="right", va="center")
     ax.set_xlim(0, 100)
     ax.set_ylim(-0.15, 4.75)

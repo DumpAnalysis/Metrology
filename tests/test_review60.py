@@ -21,7 +21,7 @@ import math
 import random
 import statistics
 import unittest
-from decimal import Decimal
+from decimal import ROUND_CEILING, Decimal, Inexact, localcontext
 from fractions import Fraction
 from pathlib import Path
 from statistics import NormalDist
@@ -202,7 +202,9 @@ class TheLimitsOfAnInterval(unittest.TestCase):
 
     def test_a_value_that_a_float_does_not_hold(self):
         r = Result(self.STAMP, 150_000.0, "ns")
-        w = Fraction(r.expanded())
+        # Version 61: w = Fraction(r.expanded()), the product rounded to a float before it was added. Since
+        # Version 62 the limits are formed from the exact product of the factor and the uncertainty.
+        w = Fraction(r.k()) * 150_000
         self.assertAlmostEqual(float(w), 150_000 * NormalDist().inv_cdf(0.975), places=4)
         low, high = r.interval()
         self.assertEqual((low, high), (self.STAMP - w, self.STAMP + w))
@@ -212,20 +214,23 @@ class TheLimitsOfAnInterval(unittest.TestCase):
         self.assertNotEqual(Fraction(float(self.STAMP) - float(w)), low)       # what Version 60 returned
         low, high = Result(D("195.1"), 3).interval()
         self.assertEqual((low + high) / 2, Fraction(1951, 10))
-        self.assertEqual(high - low, 2 * Fraction(Result(D("195.1"), 3).expanded()))
+        self.assertEqual(high - low, 2 * Fraction(Result(D("195.1"), 3).k()) * 3)
 
     def test_a_value_that_a_float_holds(self):
+        # Version 61 returned two floats here, each limit rounded once more. The review of Version 61 showed
+        # what that costs: Result(10 ** 18, 149_980).interval(0.90) had its upper limit 39 ns inside, on a float,
+        # where prob_below() finds 0.94997. Since Version 62 both limits are the fractions that they are.
         want = Result(195.0, 3.0).interval()
-        self.assertEqual([type(x) for x in want], [float, float])
+        self.assertEqual([type(x) for x in want], [Fraction, Fraction])
         for value, u in itertools.product(KINDS, repeat=2):                    # Version 60: a decimal of either raised
             got = Result(value(195), u(3)).interval()
-            self.assertEqual((got, [type(x) for x in got]), (want, [float, float]), (value, u))
+            self.assertEqual((got, [type(x) for x in got]), (want, [Fraction, Fraction]), (value, u))
         rng = random.Random(61)
-        for _ in range(500):                                                   # floats: the float arithmetic it was
+        for _ in range(500):
             value, u, p = rng.gauss(0, 100), rng.uniform(0.01, 5), rng.choice((0.5, 0.9, 0.95, 0.99))
             r = Result(value, u)
-            w = r.k(p) * u
-            self.assertEqual((r.expanded(p), r.interval(p)), (w, (value - w, value + w)))
+            w = Fraction(r.k(p)) * Fraction(u)
+            self.assertEqual((r.expanded(p), r.interval(p)), (float(w), (Fraction(value) - w, Fraction(value) + w)))
 
     def test_an_uncertainty_and_a_level_of_any_type(self):
         plain = Result(195, 3.0, "ms")
@@ -273,14 +278,20 @@ class ABoundDoesNotCrossItsMargin(unittest.TestCase):
         upper = case.upper_bound(d)
         self.assertEqual(upper, exact)
         self.assertIs(case.within(upper, D("1.20")), False)                    # Version 60: True
-        # A centre of 0.2 ms and a half-width of 1.0 ms.
+        # A centre of 0.2 ms and a half-width that is 1.0 ms as a product of floats. Version 61 added that 1.0.
+        # Since Version 62 the half-width is the exact product of the two floats, which is not 1: it is found
+        # here by the decimal module, and the bound is on the side of 1.20 ms on which that sum is.
         u = 1.0 / case.Z
         self.assertEqual(case.Z * u, 1.0)
         upper = case.upper_bound(Result(0.2, u, "ms"))
-        self.assertEqual(upper, Fraction(0.2) + 1)
-        self.assertTrue(0.2 + 1.0 < Fraction(12, 10) < upper)
-        self.assertIs(case.within(upper, D("1.20")), False)                    # Version 60: True
-        self.assertEqual(stats.upward(upper, 2), "1.21")
+        with localcontext() as context:
+            context.prec = 400
+            context.traps[Inexact] = True
+            want = D(0.2) + D(case.Z) * D(u)
+        self.assertNotEqual(D(case.Z) * D(u), 1)
+        self.assertEqual(upper, Fraction(want))
+        self.assertIs(case.within(upper, D("1.20")), bool(want < D("1.20")))
+        self.assertEqual(stats.upward(upper, 2), str(want.quantize(D("0.01"), rounding=ROUND_CEILING)))
         # Exact readings were exact already, and a bound equal to its margin is still not below it.
         d = case.handler_change([(0, D("100.0"))] * 20, [(0, D("100.3"))] * 20)
         self.assertEqual((d.value, case.upper_bound(d)), (Fraction(3, 10), Fraction(3, 10)))
@@ -313,12 +324,14 @@ class ABoundDoesNotCrossItsMargin(unittest.TestCase):
         d = case.handler_change(before, after)
         upper = case.upper_bound(d)
         low, high, ranks = case.rank_bound(before, after)
-        # The three numbers are the floats that they were: here a float holds each of them exactly.
-        self.assertEqual((d.value, upper, ranks), (-0.1474653726260442, 4.7078728237108995, 8.651982212040906))
-        self.assertEqual([type(x) for x in (d.value, upper, ranks)], [float, float, float])
+        # The change and the bound by ranks are the floats that they were: a float holds each of them exactly.
+        # The upper bound is a fraction since Version 62, the value plus the exact product of Z and u.
+        self.assertEqual((d.value, ranks), (-0.1474653726260442, 8.651982212040906))
+        self.assertEqual(upper, Fraction(d.value) + Fraction(case.Z) * Fraction(d.u))
+        self.assertAlmostEqual(float(upper), 4.7078728237108995, places=13)
+        self.assertEqual([type(x) for x in (d.value, upper, ranks)], [float, Fraction, float])
         hb, ha = [h for _, h in before], [h for _, h in after]
         self.assertEqual(Fraction(d.value), Fraction(case.p95(ha)) - Fraction(case.p95(hb)))
-        self.assertEqual(Fraction(upper), Fraction(d.value) + Fraction(case.Z * d.u))
         self.assertEqual(Fraction(ranks), Fraction(high) - Fraction(low))
         # The duration that a configuration records is still the sum that it forms, two floats as floats.
         self.assertEqual(case.recorded([(0.1, 0.2)], {"start": "accept"}), [0.1 + 0.2])

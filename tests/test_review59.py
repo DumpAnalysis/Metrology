@@ -386,10 +386,13 @@ class TheMarginAndTheBound(unittest.TestCase):
     def test_4_71_is_a_rounded_number(self):
         before, after = periods()
         upper = case.upper_bound(case.handler_change(before, after))
-        self.assertEqual((f"{upper:.5f}", f"{upper:.2f}", stats.upward(upper, 1)), ("4.70787", "4.71", "4.8"))
+        # Since Version 62 the bound is a fraction, which Python 3.11 formats only through a float, and the
+        # least margin above it is no neighboring float: any number above it will do.
+        shown = float(upper)
+        self.assertEqual((f"{shown:.5f}", f"{shown:.2f}", stats.upward(upper, 1)), ("4.70787", "4.71", "4.8"))
         self.assertLess(upper, 4.71)
         for margin, below in ((4.71, True), (D("4.71"), True), (5.0, True), (2.0, False), (upper, False),
-                              (math.nextafter(upper, 5), True)):
+                              (upper + Fraction(1, 10 ** 40), True)):
             self.assertIs(case.within(upper, margin), below, margin)
 
 
