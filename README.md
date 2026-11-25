@@ -2,7 +2,7 @@
 
 Code examples for the book *Metrology in Software Diagnostics, Observability,
 and Debugging: With Applications to Machine Learning and AI* by Dmitry Vostokov
-(OpenTask, ISBN 978-1-919135-15-1). Book Version 58, November 2026.
+(OpenTask, ISBN 978-1-919135-15-1). Book Version 59, November 2026.
 
 Repository: https://github.com/DumpAnalysis/Metrology
 
@@ -78,7 +78,7 @@ will print different numbers on your machine; that is what they are for.
 | `expected/` | The transcript of each example, as printed in the book. |
 | `data/` | The trace fixture of Chapter 16 (`app_trace.log`) and its seeded generator (`make_trace.py`); the measurement record of Chapter 22 (`measurement_record.json`), a blank template with the same fields (`record_template.json`), a description of the form, of the decision procedure and of what the checker examines (`RECORD_FORMAT.md`), and the program that writes both (`make_record.py`). |
 | `figures/` | `make_figures.py` draws the book's thirty-two figures from the same functions as the examples. Needs matplotlib and Pillow at the versions in `requirements.txt`; output goes to `figures/out/`. |
-| `tests/` | `test_swmetro.py`: unit tests of the package. `test_review.py`, `test_review2.py` to `test_review5.py`, `test_review7.py` to `test_review46.py` and `test_review48.py` to `test_review57.py`: regression tests, numbered by the version of the book whose review they followed; each checks the code against an independent fact (a closed form, a definition evaluated by brute force, a published table, a simulated coverage), not against saved output. `test_release.py`: the license text is the published one, and the record and this file name the repository and the release. |
+| `tests/` | `test_swmetro.py`: unit tests of the package. `test_review.py`, `test_review2.py` to `test_review5.py`, `test_review7.py` to `test_review46.py` and `test_review48.py` to `test_review58.py`: regression tests, numbered by the version of the book whose review they followed; each checks the code against an independent fact (a closed form, a definition evaluated by brute force, a published table, a simulated coverage), not against saved output. `test_release.py`: the license text is the published one, and the record and this file name the repository and the release. |
 | `tools/` | Two optional checks of the Student t quantile against high-precision arithmetic. They need mpmath. |
 | `run_all.py` | The replay program. |
 | `LICENSE` | PolyForm Strict License 1.0.0. |
@@ -160,6 +160,14 @@ Where an entry that is no duration has a meaning, the listing says so:
 `None` is a timeout in `ch10_censoring`, whose completions lie below the
 deadline of the client, and `None`, a NaN, an infinity and a bound such as
 `(">=", 1000)` keep their meanings in `ch23_mix`.
+
+A bound that an example prints is rounded to its safe side, an upper bound
+upward and a lower bound downward, by `upward()` and `downward()` of
+`swmetro/stats.py`, in exact arithmetic. A limit is compared with the bound
+as it was computed, not with its printed form. Two floats are added and
+subtracted as floats; where a duration came as a `Decimal`, a `Fraction` or
+an `int`, sums and differences are exact, so that a duration on a bucket
+bound stays on it and a change equal to a margin is not reported as below it.
 
 ## Using the measurement record
 
@@ -255,14 +263,14 @@ them; a test fails otherwise.
 Each version of the book corresponds to a release of this repository,
 identified by the version of the book and by the SHA-256 checksum of its
 archive. The archive is the file attached to the release, for this version
-`MetrologyForSoftwareDiagnostics-Version58.zip`, and its checksum is printed
+`MetrologyForSoftwareDiagnostics-Version59.zip`, and its checksum is printed
 in Appendix C of the book. A different checksum identifies a different archive
 file: an archive that GitHub generates from the same commit holds the same
 files and can differ in its bytes. Seeds alone do not specify a result: the
 stored transcripts, the trace fixture and the measurement record are part of
 each release for that reason.
 
-This is the release for Version 58 of the book.
+This is the release for Version 59 of the book.
 
 ## License
 

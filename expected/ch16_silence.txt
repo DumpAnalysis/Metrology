@@ -5,7 +5,7 @@ svc, 30-60 s: 0 messages, 30 s verified
   requests arriving, each with a
   start and an end 2.346 s apart:
     starts covered: 32.346 s
-    at most 0.18523 msg/s at 95 %
+    at most 0.18524 msg/s at 95 %
     silent at 0.09986 msg/s: 19.9 %
 requests of 60 s, window of 30 s:
   starts covered: 60 s
@@ -51,17 +51,17 @@ durations sampled with windows of
     from 40 s and 60 s of start times
     40 % of 10 s, 60 % of 50 s
     starts covered: 52 s
-    0.11522 msg/s at a nominal 95 %
+    0.11523 msg/s at a nominal 95 %
     the source is silent at that: 5.61 %
 durations of 10 s and 50 s, the mix
 from 20 requests taken by their
 start: 2 of 10 s. A silence of 30 s:
   the 10 % taken as known:
     starts covered: 58 s
-    0.10330 msg/s at a nominal 95 %
-  at most 31.698 % of 10 s, at 97.5 %:
+    0.10331 msg/s at a nominal 95 %
+  at most 31.699 % of 10 s, at 97.5 %:
     starts covered: 53.6603 s
-    silent at 0.10330 msg/s: 6.26 %
+    silent at 0.10331 msg/s: 6.26 %
     at most 0.13749 msg/s at 95 %
   no sample, all of 10 s:
     starts covered: 40 s
@@ -76,10 +76,10 @@ one message in 30 s, from pairs
   60 s apart:
     at most 0.15813 msg/s at 95 %
   10 s apart:
-    at most 0.20565 msg/s at 95 %
+    at most 0.20566 msg/s at 95 %
   10 s apart, the 30 s given as
   0 to 20 s and 10 to 30 s:
-    at most 0.20565 msg/s at 95 %
+    at most 0.20566 msg/s at 95 %
 verified 30 to 40 and 50 to 60 s,
 one message in the record:
 at 45 s
@@ -93,7 +93,7 @@ at 35 s
 svc, 30-60 s: 1 message, 20 s verified
   in the verified time: 1
   messages arriving singly:
-    at most 0.23719 msg/s at 95 %
+    at most 0.23720 msg/s at 95 %
   no request to take the time
   between a start and an end from
 lines 1, 2, 5, 9 and 10, stamped
@@ -115,9 +115,9 @@ verified time and share kept:
   60 s, 100 %: 60 s,
     at most 0.04993 msg/s at 95 %
   40 s, 100 %: 40 s,
-    at most 0.07489 msg/s at 95 %
+    at most 0.07490 msg/s at 95 %
   40 s,  25 %: 10 s,
-    at most 0.29957 msg/s at 95 %
+    at most 0.29958 msg/s at 95 %
   20 s, 100 %: 20 s,
     at most 0.14979 msg/s at 95 %
 an empty record of that capture:
@@ -132,27 +132,27 @@ four consecutive lines stamped 1, 26,
 silence of 30 s, one message in
 four kept; effective exposure:
   single messages: 7.5 s
-    at most 0.39943 msg/s at 95 %
+    at most 0.39944 msg/s at 95 %
   pairs 10 s apart, a decision
   for each message: 6.875 s
-    at most 0.43574 msg/s at 95 %
-    silent at 0.39943 msg/s: 6.42 %
+    at most 0.43575 msg/s at 95 %
+    silent at 0.39944 msg/s: 6.42 %
   pairs 10 s apart, a decision
   for both messages: 5 s
     at most 0.59915 msg/s at 95 %
-    silent at 0.39943 msg/s: 13.57 %
+    silent at 0.39944 msg/s: 13.57 %
 an empty window of 30 s:
   chosen in advance:
     at most 0.09986 msg/s at 95 %
   found by a search of ten:
-    at most 0.17584 msg/s at 95 %
+    at most 0.17585 msg/s at 95 %
   all ten empty:
     at most 0.00999 msg/s at 95 %
   at 0.09986 msg/s a search of ten
   finds an empty window: 40.13 %
   a gap of 30 s anywhere in 300 s:
     at most 0.23854 msg/s at 95 %
-  at 0.17584 msg/s such a gap
+  at 0.17585 msg/s such a gap
   is found somewhere: 22.48 %
   with 60 messages counted, a gap of
     30 s or more: 10.68 %
@@ -186,8 +186,8 @@ write two messages:
   chosen in advance:
     at most 0.14979 msg/s at 95 %
   found by a search of ten:
-    at most 0.26313 msg/s at 95 %
+    at most 0.26314 msg/s at 95 %
   all ten empty:
     at most 0.01933 msg/s at 95 %
-  at 0.17584 msg/s a search of
+  at 0.17585 msg/s a search of
   ten finds an empty window: 25.17 %

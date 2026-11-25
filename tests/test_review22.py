@@ -315,7 +315,8 @@ class HowARequestEntersTheSample(unittest.TestCase):
         for rule, lengths, mix, covered, rate, still in (
                 ("starts in a window", "30 s and 30 s", "50 % of 10 s, 50 % of 50 s", "50", "0.11983", "5.00"),
                 ("starts and ends in it", "20 s and 0 s", "100 % of 10 s, 0 % of 50 s", "40", "0.14979", "2.36"),
-                ("starts or ends in it", "40 s and 60 s", "40 % of 10 s, 60 % of 50 s", "52", "0.11522", "5.61")):
+                ("starts or ends in it", "40 s and 60 s", "40 % of 10 s, 60 % of 50 s", "52", "0.11523", "5.61")):
+            # 0.11522 until Version 58: the rate is 0.115220..., and a bound is printed rounded upward.
             self.assertIn(f"  {rule}:\n    from {lengths} of start times\n    {mix}\n    starts covered: {covered} s\n"
                           f"    {rate} msg/s at a nominal 95 %\n    the source is silent at that: {still} %\n", out)
         self.assertTrue(out.startswith("durations sampled with windows of\n30 s; a request is taken if it\n  starts in a window:\n"))

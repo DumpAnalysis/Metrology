@@ -364,7 +364,10 @@ class ADurationThatIsNotKnown(unittest.TestCase):
         ref = {"all": range(10)}
         for beyond in (math.inf, 201, 1e300):
             self.assertEqual(mix.within({"all": [100.0] * 9 + [beyond]}, ref, 200), (Fraction(9, 10),) * 2)
-        self.assertEqual(mix.within({"all": [100.0] * 9 + [-math.inf]}, ref, 200), (Fraction(1),) * 2)
+        # Until Version 58 a duration of minus infinity was counted within every limit. A duration has
+        # elapsed, and since Version 59 one below zero is refused.
+        with self.assertRaises(ValueError):
+            mix.within({"all": [100.0] * 9 + [-math.inf]}, ref, 200)
         self.assertEqual(mix.within({"all": [100.0] * 9 + [200]}, ref, 200), (Fraction(1),) * 2)
 
     def test_unknown(self):

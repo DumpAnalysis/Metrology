@@ -3,10 +3,10 @@
 import random
 import statistics as st
 
-from swmetro.stats import block_bootstrap
+from swmetro.stats import block_bootstrap, upward
 from swmetro.stats import bootstrap, quantile
 from swmetro.stats import quantile_interval
-from swmetro.stats import run_length
+from swmetro.stats import downward, run_length
 
 N, BLOCK = 2000, 100
 
@@ -88,10 +88,10 @@ def main():
     calm = sorted(rng.lognormvariate(3.9, 0.3)
                   for _ in range(500))
     lo, hi = quantile_interval(calm, 0.999)
-    text = "none" if hi is None else f"{hi:.1f}"
+    top = "none" if hi is None else upward(hi, 1)
     print("p99.9 from 500 independent values:")
-    print(f"  lower bound {lo:.1f} ms,"
-          f" upper bound {text}")
+    print(f"  lower bound {downward(lo, 1)} ms,"
+          f" upper bound {top}")
     upper_ends()
 
 

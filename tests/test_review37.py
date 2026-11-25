@@ -239,7 +239,7 @@ class TemperaturesThatTheLabelsAllow(unittest.TestCase):
         low, high = cal.temperatures(40, 55, 100)
         self.assertEqual((f"{low:.2f}", high), ("64.76", math.inf))              # no finite upper limit
         low, high = cal.temperatures(40, 100, 100)
-        self.assertEqual((low, f"{high:.2f}"), (0.0, "12.19"))                   # every T up to 12.19
+        self.assertEqual((low, f"{high:.2f}"), (0.0, "12.19"))                   # every T up to 12.20
         self.assertIsNone(cal.temperatures(40, 35, 100))                         # no positive T
         # The four numbers again, from the limits computed here.
         p = exact_limits(99, 100)
@@ -287,7 +287,8 @@ class TemperaturesThatTheLabelsAllow(unittest.TestCase):
         p55, p100 = exact_limits(55, 100), exact_limits(100, 100)
         self.assertEqual(lines[20:23], [
             f"  55 positive: T from {40 / math.log(p55[1] / (1 - p55[1])):.2f}, no upper end",
-            f"  100 positive: T up to {40 / math.log(p100[0] / (1 - p100[0])):.2f}",
+            # An upper end is printed rounded upward since Version 59: 12.1901 is at most 12.20.
+            f"  100 positive: T up to {math.ceil(40 / math.log(p100[0] / (1 - p100[0])) * 100) / 100:.2f}",
             "  35 positive: no T above zero"])
         self.assertEqual(printed(cal.main), text)
 

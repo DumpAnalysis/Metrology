@@ -11,6 +11,7 @@ from swmetro.dist import phi, z_ppf
 from swmetro.stats import as_count, bootstrap
 from swmetro.stats import ecdf_quantile, known
 from swmetro.stats import quiet_bound, rate_limits
+from swmetro.stats import run_length, upward
 
 # Telemetry configuration before and after the
 # deployment: where the duration starts, and
@@ -38,24 +39,43 @@ def period(rng):
         rows.append((queue, 120 * z))
 
 
+def elapsed(xs):
+    """Times that elapsed: durations that
+    known() admits, and none below zero."""
+    xs = known(xs)
+    if min(xs, default=0) < 0:
+        raise ValueError("a time below zero")
+    return xs
+
+
+def pair(x, y):
+    """Two numbers before they are added or
+    subtracted. Two floats stay floats, as
+    the replay has them. Anything else is
+    taken as the exact fractions that the two
+    are, so that 200.3 ms after no wait is
+    still on a bucket bound of 200.3 ms."""
+    if type(x) is type(y) is float:
+        return x, y
+    return Fraction(x), Fraction(y)
+
+
 def recorded(rows, config):
     """Durations as a configuration records
-    them. From handler entry it is the handler
-    time as it stands, and the queueing delay
-    is not read. From accept the two are
-    added: each is then a duration that
-    known() admits, and the sum is exact
-    before it is a float. A configuration
-    names one of the two starts."""
+    them, which names one of two starts. From
+    handler entry it is the handler time, and
+    the queueing delay is not read. From
+    accept the two are added by pair(). A
+    time that is read has elapsed()."""
     start, rows = config["start"], list(rows)
-    if start == "handler":
-        return [h for _, h in rows]
-    if start != "accept":
+    if start not in ("handler", "accept"):
         raise ValueError(f"no start: {start!r}")
-    qs = known(q for q, _ in rows)
-    hs = known(h for _, h in rows)
-    return [float(Fraction(q) + Fraction(h))
-            for q, h in zip(qs, hs)]
+    hs = elapsed(h for _, h in rows)
+    if start == "handler":
+        return hs
+    qs = elapsed(q for q, _ in rows)
+    both = (pair(q, h) for q, h in zip(qs, hs))
+    return [q + h for q, h in both]
 
 
 def reported(rows, config):
@@ -89,8 +109,8 @@ def arrival(n, seconds=WINDOW):
     if not seconds > 0:
         raise ValueError("no exposure")
     if n == 0:
-        top = quiet_bound(seconds)
-        return f"at most {top:.5f} req/s at 95 %"
+        top = upward(quiet_bound(seconds), 5)
+        return f"at most {top} req/s at 95 %"
     u = math.sqrt(n) / seconds
     rate = Result(n / seconds, u, "req/s")
     if rate.interval()[0] > 0:
@@ -111,29 +131,37 @@ def canary(config, n, rng):
 def p95(xs):
     """Inverse empirical CDF convention, of
     durations that are all known: known() of
-    the package refuses a missing one."""
-    return ecdf_quantile(sorted(known(xs)), 0.95)
+    the package refuses a missing one, and
+    elapsed() one below zero."""
+    xs = sorted(elapsed(xs))
+    return ecdf_quantile(xs, 0.95)
 
 
 def handler_change(before, after):
     """Change of the p95 of the handler time
     between the periods, with a bootstrap
-    standard uncertainty. The percentiles and
-    their replicates are taken as the exact
-    numbers they are, whatever their types."""
+    standard uncertainty. The replicates are
+    taken as the exact numbers they are, and
+    the two percentiles by pair(): the change
+    of exact readings is exact."""
     hb = [h for _, h in before]
     ha = [h for _, h in after]
     ub, ua = (st.stdev(map(Fraction, bootstrap(
         hs, p95, 300, 23))) for hs in (hb, ha))
-    d = Fraction(p95(ha)) - Fraction(p95(hb))
-    return Result(float(d),
+    new, old = pair(p95(ha), p95(hb))
+    return Result(new - old,
                   math.hypot(ua, ub), "ms")
 
 
 def upper_bound(d):
     """One-sided upper bound at 95 %, by the
-    normal approximation, u taken as known."""
-    return d.value + Z * d.u
+    normal approximation, u taken as known.
+    The half-width is the float that it is.
+    To an exact change it is added exactly,
+    so that a bound which equals a margin is
+    seen to equal it."""
+    value, half = pair(d.value, Z * d.u)
+    return value + half
 
 
 def within(upper, margin):
@@ -143,6 +171,30 @@ def within(upper, margin):
     margin. A bound equal to the margin is
     not enough."""
     return upper < margin
+
+
+def short_trace(n=20):
+    """Two periods of n requests of 100 ms.
+    No resample differs from another, and
+    the change and its bound are 0 ms. Yet
+    if one request in ten of the second
+    period took 200 ms, n of them would miss
+    every slow one with the first chance
+    printed, and the largest of n values of a
+    continuous population lies above its p95
+    with the second. The bound says nothing of
+    a tail that the trace did not reach."""
+    rows = [(0.0, 100.0)] * n
+    d = handler_change(rows, rows)
+    miss, reach = 0.9 ** n, 1 - 0.95 ** n
+    print(f"{n} requests of 100 ms, twice:")
+    print(f"  difference {d}")
+    print("  no slow one among them:"
+          f" {100 * miss:.2f} %")
+    print("  the largest above the p95:"
+          f" {100 * reach:.2f} %")
+    need = run_length(0.95, 0.05)
+    print(f"  requests for 95 %: {need}")
 
 
 def main():
@@ -198,7 +250,8 @@ def main():
     lo, hi = d.interval()
     print(f"detection limit {limit:.1f} ms")
     print(f"power at 5 ms: {power:.2f}")
-    print(f"upper bound, 95 %: {upper:.1f} ms")
+    print("upper bound, 95 %:"
+          f" {upward(upper, 1)} ms")
     print(f"interval, 95 %: "
           f"[{lo:.1f}, {hi:.1f}] ms")
     # Margins of slowdown that would have had
@@ -208,6 +261,7 @@ def main():
         if within(upper, margin):
             text = "slowdown below the margin"
         print(f"margin {margin:.0f} ms: {text}")
+    short_trace()
 
 
 if __name__ == "__main__":

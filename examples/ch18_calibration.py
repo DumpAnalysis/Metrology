@@ -5,6 +5,7 @@ import random
 import statistics as st
 
 from examples.ch20_judge import exact_interval
+from swmetro.stats import downward, upward
 
 
 def sigmoid(z):
@@ -220,9 +221,10 @@ def worded(ends):
     if high == math.inf and not low:
         return "any T above zero"
     if high == math.inf:
-        return f"T from {low:.2f}, no upper end"
+        low = downward(low, 2)
+        return f"T from {low}, no upper end"
     if not low:
-        return f"T up to {high:.2f}"
+        return f"T up to {upward(high, 2)}"
     return f"{low:.2f} to {high:.2f}"
 
 

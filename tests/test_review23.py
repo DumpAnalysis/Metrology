@@ -501,7 +501,7 @@ class WhichRequestsEnterTheSample(unittest.TestCase):
                                        "    starts covered: 50 s", "    0.11983 msg/s at a nominal 95 %",
                                        "    the source is silent at that: 5.00 %"])
         self.assertEqual(lines[20:], ["  starts or ends in it:", "    from 40 s and 60 s of start times", "    40 % of 10 s, 60 % of 50 s",
-                                      "    starts covered: 52 s", "    0.11522 msg/s at a nominal 95 %",
+                                      "    starts covered: 52 s", "    0.11523 msg/s at a nominal 95 %",
                                       "    the source is silent at that: 5.61 %"])
         self.assertNotIn("at most", out)                      # a rate drawn from a sampled mix is not called a bound
         self.assertEqual(out.count("nominal 95 %"), 4)
@@ -555,9 +555,9 @@ class TheMixFromTwentyRequests(unittest.TestCase):
         out = printed(silence.calibrated)
         self.assertEqual(out, "durations of 10 s and 50 s, the mix\nfrom 20 requests taken by their\n"
                               "start: 2 of 10 s. A silence of 30 s:\n  the 10 % taken as known:\n"
-                              "    starts covered: 58 s\n    0.10330 msg/s at a nominal 95 %\n"
-                              "  at most 31.698 % of 10 s, at 97.5 %:\n    starts covered: 53.6603 s\n"
-                              "    silent at 0.10330 msg/s: 6.26 %\n    at most 0.13749 msg/s at 95 %\n"
+                              "    starts covered: 58 s\n    0.10331 msg/s at a nominal 95 %\n"
+                              "  at most 31.699 % of 10 s, at 97.5 %:\n    starts covered: 53.6603 s\n"
+                              "    silent at 0.10331 msg/s: 6.26 %\n    at most 0.13749 msg/s at 95 %\n"
                               "  no sample, all of 10 s:\n    starts covered: 40 s\n    at most 0.14979 msg/s at 95 %\n")
         self.assertIn(out + printed(silence.first_count), expected("ch16_silence"))
         # At the rate drawn from the 10 % as known, a source at the limit of what the sample allows is silent more
@@ -596,11 +596,13 @@ class TheMixFromTwentyRequests(unittest.TestCase):
         # No short request among 20: the share is below 1 - 0.025 ** (1 / 20). All 20 short: no limit below 1.
         self.assertAlmostEqual(self.LIMITS[0], 1 - 0.025 ** (1 / 20), places=12)
         out = printed(silence.calibrated, 0, 20)
-        self.assertIn(f"  at most {100 * self.LIMITS[0]:.3f} % of 10 s, at 97.5 %:\n", out)
+        shown = math.ceil(100 * self.LIMITS[0] * 1000) / 1000                   # rounded upward since Version 59
+        self.assertIn(f"  at most {shown:.3f} % of 10 s, at 97.5 %:\n", out)
         self.assertIn("  the 0 % taken as known:\n    starts covered: 60 s\n", out)
         out = printed(silence.calibrated, 20, 20)
         self.assertIn("  at most 100.000 % of 10 s, at 97.5 %:\n    starts covered: 40 s\n", out)
-        self.assertIn(f"    at most {-2 * math.log(0.025) / 40:.5f} msg/s at 95 %\n", out)
+        shown = math.ceil(-2 * math.log(0.025) / 40 * 10 ** 5) / 10 ** 5
+        self.assertIn(f"    at most {shown:.5f} msg/s at 95 %\n", out)
 
 
 if __name__ == "__main__":

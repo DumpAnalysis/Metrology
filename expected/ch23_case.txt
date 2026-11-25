@@ -17,7 +17,12 @@ handler p95: 181.5 ms -> 181.4 ms
 difference -0.1(30) ms
 detection limit 9.7 ms
 power at 5 ms: 0.52
-upper bound, 95 %: 4.7 ms
+upper bound, 95 %: 4.8 ms
 interval, 95 %: [-5.9, 5.6] ms
 margin 5 ms: slowdown below the margin
 margin 2 ms: not established
+20 requests of 100 ms, twice:
+  difference 0.0(0) ms
+  no slow one among them: 12.16 %
+  the largest above the p95: 64.15 %
+  requests for 95 %: 59

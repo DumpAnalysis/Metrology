@@ -45,12 +45,12 @@ def from_raw(ms, step=STEP):
     'Between runs' is a variance component
     with the within-run sampling removed,
     taken from an earlier study of 8 runs.
-    The readings are taken as the exact
-    numbers they are, a decimal as a decimal,
-    and the correction as nine tenths. The
-    step is that of the instrument which
-    stored the readings, here the probe's."""
+    Readings and correction are taken as
+    exact numbers. The step, not below 0, is
+    that of the instrument that stored them."""
     ms, (step,) = known(ms), known([step], "step")
+    if step < 0:
+        raise ValueError("need a width >= 0")
     reps = bootstrap(ms, p95, 500, seed=22)
     spread = st.stdev(Fraction(r) for r in reps)
     bud = Budget("ms")

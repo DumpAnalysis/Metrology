@@ -2,7 +2,7 @@
 """Chapter 11: is this process leaking?"""
 import random
 
-from swmetro.stats import linfit
+from swmetro.stats import linfit, upward
 
 RATE = 0.05  # true growth, MiB/min
 NOISE = 3.0  # sd of one reading, MiB
@@ -27,9 +27,9 @@ def main():
         fit = linfit(ts[:w + 1], ms[:w + 1])
         slope, u = fit[1], fit[3]
         shown = ("no", "yes")[slope > 1.645 * u]
-        upper = slope + 1.645 * u
+        upper = upward(slope + 1.645 * u, 4)
         print(f"{w:>3} min{slope:>8.4f}{u:>8.4f}"
-              f"{upper:>8.4f}{3.29 * u:>8.4f}"
+              f"{upper:>8}{3.29 * u:>8.4f}"
               f"  {shown}")
 
 

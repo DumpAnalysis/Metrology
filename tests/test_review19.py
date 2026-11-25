@@ -171,7 +171,8 @@ class LinesOfTheVerifiedTime(unittest.TestCase):
         for own, count, bound in ((5, 0, quiet_bound(20)), (2, 1, rate_upper(1, 20))):
             out = printed(silence.models, lines(REVIEW, own), HALF, None)
             self.assertIn(f"svc, 30-60 s: 1 message, 20 s verified\n  in the verified time: {count}\n", out)
-            self.assertIn(f"    at most {bound:.5f} msg/s at 95 %\n", out)
+            shown = math.ceil(bound * 10 ** 5) / 10 ** 5                         # rounded upward since Version 59
+            self.assertIn(f"    at most {shown:.5f} msg/s at 95 %\n", out)
         out = printed(silence.models, lines(REVIEW, 10), HALF, None)
         self.assertIn("svc, 30-60 s: 0 messages, 20 s verified\n  in the verified time: 0\n", out)
 
@@ -343,7 +344,7 @@ class LinesOfTheVerifiedTime(unittest.TestCase):
                "at 45 s\nsvc, 30-60 s: 1 message, 20 s verified\n  in the verified time: 0\n  messages arriving singly:\n"
                "    at most 0.14979 msg/s at 95 %\n",
                "at 35 s\nsvc, 30-60 s: 1 message, 20 s verified\n  in the verified time: 1\n  messages arriving singly:\n"
-               "    at most 0.23719 msg/s at 95 %\n",
+               "    at most 0.23720 msg/s at 95 %\n",
                "first half minute, verified from\n  0 to 20.099 and 22.187 to 30 s:\n  27.912 s, and for pairs 2.346 s\n"
                "  apart, starts covered: 32.346 s\n")
         for piece in old:
@@ -443,12 +444,12 @@ class OverlappingStretches(unittest.TestCase):
 
     def test_the_callers_of_the_chapter_are_unchanged(self):
         text = expected("ch16_silence")
-        for piece in ("    starts covered: 32.346 s\n    at most 0.18523 msg/s at 95 %\n",
+        for piece in ("    starts covered: 32.346 s\n    at most 0.18524 msg/s at 95 %\n",
                       "  2.346 s apart:\n    at most 0.21000 msg/s at 95 %\n  60 s apart:\n    at most 0.15813 msg/s at 95 %\n"):
             self.assertIn(piece, text)
         # The window of the review, whole and as two stretches that overlap.
-        self.assertIn("  10 s apart:\n    at most 0.20565 msg/s at 95 %\n  10 s apart, the 30 s given as\n"
-                      "  0 to 20 s and 10 to 30 s:\n    at most 0.20565 msg/s at 95 %\n", text)
+        self.assertIn("  10 s apart:\n    at most 0.20566 msg/s at 95 %\n  10 s apart, the 30 s given as\n"
+                      "  0 to 20 s and 10 to 30 s:\n    at most 0.20566 msg/s at 95 %\n", text)
         self.assertIn(printed(silence.pair_count), text)
 
 

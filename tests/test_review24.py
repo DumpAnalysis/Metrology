@@ -485,11 +485,11 @@ class OneMessageInFourKept(unittest.TestCase):
     def test_the_transcript(self):
         out = printed(silence.retained)
         self.assertEqual(out, "silence of 30 s, one message in\nfour kept; effective exposure:\n"
-                              "  single messages: 7.5 s\n    at most 0.39943 msg/s at 95 %\n"
+                              "  single messages: 7.5 s\n    at most 0.39944 msg/s at 95 %\n"
                               "  pairs 10 s apart, a decision\n  for each message: 6.875 s\n"
-                              "    at most 0.43574 msg/s at 95 %\n    silent at 0.39943 msg/s: 6.42 %\n"
+                              "    at most 0.43575 msg/s at 95 %\n    silent at 0.39944 msg/s: 6.42 %\n"
                               "  pairs 10 s apart, a decision\n  for both messages: 5 s\n"
-                              "    at most 0.59915 msg/s at 95 %\n    silent at 0.39943 msg/s: 13.57 %\n")
+                              "    at most 0.59915 msg/s at 95 %\n    silent at 0.39944 msg/s: 13.57 %\n")
         text = expected("ch16_silence")
         self.assertIn(out + printed(silence.search), text)
         self.assertTrue(text.endswith(out + printed(silence.search)))

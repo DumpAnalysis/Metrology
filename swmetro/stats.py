@@ -71,6 +71,23 @@ def known(xs, what="duration"):
     return xs
 
 
+def upward(x, places):
+    """x as text with `places` decimals, rounded
+    toward +inf in exact arithmetic. An upper
+    bound that is printed has to stay one, and
+    rounded to the nearest it can lie below the
+    bound that was computed. A float is the
+    binary number that it is."""
+    n = math.ceil(Fraction(x) * 10 ** places)
+    return format(Decimal(n).scaleb(-places), "f")
+
+
+def downward(x, places):
+    """The same toward -inf, for a lower bound."""
+    n = math.floor(Fraction(x) * 10 ** places)
+    return format(Decimal(n).scaleb(-places), "f")
+
+
 def _floor(f):
     return f.numerator // f.denominator
 

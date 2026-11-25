@@ -550,7 +550,7 @@ class AGapAnywhere(unittest.TestCase):
         out = printed(silence.search)
         piece = ("  at 0.09986 msg/s a search of ten\n  finds an empty window: 40.13 %\n"
                  "  a gap of 30 s anywhere in 300 s:\n    at most 0.23854 msg/s at 95 %\n"
-                 "  at 0.17584 msg/s such a gap\n  is found somewhere: 22.48 %\n")
+                 "  at 0.17585 msg/s such a gap\n  is found somewhere: 22.48 %\n")
         self.assertIn(piece, out)
         text = expected("ch16_silence")
         self.assertTrue(text.endswith(out))

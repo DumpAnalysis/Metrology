@@ -69,7 +69,7 @@ class WorkedAdditions(unittest.TestCase):
 
     def test_margin_decisions(self):
         text = (ROOT / "expected" / "ch23_case.txt").read_text(encoding="utf-8")
-        self.assertIn("upper bound, 95 %: 4.7 ms", text)
+        self.assertIn("upper bound, 95 %: 4.8 ms", text)
         self.assertIn("margin 5 ms: slowdown below the margin", text)
         self.assertIn("margin 2 ms: not established", text)
         self.assertAlmostEqual(ch23_case.Z, z_ppf(0.95))

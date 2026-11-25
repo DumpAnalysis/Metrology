@@ -74,11 +74,11 @@ def weighted(rec, mix=None, partial=False,
     enclose whatever the missing durations
     were, for a statistic that does not fall
     when a duration rises."""
-    rec = classes(rec)
     if mix is None:
         return [(x, Fraction(1))
-                for xs in rec.values()
+                for xs in classes(rec).values()
                 for x in xs]
+    rec, mix = both(rec, mix)
     if not any(mix.values()):
         raise ValueError("empty reference mix")
     gone = absent(rec, mix)
@@ -134,7 +134,8 @@ def observed(xs):
     flag is none, and Python would count False
     as 0. What side() reads otherwise stays:
     None, a NaN, an infinity, and a bound, a
-    pair of ">" or ">=" and such a duration."""
+    pair of ">" or ">=" and such a duration.
+    A duration has elapsed: none is below 0."""
     if not isinstance(xs, list):
         xs = list(xs)
     form = "a bound is > or >="
@@ -142,17 +143,32 @@ def observed(xs):
         if isinstance(x, tuple):
             if len(x) != 2 or x[0] not in SIGNS:
                 raise ValueError(form)
-            known([x[1]], "bound")
-        elif not (unknown(x) or x in ENDS):
-            known([x])
+            x = known([x[1]], "bound")[0]
+        elif unknown(x) or x == math.inf:
+            continue
+        if known([x])[0] < 0:
+            raise ValueError("a time below zero")
     return xs
 
 
 def classes(rec):
     """The record with every class as a list,
-    read once and held to observed()."""
+    read once and held to observed(): every
+    class, also one without weight in a mix."""
     return {name: observed(xs)
             for name, xs in rec.items()}
+
+
+def both(rec, mix):
+    """The record by classes(), and the mix
+    with its classes as lists: its entries
+    stand for requests and are only counted.
+    A record may be its own mix."""
+    held = classes(rec)
+    if mix is rec:
+        return held, held
+    return held, {name: list(ref)
+                  for name, ref in mix.items()}
 
 
 def side(x, limit):
@@ -160,7 +176,11 @@ def side(x, limit):
     `limit`, False if it is above it, and
     None if the record leaves that open: x
     is unknown, or only a bound for it is
-    known, a pair of ">" or ">=" and a time."""
+    known, a pair of ">" or ">=" and a time.
+    Every duration is at or below a limit of
+    infinity, an unknown one too."""
+    if limit == math.inf:
+        return True
     if unknown(x):
         return None
     if not isinstance(x, tuple):
@@ -185,6 +205,7 @@ def within(rec, mix, limit):
     request of that kind: it contributes
     anything from none of its share to all
     of it."""
+    rec, mix = both(rec, mix)
     total = sum(len(xs) for xs in mix.values())
     if not total:
         raise ValueError("empty reference mix")
@@ -192,7 +213,7 @@ def within(rec, mix, limit):
         raise ValueError("no limit")
     if limit not in ENDS:
         known([limit], "limit")
-    rec, low, high = classes(rec), 0, 0
+    low = high = 0
     for name, ref in mix.items():
         xs = rec.get(name) or [None]
         size = len(xs) * total

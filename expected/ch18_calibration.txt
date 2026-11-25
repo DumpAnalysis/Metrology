@@ -19,6 +19,6 @@ perfectly calibrated model:
   resampled, they hold no negative
   case in 36.6 %, one in 37.0 %
   55 positive: T from 64.76, no upper end
-  100 positive: T up to 12.19
+  100 positive: T up to 12.20
   35 positive: no T above zero
   1 positive at -40: 4.83 to 14.01

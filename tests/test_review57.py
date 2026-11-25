@@ -178,11 +178,16 @@ class TheStartOfADuration(unittest.TestCase):
 
 class TypesToTheLastOperation(unittest.TestCase):
     def test_the_sum_of_two_fields(self):
-        self.assertEqual(case.recorded([(Decimal("2.5"), 100.0)], {"start": "accept"}), [102.5])   # TypeError
-        self.assertEqual(case.recorded([(Decimal("0.1"), Decimal("0.2"))], {"start": "accept"}), [0.3])
+        # Version 58 made a float of the sum, and these lines expected one: 0.3 for the two decimals. The review of
+        # Version 58 showed that such a float lies off the decimal bound that the sum is on, and since Version 59
+        # the sum of anything but two floats is the exact fraction (tests/test_review58.py).
+        self.assertEqual(case.recorded([(Decimal("2.5"), 100.0)], {"start": "accept"}), [102.5])   # TypeError in 57
+        self.assertEqual(case.recorded([(Decimal("0.1"), Decimal("0.2"))], {"start": "accept"}), [Fraction(3, 10)])
         self.assertNotEqual(0.1 + 0.2, 0.3)
-        self.assertEqual(case.recorded([(Fraction(1, 3), 1)], {"start": "accept"}), [float(Fraction(4, 3))])
+        self.assertEqual(case.recorded([(Fraction(1, 3), 1)], {"start": "accept"}), [Fraction(4, 3)])
         got = case.recorded([(2, 3)], {"start": "accept"})
+        self.assertEqual((got, type(got[0])), ([5], Fraction))
+        got = case.recorded([(2.0, 3.0)], {"start": "accept"})
         self.assertEqual((got, type(got[0])), ([5.0], float))
         kept = case.recorded([(None, Decimal("7.5"))], {"start": "handler"})
         self.assertEqual((kept, type(kept[0])), ([Decimal("7.5")], Decimal))
@@ -191,7 +196,8 @@ class TypesToTheLastOperation(unittest.TestCase):
         before = [(0, Decimal("100"))] * 20
         for after in ([(0, 105.0)] * 20, [(0, Decimal("105"))] * 20, [(0, Fraction(105))] * 20, [(0, 105)] * 20):
             d = case.handler_change(before, after)                               # Version 57: TypeError for the first
-            self.assertEqual((d.value, d.u, type(d.value)), (5.0, 0.0, float), after[0])
+            # Since Version 59 the change of exact readings is exact; Version 58 made a float of it.
+            self.assertEqual((d.value, d.u, type(d.value)), (5, 0.0, Fraction), after[0])
             self.assertEqual(case.upper_bound(d), 5.0)                           # Version 57: TypeError for the second
             self.assertFalse(case.within(case.upper_bound(d), 5.0))
             self.assertTrue(case.within(case.upper_bound(d), 5.5))

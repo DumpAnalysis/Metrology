@@ -309,10 +309,12 @@ class Margin(unittest.TestCase):
         self.assertAlmostEqual(ch23_case.upper_bound(got), upper, places=9)
         # The printed bound, and the two decisions that follow from it.
         self.assertEqual(f"{upper:.1f}", "4.7")
+        # Since Version 59 the transcript prints an upper bound rounded upward: 4.71 is at most 4.8, not 4.7.
+        self.assertTrue(4.7 < upper <= 4.8)
         self.assertTrue(upper < 5.0 and ch23_case.within(upper, 5.0))
         self.assertTrue(upper >= 2.0 and not ch23_case.within(upper, 2.0))
         text = (ROOT / "expected" / "ch23_case.txt").read_text(encoding="utf-8")
-        self.assertIn(f"upper bound, 95 %: {upper:.1f} ms", text)
+        self.assertIn(f"upper bound, 95 %: {math.ceil(upper * 10) / 10:.1f} ms", text)
 
 
 if __name__ == "__main__":

@@ -8,7 +8,7 @@ from pathlib import Path
 from examples import ch16_trace_measurements as tm
 from examples.ch20_judge import exact_interval
 from swmetro.stats import as_count, paired_exact
-from swmetro.stats import poisson_tails
+from swmetro.stats import poisson_tails, upward
 from swmetro.stats import quiet_bound
 from swmetro.stats import rate_limits, rate_upper
 
@@ -496,16 +496,20 @@ def searched_pairs(windows, delta, level=0.95):
     return rate_at(found, level)
 
 
+def up(rate):
+    """A bound as it is printed: upward."""
+    return upward(rate, 5) + " msg/s"
+
+
 def most(rate):
     """An upper bound with its level."""
-    return f"at most {rate:.5f} msg/s at 95 %"
+    return f"at most {up(rate)} at 95 %"
 
 
 def nominal(rate):
     """A rate drawn at 95 % from a mix that
     is not known to be that of the source."""
-    return (f"{rate:.5f} msg/s"
-            " at a nominal 95 %")
+    return up(rate) + " at a nominal 95 %"
 
 
 def seconds(parts):
@@ -605,7 +609,7 @@ def models(rows, span, counter=tm.COUNTER):
     if k == 0:
         one = quiet_bound(t)
         still = math.exp(-one / 2 * covered)
-        print(f"    silent at {one:.5f} msg/s:"
+        print(f"    silent at {up(one)}:"
               f" {100 * still:.1f} %")
 
 
@@ -751,7 +755,7 @@ def durations():
     low = paired_bound(whole, 30)
     a = mean_reach(whole, cases[1][1])
     still = math.exp(-low / 2 * a)
-    print(f"  at {low:.5f} msg/s the second")
+    print(f"  at {up(low)} the second")
     print(f"  stays silent: {100 * still:.2f} %")
 
 
@@ -877,11 +881,12 @@ def calibrated(k=2, n=20):
           " taken as known:")
     plain = 2 * quiet_bound(covered(k / n))
     print("    " + nominal(plain))
-    print(f"  at most {100 * top:.3f} % of 10 s,"
+    share = upward(100 * top, 3)
+    print(f"  at most {share} % of 10 s,"
           " at 97.5 %:")
     a = covered(top)
     still = math.exp(-plain / 2 * a)
-    print(f"    silent at {plain:.5f} msg/s:"
+    print(f"    silent at {up(plain)}:"
           f" {100 * still:.2f} %")
     held = 2 * quiet_bound(a, 1 - risk)
     print("    " + most(held))
@@ -963,7 +968,7 @@ def retained():
         print("  pairs 10 s apart, a decision")
         print(f"  for {text}: {a:g} s")
         print("    " + most(quiet_bound(a)))
-        print(f"    silent at {single:.5f} msg/s:"
+        print(f"    silent at {up(single)}:"
               f" {100 * still:.2f} %")
 
 
@@ -984,13 +989,13 @@ def search():
     print("  all ten empty:")
     print("    " + most(quiet_bound(300)))
     found = 1 - 0.95 ** 10
-    print(f"  at {one:.5f} msg/s a search of ten")
+    print(f"  at {up(one)} a search of ten")
     print("  finds an empty window:"
           f" {100 * found:.2f} %")
     print("  a gap of 30 s anywhere in 300 s:")
     print("    " + most(gap_bound(300, 30)))
     found = gap_somewhere(single, 300, 30)
-    print(f"  at {single:.5f} msg/s such a gap")
+    print(f"  at {up(single)} such a gap")
     print("  is found somewhere:"
           f" {100 * found:.2f} %")
     print("  with 60 messages counted, a gap of")
@@ -1014,7 +1019,7 @@ def search():
     print("    " + most(paired_bound(ten, 10)))
     found = some_empty(single,
                        selections(ten, 10))
-    print(f"  at {single:.5f} msg/s a search of")
+    print(f"  at {up(single)} a search of")
     print("  ten finds an empty window:"
           f" {100 * found:.2f} %")
 

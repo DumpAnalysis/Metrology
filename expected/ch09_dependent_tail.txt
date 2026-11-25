@@ -10,7 +10,7 @@ sd by block length:
    200    18.1 ms
    400    23.2 ms
 p99.9 from 500 independent values:
-  lower bound 113.2 ms, upper bound none
+  lower bound 113.1 ms, upper bound none
   the largest of them is above the
   p99.9 in 39.36 % of samples
 values for an upper end at 95 %,

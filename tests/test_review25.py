@@ -196,7 +196,7 @@ class ExposureAtAClockOrigin(unittest.TestCase):
 
     def test_the_lines_of_the_book_are_what_they_were(self):
         text = expected("ch16_silence")
-        for piece in ("    starts covered: 32.346 s\n    at most 0.18523 msg/s at 95 %\n", "requests of 60 s, window of 30 s:\n  starts covered: 60 s\n",
+        for piece in ("    starts covered: 32.346 s\n    at most 0.18524 msg/s at 95 %\n", "requests of 60 s, window of 30 s:\n  starts covered: 60 s\n",
                       "  27.912 s, and for pairs 2.346 s\n  apart, starts covered: 32.346 s\n", "  for each message: 6.875 s\n",
                       "    from 40 s and 60 s of start times\n"):
             self.assertIn(piece, text)
@@ -293,8 +293,8 @@ class TenWindowsSearched(unittest.TestCase):
         out = printed(silence.search)
         self.assertTrue(out.endswith("the same for requests of 10 s that\nwrite two messages:\n  chosen in advance:\n"
                                      "    at most 0.14979 msg/s at 95 %\n  found by a search of ten:\n"
-                                     "    at most 0.26313 msg/s at 95 %\n  all ten empty:\n    at most 0.01933 msg/s at 95 %\n"
-                                     "  at 0.17584 msg/s a search of\n  ten finds an empty window: 25.17 %\n"))
+                                     "    at most 0.26314 msg/s at 95 %\n  all ten empty:\n    at most 0.01933 msg/s at 95 %\n"
+                                     "  at 0.17585 msg/s a search of\n  ten finds an empty window: 25.17 %\n"))
         text = expected("ch16_silence")
         self.assertTrue(text.endswith(out))
         self.assertEqual(len(text.splitlines()), 193)        # 152 in Version 25, 162, 166 in Version 27

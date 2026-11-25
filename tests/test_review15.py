@@ -190,8 +190,8 @@ class ExplicitStart(unittest.TestCase):
             self.assertIn(line + "\n", text)
         self.assertNotIn("0.0(0)", text)
         text = expected("ch16_silence")
-        for line in ("  60 s, 100 %: 60 s,\n    at most 0.04993 msg/s at 95 %", "  40 s, 100 %: 40 s,\n    at most 0.07489 msg/s at 95 %",
-                     "  40 s,  25 %: 10 s,\n    at most 0.29957 msg/s at 95 %"):
+        for line in ("  60 s, 100 %: 60 s,\n    at most 0.04993 msg/s at 95 %", "  40 s, 100 %: 40 s,\n    at most 0.07490 msg/s at 95 %",
+                     "  40 s,  25 %: 10 s,\n    at most 0.29958 msg/s at 95 %"):
             self.assertIn(line + "\n", text)
 
 

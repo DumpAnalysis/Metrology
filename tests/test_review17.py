@@ -139,7 +139,7 @@ class LongRequests(unittest.TestCase):
 
     def test_the_transcript(self):
         text = expected("ch16_silence")
-        for line in ("    starts covered: 32.346 s\n    at most 0.18523 msg/s at 95 %", "requests of 60 s, window of 30 s:",
+        for line in ("    starts covered: 32.346 s\n    at most 0.18524 msg/s at 95 %", "requests of 60 s, window of 30 s:",
                      "  starts covered: 60 s\n    at most 0.09986 msg/s at 95 %", "  0 to 20.099 and 22.187 to 30 s:",
                      "  27.912 s, and for pairs 2.346 s", "  apart, starts covered: 32.346 s", "    silent at 0.09986 msg/s: 19.9 %"):
             self.assertIn(line + "\n", text)
@@ -232,7 +232,7 @@ class GuardedBounds(unittest.TestCase):
     def test_the_silent_half_minute_is_as_printed(self):
         out = printed(silence.models, fixture(), SPAN)
         self.assertTrue(expected("ch16_silence").startswith(out))
-        for line in ("svc, 30-60 s: 0 messages, 30 s verified", "    at most 0.09986 msg/s at 95 %", "    at most 0.18523 msg/s at 95 %"):
+        for line in ("svc, 30-60 s: 0 messages, 30 s verified", "    at most 0.09986 msg/s at 95 %", "    at most 0.18524 msg/s at 95 %"):
             self.assertIn(line + "\n", out)
 
 

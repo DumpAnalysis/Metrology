@@ -457,7 +457,7 @@ class TheLargestGapGivenTheCount(unittest.TestCase):
 
     def test_the_transcript(self):
         out = printed(silence.search)
-        piece = ("  at 0.17584 msg/s such a gap\n  is found somewhere: 22.48 %\n"
+        piece = ("  at 0.17585 msg/s such a gap\n  is found somewhere: 22.48 %\n"
                  "  with 60 messages counted, a gap of\n    30 s or more: 10.68 %\n    35 s or more: 3.55 %\n"
                  "    40 s or more: 1.14 %\n    45 s or more: 0.36 %\n")
         self.assertIn(piece, out)

@@ -254,7 +254,8 @@ class OneRecordOfThreeTypes(unittest.TestCase):
         for bad in (10 ** 400, Fraction(10 ** 400, 3), Decimal("1e1000000")):
             with self.assertRaisesRegex(ValueError, "a duration is missing or too large"):
                 mix.observed([100.0, bad])
-        gaps = [100.0, None, NAN, Decimal("NaN"), Decimal("sNaN"), math.inf, -math.inf, Decimal("Infinity"),
+        # Until Version 58 minus infinity stood in this list; a duration below zero is refused since Version 59.
+        gaps = [100.0, None, NAN, Decimal("NaN"), Decimal("sNaN"), math.inf, Decimal("Infinity"),
                 (">", 300), (">=", Decimal("100"))]
         self.assertIs(mix.observed(gaps), gaps)
         # A signaling NaN is not a number either. Version 56: decimal.InvalidOperation from the comparison.

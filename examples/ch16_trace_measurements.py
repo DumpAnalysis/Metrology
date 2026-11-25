@@ -5,8 +5,8 @@ from fractions import Fraction
 from pathlib import Path
 
 from swmetro import Result, type_a, u_tri
-from swmetro.stats import as_count
-from swmetro.stats import linfit, quiet_bound
+from swmetro.stats import as_count, linfit
+from swmetro.stats import quiet_bound, upward
 
 ROOT = Path(__file__).resolve().parent.parent
 LOG = ROOT / "data" / "app_trace.log"
@@ -272,9 +272,9 @@ def main():
     print(f"svc, 30-60 s: {n} messages,"
           f" {t:g} s verified")
     if n == 0 and t > 0:
-        top = quiet_bound(t)
+        top = upward(quiet_bound(t), 5)
         print("  if messages arrive singly:")
-        print(f"  at most {top:.5f} msg/s"
+        print(f"  at most {top} msg/s"
               " at 95 %")
     naive, slope = period(rows, "E1042 timeout")
     print("E1042 period, mean of gaps:", naive)

@@ -96,7 +96,7 @@ class CountInVerifiedTime(unittest.TestCase):
         self.assertIn("    at most 0.14979 msg/s at 95 %\n", out45)
         self.assertNotIn("0.23719", out45)                       # Version 18 printed it for both records
         self.assertIn("svc, 30-60 s: 1 message, 20 s verified\n  in the verified time: 1\n", out35)
-        self.assertIn("    at most 0.23719 msg/s at 95 %\n", out35)
+        self.assertIn("    at most 0.23720 msg/s at 95 %\n", out35)
 
     def test_a_count_belongs_to_its_stretches(self):
         # Version 19 counted by time stamp and took a line stamped at an end of a stretch as part of it. The next
@@ -137,7 +137,7 @@ class CountInVerifiedTime(unittest.TestCase):
                       "at 45 s\nsvc, 30-60 s: 1 message, 20 s verified\n  in the verified time: 0\n  messages arriving singly:\n"
                       "    at most 0.14979 msg/s at 95 %\n",
                       "at 35 s\nsvc, 30-60 s: 1 message, 20 s verified\n  in the verified time: 1\n  messages arriving singly:\n"
-                      "    at most 0.23719 msg/s at 95 %\n"):
+                      "    at most 0.23720 msg/s at 95 %\n"):
             self.assertIn(piece, text)
 
     def test_the_figure_is_drawn_from_the_two_records(self):
