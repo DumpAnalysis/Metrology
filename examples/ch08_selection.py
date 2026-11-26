@@ -46,17 +46,17 @@ def kept(rows, rng):
 
 def summary(pairs):
     """Weighted mean, inverse-ECDF p95 and
-    share above SLOW of (value, weight). The
-    weights are summed as fractions, so that
-    the p95 does not change when every
-    weight is multiplied exactly by one
-    number; see weighted_quantile()."""
+    share above SLOW of (value, weight). All
+    sums are sums of fractions: the mean is
+    rounded once, and nothing changes when
+    every weight is multiplied exactly by
+    one number; see weighted_quantile()."""
     pairs = [(x, Fraction(w)) for x, w in pairs]
     total = sum(w for _, w in pairs)
-    mean = sum(x * w for x, w in pairs) / total
+    top = sum(Fraction(x) * w for x, w in pairs)
     slow = sum(w for x, w in pairs if x > SLOW)
     p95 = weighted_quantile(pairs, 0.95)
-    return (float(mean), p95,
+    return (float(top / total), p95,
             100 * float(slow / total))
 
 

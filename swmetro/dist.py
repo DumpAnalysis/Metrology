@@ -96,25 +96,42 @@ def _split(t, dof):
     very many."""
     # The cap keeps the square a float. Up
     # to t = 1e153 * sqrt(dof) nothing is
-    # cut off, and beyond it the tail is
-    # overstated, never understated.
+    # cut off, and beyond it t_sf() takes
+    # the tail from the logarithm of t.
     r = min(t / math.sqrt(dof), 1e153)
     q = r * r
     return q / (1 + q), 1 / (1 + q)
+
+
+def _tail(t, dof):
+    """Upper tail where t^2 / dof is beyond a
+    float: the first term of the series of
+    the incomplete beta function, all of it
+    there, from the logarithm of t."""
+    n, d = t.as_integer_ratio()
+    a = dof / 2
+    ln = math.log(dof) + 2 * math.log(d)
+    ln = a * (ln - 2 * math.log(n))
+    ln += math.lgamma(a + 0.5) - math.lgamma(a)
+    ln -= math.lgamma(0.5) + math.log(a)
+    return 0.5 * math.exp(ln)
 
 
 def t_sf(t, dof):
     """Upper tail P(T > t) of Student's t for
     t >= 0, accurate far into the tail, and
     next to t = 0 as well. Nothing lies
-    above infinity."""
+    above infinity. t is a float, or an
+    exact number of any size."""
     if t == math.inf:
         return 0.0
     if dof > 1e6:
         # Beyond 1000 the tail is 0 as a float.
-        z = _far(min(t, 1e3), dof, -1)
+        z = _far(float(min(t, 1e3)), dof, -1)
         return 0.5 * math.erfc(z / math.sqrt(2))
-    y, x = _split(t, dof)
+    if t > 1e153 * math.sqrt(dof):
+        return _tail(t, dof)
+    y, x = _split(float(t), dof)
     return 0.5 * betainc(dof / 2, 0.5, x, y)
 
 

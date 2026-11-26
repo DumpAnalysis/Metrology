@@ -259,8 +259,9 @@ class BesideTheFigures(unittest.TestCase):
         self.assertEqual(f"{temp:.2f}", "2.04")
         bins = [b for b in ch18_calibration.bins_of(test, 1.0) if b[0]]
         self.assertEqual(len(bins), 10)
-        gaps = [abs(s / n - k / n) for n, s, k in bins]
-        weighted = sum(n * g for (n, _, _), g in zip(bins, gaps)) / sum(n for n, _, _ in bins)
+        # Version 64: a bin has a fourth entry, the sum of its residuals, which is not used here.
+        gaps = [abs(s / n - k / n) for n, s, k, _ in bins]
+        weighted = sum(b[0] * g for b, g in zip(bins, gaps)) / sum(b[0] for b in bins)
         self.assertEqual((f"{weighted:.3f}", f"{sum(gaps) / len(gaps):.3f}"), ("0.102", "0.099"))
         self.assertAlmostEqual(ch18_calibration.ece(test), weighted, places=12)
         self.assertEqual(len([b for b in ch18_calibration.bins_of(test, 1.0, 5) if b[0]]), 5)

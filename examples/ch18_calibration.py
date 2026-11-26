@@ -3,8 +3,10 @@
 import math
 import random
 import statistics as st
+from fractions import Fraction
 
 from examples.ch20_judge import exact_interval
+from swmetro.stats import as_count, known
 from swmetro.stats import downward, upward
 
 
@@ -29,36 +31,64 @@ def make(n, scale, rng):
     return data
 
 
-def checked(data):
-    """The cases as a list: finite logits, and
-    labels that are 0 or 1 and not missing."""
+def checked(data, temp=1.0):
+    """The cases as a list, at least one, of
+    (logit / T, label). The logit and T are
+    finite numbers that known() admits, the
+    label is 0 or 1, and T is above zero:
+    below it the labels would change places,
+    and a confident error would score well.
+    A quotient beyond a float is refused."""
     data = list(data)
-    for logit, y in data:
-        if not math.isfinite(logit):
-            raise ValueError("no finite logit")
+    if not data:
+        raise ValueError("no cases")
+    temp = float(known([temp], "T")[0])
+    if not temp > 0:
+        raise ValueError("need T > 0")
+    zs = known([z for z, _ in data], "logit")
+    for _, y in data:
         if y not in (0, 1):
             raise ValueError("a label is 0 or 1")
-    return data
+    out = [(float(z) / temp, int(y == 1))
+           for z, (_, y) in zip(zs, data)]
+    if any(abs(z) == math.inf for z, _ in out):
+        raise ValueError("logit / T too large")
+    return out
+
+
+def residual(z, y):
+    """P(y=1) - y at the scaled logit z, from
+    the side on which it keeps its digits: a
+    probability that has rounded to 1 would
+    leave none for the label 1."""
+    return -sigmoid(-z) if y else sigmoid(z)
 
 
 def bins_of(data, temp=1.0, bins=10):
     """Per bin of stated probability: count,
-    sum of probabilities, sum of labels."""
-    tot = [[0, 0.0, 0] for _ in range(bins)]
-    for logit, y in checked(data):
-        p = sigmoid(logit / temp)
-        b = tot[min(int(p * bins), bins - 1)]
+    sum of probabilities, sum of labels, sum
+    of residuals. A probability is in the
+    bin where the float that it is lies: on
+    the edge of two bins, in the upper one."""
+    bins = as_count(bins, "bin count", 1)
+    tot = [[0, 0.0, 0, 0.0] for _ in range(bins)]
+    for z, y in checked(data, temp):
+        p = sigmoid(z)
+        n, d = p.as_integer_ratio()
+        b = tot[min(n * bins // d, bins - 1)]
         b[0] += 1
         b[1] += p
         b[2] += y
+        b[3] += residual(z, y)
     return tot
 
 
 def ece(data, temp=1.0, bins=10):
-    """Expected calibration error of P(y=1)."""
+    """Expected calibration error of P(y=1),
+    the probability of the label 1."""
     tot = bins_of(data, temp, bins)
-    gap = sum(abs(s - k) for _, s, k in tot)
-    return gap / sum(n for n, _, _ in tot)
+    gap = sum(abs(b[3]) for b in tot)
+    return gap / sum(b[0] for b in tot)
 
 
 def nll(data, temp=1.0):
@@ -67,19 +97,22 @@ def nll(data, temp=1.0):
     to 1 has lost the size of the error: at
     a scaled logit of 40 the loss of a case
     with the label 0 is 40, and the rounded
-    probability gives the logarithm of 0."""
-    data, acc = checked(data), 0.0
-    for logit, y in data:
-        z = logit / temp
+    probability gives the logarithm of 0.
+    The losses are added as fractions: two
+    of 1e308 have a mean that is a float,
+    and no such sum."""
+    data, acc = checked(data, temp), 0
+    for z, y in data:
         t = -z if y else z
         soft = math.log1p(math.exp(-abs(t)))
-        acc += max(t, 0.0) + soft
-    return acc / len(data)
+        acc += Fraction(max(t, 0.0) + soft)
+    return float(acc / len(data))
 
 
 def brier(data, temp=1.0):
-    return st.fmean((sigmoid(z / temp) - y) ** 2
-                    for z, y in checked(data))
+    data = checked(data, temp)
+    return st.fmean(residual(z, y) ** 2
+                    for z, y in data)
 
 
 def margins(data):
@@ -91,15 +124,21 @@ def margins(data):
 
 def slope(ms, beta):
     """Derivative of the summed loss by beta,
-    which is 1 / T. It rises with beta."""
-    return math.fsum(-m * sigmoid(-beta * m)
-                     for m in ms)
+    which is 1 / T. It rises with beta. The
+    terms are added as fractions: the sum
+    may be beyond a float, and has a sign."""
+    return sum(Fraction(-m * sigmoid(-beta * m))
+               for m in ms)
 
 
 def fit_temperature(data, lo=0.2, hi=10.0):
-    """The T between lo and hi, both finite,
-    that minimizes the NLL on a calibration
-    set. The shape of the loss is settled
+    """The finite T above zero that minimizes
+    the NLL on a calibration set, if it lies
+    between lo and hi, both finite: they
+    bound the search and not the model. A
+    minimum beyond them is reported, and not
+    replaced by the nearer of the two. The
+    shape of the loss is settled
     from the margins before anything is
     searched, because a search among rounded
     losses can stop where they are equal.
@@ -114,22 +153,20 @@ def fit_temperature(data, lo=0.2, hi=10.0):
     at lo or at hi is returned. Otherwise
     the slope changes its sign once inside,
     and bisection finds where."""
-    if not 0 < lo < hi < math.inf:
+    if not 0 < lo < hi < math.inf > 1 / lo:
         raise ValueError("need 0 < lo < hi < inf")
     ms = margins(checked(data))
-    if not ms:
-        raise ValueError("no cases")
     if not any(ms):
         raise ValueError("the loss is the same "
                          "at every T")
     if min(ms) >= 0:
         raise ValueError("no finite T: the loss "
                          "falls as T falls")
-    if math.fsum(ms) <= 0:
+    if sum(map(Fraction, ms)) <= 0:
         raise ValueError("no finite T: the loss "
                          "falls as T rises")
-    at_lo = slope(ms, 1 / lo)
-    at_hi = slope(ms, 1 / hi)
+    at_lo = slope(ms, 1 / float(lo))
+    at_hi = slope(ms, 1 / float(hi))
     if at_lo < 0:
         raise ValueError("the minimum is "
                          "below lo")
@@ -162,7 +199,7 @@ def correction():
               f"{brier(test, t):>8.3f}"
               f"{nll(test, t):>8.3f}")
     print("stated   observed   n   (as reported)")
-    for n, s, k in bins_of(test, 1.0, 5):
+    for n, s, k, _ in bins_of(test, 1.0, 5):
         print(f"{s / n:6.3f}{k / n:>10.3f}{n:>6}")
 
 
@@ -192,7 +229,7 @@ def at_one_logit(logit, p):
     if not (0 < p < 1 and side and leans == side):
         raise ValueError("no T above zero "
                          "states this p")
-    return logit / math.log(p / (1 - p))
+    return float(logit) / math.log(p / (1 - p))
 
 
 def temperatures(logit, positive, n):

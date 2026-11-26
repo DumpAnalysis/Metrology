@@ -30,21 +30,6 @@ def _exact(x):
     return Fraction(x)
 
 
-def _ratio(a, b, u):
-    """(a - b) / u from the exact numbers that
-    the three are, as a float rounded once.
-    A ratio beyond the range of a float is
-    the largest float on its side: the
-    distance is finite, and does not get the
-    probability of an infinite one."""
-    z = (_exact(a) - _exact(b)) / _exact(u)
-    try:
-        return float(z)
-    except OverflowError:
-        top = math.nextafter(math.inf, 0)
-        return top if z > 0 else -top
-
-
 def _exp10(u):
     """The e with 10 ** e <= u < 10 ** (e + 1)
     for a u above zero, in whole numbers: a
@@ -286,17 +271,18 @@ class Result:
         that is no number is refused, and an
         infinite one has the probability 1 or
         0 whatever the distribution. The
-        distance to a finite limit is that of
-        _ratio(): 10 ** 18 is one limit as a
+        distance to a finite limit is the
+        exact ratio of the three numbers, of
+        any size: 10 ** 18 is one limit as a
         whole number and as a float."""
         if limit != limit:
             raise ValueError("limit is no number")
         if limit in _ENDS:
             return float(limit > 0)
+        v = _exact(self.value)
         if self.u == 0:
-            v = _exact(self.value)
             return float(_exact(limit) >= v)
-        z = _ratio(limit, self.value, self.u)
+        z = (_exact(limit) - v) / _exact(self.u)
         return t_cdf(z, self.dof)
 
     def report(self, p=0.95):
@@ -358,20 +344,24 @@ def type_a(xs, unit=""):
     return Result(mean(xs), u, unit, n - 1)
 
 
-def _width(w):
-    """A half-width or a step as a float, if
-    it is finite and not negative: a whole
-    number, a fraction or a decimal as well."""
+def _width(w, n=1):
+    """A half-width or a step, finite and not
+    negative, over the square root of n: the
+    fraction that it is for n = 1, and else a
+    float, from one division of that fraction,
+    which need not be a float itself."""
     if not w >= 0 or w == math.inf:
         raise ValueError("need a width >= 0")
-    return float(w)
+    if n == 1:
+        return _exact(w)
+    return float(_exact(w) / _exact(math.sqrt(n)))
 
 
 def u_rect(half_width):
     """Type B: standard deviation of a
     rectangular distribution, an assigned
     model for a value known only by bounds."""
-    return _width(half_width) / math.sqrt(3)
+    return _width(half_width, 3)
 
 
 def rect_interval(center, half_width, p=0.95):
@@ -383,26 +373,27 @@ def rect_interval(center, half_width, p=0.95):
     the half-width, as fractions: rounded to
     floats, they can leave out a part of the
     width, also at p = 1. With no width both
-    limits are the center as it was given."""
+    limits are the center as it was given.
+    No step of a float limits the width."""
     if not 0 <= p <= 1:
         raise ValueError("need 0 <= p <= 1")
-    _width(half_width)
-    w = _exact(p) * _exact(half_width)
+    if center != center or center in _ENDS:
+        raise ValueError("center is no number")
+    v = _exact(center)
+    w = _exact(p) * _width(half_width)
     if not w:
         return center, center
-    resolved(center, w)
-    v = _exact(center)
     return v - w, v + w
 
 
 def u_tri(half_width):
     """Type B: triangular distribution."""
-    return _width(half_width) / math.sqrt(6)
+    return _width(half_width, 6)
 
 
 def u_resolution(step):
     """Type B: indication quantized in steps."""
-    return _width(step) / math.sqrt(12)
+    return _width(step, 12)
 
 
 def _scaled(us):

@@ -20,8 +20,8 @@ ENDS = (math.inf, -math.inf)
 
 
 def durations(n, mean, rng):
-    """n durations with exactly this mean and
-    a log-normal shape."""
+    """n durations with a log-normal shape, at
+    this mean within the rounding of floats."""
     zs = [rng.lognormvariate(0, 0.3)
           for _ in range(n)]
     scale = mean / st.fmean(zs)
@@ -50,6 +50,7 @@ def added(rec, mix):
     for nothing, which is right for a class
     that did not exist then, and wrong for
     one that was renamed or went unrecorded."""
+    rec, mix = both(rec, mix)
     return [name for name, xs in rec.items()
             if xs and not mix.get(name)]
 
@@ -98,13 +99,25 @@ def weighted(rec, mix=None, partial=False,
 
 
 def mean(pairs):
-    pairs = [(Fraction(x), w)
-             if isinstance(x, Decimal) else (x, w)
-             for x, w in pairs]
+    """The weighted mean: one division of two
+    exact sums, rounded once, to a float, if
+    a duration is a float. Summed as floats,
+    three durations of 200 ms at a weight of
+    1/3 have a mean below 200 ms. An infinite
+    fill is the mean, and with a duration
+    that is no number there is none."""
+    pairs = [(x, Fraction(w)) for x, w in pairs]
     total = sum(w for _, w in pairs)
     if not total:
         raise ValueError("no requests")
-    return sum(x * w for x, w in pairs) / total
+    xs = [x for x, _ in pairs]
+    odd = [x for x in xs if x != x or x in ENDS]
+    if odd:
+        return sum(map(float, odd))
+    top = sum(Fraction(x) * w for x, w in pairs)
+    if any(isinstance(x, float) for x in xs):
+        return float(top / total)
+    return top / total
 
 
 def p95(pairs):
@@ -151,32 +164,54 @@ def observed(xs):
     return xs
 
 
-def classes(rec):
-    """The record with every class as a list,
-    held to observed(): every class, also one
-    without weight in a mix. A list is taken
-    as it is, anything else through the one
-    cursor that iter() gives for it. A cursor
-    under two names would be empty under the
-    second: it is refused before it is read."""
+def cursors(rec):
+    """Every class as it is, if it is a list,
+    and anything else as the one cursor that
+    iter() gives for it. A cursor under two
+    names would be empty under the second:
+    it is refused before it is read."""
     cs = {k: v if isinstance(v, list) else iter(v)
           for k, v in rec.items()}
     once = [id(v) for v in cs.values()
             if not isinstance(v, list)]
     if len(set(once)) < len(once):
         raise ValueError("stream in two classes")
-    return {k: observed(v) for k, v in cs.items()}
+    return cs
 
 
-def size(ref, seen):
-    """How many entries: by len(), or by one
-    reading of the cursor, kept in `seen`."""
-    try:
-        return len(ref)
-    except TypeError:
-        cur = iter(ref)
-    if id(cur) not in seen:
-        seen[id(cur)] = cur, sum(1 for _ in cur)
+def classes(rec):
+    """The record with every class as a list,
+    held to observed(): every class, also one
+    without weight in a mix, each read once."""
+    return {k: observed(v)
+            for k, v in cursors(rec).items()}
+
+
+def periods(*recs):
+    """The periods of an analysis that passes
+    over them more than once: each is read
+    here, once, by classes(). A cursor in
+    two periods would be empty in the
+    second, and is refused as well."""
+    cs = [cursors(rec) for rec in recs]
+    once = [id(v) for c in cs for v in c.values()
+            if not isinstance(v, list)]
+    if len(set(once)) < len(once):
+        raise ValueError("stream in two periods")
+    return [classes(c) for c in cs]
+
+
+def size(ref, seen, ahead):
+    """How many entries: the count kept in
+    `seen` for the cursor of `ref`, or the
+    length in `ahead`, or one reading of
+    the cursor, which is then kept."""
+    cur = iter(ref)
+    if id(cur) in seen:
+        return seen[id(cur)][1]
+    if id(ref) in ahead:
+        return ahead[id(ref)]
+    seen[id(cur)] = cur, sum(1 for _ in cur)
     return seen[id(cur)][1]
 
 
@@ -186,16 +221,21 @@ def both(rec, mix):
     of the mix stand for requests and are
     only counted. An object and a cursor are
     counted once and kept, for every class
-    that names the one or reads the other."""
-    cs = {k: v if isinstance(v, list) else iter(v)
-          for k, v in rec.items()}
+    that names the one or reads the other.
+    The lengths of the mix are taken before
+    the record is read: a view of a stream
+    may count only what is left of it."""
+    cs = cursors(rec)
+    ahead = {id(x): len(x) for x in mix.values()
+             if hasattr(x, "__len__")}
     held = classes(cs)
     seen = {id(x): (x, len(held[k])) for k in rec
             for x in (rec[k], cs[k])}
     sizes = {}
     for name, ref in mix.items():
         if id(ref) not in seen:
-            seen[id(ref)] = ref, size(ref, seen)
+            n = size(ref, seen, ahead)
+            seen[id(ref)] = ref, n
         sizes[name] = range(seen[id(ref)][1])
     return held, sizes
 
@@ -323,6 +363,7 @@ def with_one(x, mean, n=900):
 def lost_class(before, after):
     """The second period without the records
     of its slow class."""
+    before, after = periods(before, after)
     part = {"fast": after["fast"]}
     gone = absent(part, before)
     for name, share in gone.items():
@@ -448,6 +489,7 @@ def new_class(before, after):
     """The second period with a class that the
     first did not have: 100 bulk requests of
     1000 ms."""
+    before, after = periods(before, after)
     more = dict(after, bulk=[1000.0] * 100)
     for name in added(more, before):
         print(f"after, with a new class, {name}:")
@@ -490,7 +532,10 @@ def components(before, after, stat=mean,
     duration rises. A statistic of another
     quantity, such as the distance of a
     duration from a target, has to be given
-    records of that quantity."""
+    records of that quantity. The two are
+    compared as the numbers that they are,
+    and rounded for printing afterward."""
+    before, after = periods(before, after)
     start = float(stat(weighted(before)))
     end = float(stat(weighted(after)))
     print(f"{name}, {start:.0f} -> {end:.0f} ms:"
@@ -502,8 +547,7 @@ def components(before, after, stat=mean,
     found = []
     for text, rec, mix, when in orders:
         low, top = (
-            float(stat(weighted(rec, mix,
-                                fill=x)))
+            stat(weighted(rec, mix, fill=x))
             for x in (-math.inf, math.inf))
         if low != top:
             gone = ", ".join(absent(rec, mix))
@@ -511,6 +555,7 @@ def components(before, after, stat=mean,
             print(f"    no {gone} requests"
                   f" {when}")
             continue
+        low = float(low)
         inner, mixed = low - start, end - low
         if rec is before:
             inner, mixed = mixed, inner
@@ -572,6 +617,7 @@ def less_one(rec, slow):
 def one_mix(before, after):
     """Both periods at the same mix, for
     three mixes that neither had."""
+    before, after = periods(before, after)
     print("p95 of both periods at one mix,")
     print("by its share of slow requests:")
     for slow in (40, 41, 47):

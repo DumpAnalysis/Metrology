@@ -107,7 +107,7 @@ def compare(mode, expected, actual):
 
 
 def lint():
-    """Listings and transcripts must fit a 4 x 6 inch page."""
+    """Listings and transcripts must fit the page of the book."""
     bad = []
     files = sorted((ROOT / "swmetro").glob("*.py"))
     files += sorted(EXAMPLES.glob("*.py")) + sorted(EXPECTED.glob("*.txt"))

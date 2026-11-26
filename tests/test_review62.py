@@ -52,6 +52,17 @@ def printed(function, *args):
     return out.getvalue()
 
 
+def far_tail(exponent, dof):
+    """Upper tail of Student's distribution at t = 10 ** exponent, far out: the density there is
+    c * (t * t / dof) ** (-(dof + 1) / 2), and its integral from t on is c * sqrt(dof) * (t * t / dof) ** (-dof / 2)
+    / dof. The power is taken in decimals of 50 digits (added with Version 64)."""
+    c = math.gamma((dof + 1) / 2) / (math.sqrt(math.pi * dof) * math.gamma(dof / 2))
+    with localcontext() as ctx:
+        ctx.prec = 50
+        power = ((D(10) ** (2 * exponent)) / D(dof)).ln() * (-D(dof) / 2)
+        return float(D(c) * D(dof).sqrt() / D(dof) * power.exp())
+
+
 def p95(xs):
     """Inverse empirical CDF: the least value with at least 95 % of the values at or below it."""
     xs = sorted(xs)
@@ -206,9 +217,11 @@ class ACaseHasAFiniteLogitAndALabel(unittest.TestCase):
     def test_a_logit_is_a_finite_number(self):
         self.assertAlmostEqual(cal.fit_temperature([(2, 1), (1, 0), (1.5, 1)]),
                                cal.fit_temperature([(2.0, True), (1.0, False), (1.5, True)]), places=12)
+        # Version 64: a logit is held to known(), which also refuses a flag and a number beyond a float, and the
+        # message is the one of known(); Version 63 said "no finite logit".
         for logit in (math.nan, math.inf, -math.inf, D("NaN"), D("Infinity")):
             for score in self.SCORES:                                          # Version 62: 0.20000000000000007
-                with self.assertRaisesRegex(ValueError, "no finite logit"):
+                with self.assertRaisesRegex(ValueError, "a logit is missing or too large"):
                     score([(2, 1), (1, 0), (logit, 1)])
         for logit in (None, "40", (40,)):
             for score in self.SCORES:
@@ -260,7 +273,8 @@ class ACaseHasAFiniteLogitAndALabel(unittest.TestCase):
             self.assertEqual(score(iter(data)), score(data))
             self.assertEqual(score(row for row in data), score(data))
         self.assertAlmostEqual(cal.ece([(1.0, 1), (-1.0, 0)]), 1 / (1 + math.e), places=12)
-        self.assertEqual(sum(n for n, _, _ in cal.bins_of(data)), 400)
+        # Version 64: a bin has a fourth entry, the sum of its residuals; Version 63 had three.
+        self.assertEqual(sum(b[0] for b in cal.bins_of(data)), 400)
 
 
 class ARectangularIntervalKeepsItsWidth(unittest.TestCase):
@@ -346,13 +360,18 @@ class AnInfiniteLimit(unittest.TestCase):
 
     def test_a_finite_limit_keeps_a_finite_distance(self):
         # A limit of 1e308 at u = 1e-300 is 1e608 standard uncertainties away, beyond the range of a float.
-        # It is not at infinity: the tail is that of the cap, which overstates it and is above zero.
-        for dof, tail in ((0.001, 0.35129272243), (0.01, 0.01465471695)):
+        # It is not at infinity. Version 64: the tail is taken at that distance, from its logarithm. Version 63
+        # returned the tail at the cap of the distance, 0.35129272243 and 0.01465471695, which overstated it:
+        # the review of Version 63 gave 0.87720826 for the first probability, where Version 63 had 0.64870728.
+        for dof, capped in ((0.001, 0.35129272243), (0.01, 0.01465471695)):
             r = Result(0, 1e-300, dof=dof)
+            tail = far_tail(608, dof)
+            self.assertLess(tail, capped)
             self.assertAlmostEqual(r.prob_below(1e308), 1 - tail, places=9)
             self.assertAlmostEqual(r.prob_below(-1e308), tail, places=9)
             self.assertLess(r.prob_below(1e308), r.prob_below(math.inf))
-            self.assertAlmostEqual(r.prob_below(Fraction(10) ** 400), 1 - tail, places=9)
+            self.assertAlmostEqual(r.prob_below(Fraction(10) ** 400), 1 - far_tail(700, dof), places=9)
+        self.assertEqual(f"{Result(0, 1e-300, dof=0.001).prob_below(1e308):.8f}", "0.87720826")
         self.assertEqual(Result(0, 1e-300).prob_below(1e308), 1.0)             # the normal tail there is 0 as a float
         with self.assertRaises(ValueError):
             Result(0, 1).prob_below(math.nan)

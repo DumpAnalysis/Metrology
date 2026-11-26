@@ -899,8 +899,8 @@ def reliability():
     ax.plot([0, 1], [0, 1], color=GREY, lw=0.4)
     for t, marker, fill in ((1.0, "o", BLACK), (temp, "s", "white")):
         bins = [b for b in c18.bins_of(test, t) if b[0]]
-        pts = [(s / n, k / n) for n, s, k in bins]
-        for n, s, k in bins:  # 95 % interval of each observed frequency
+        pts = [(s / n, k / n) for n, s, k, _ in bins]
+        for n, s, k, _ in bins:  # 95 % interval of each observed frequency
             lo, hi = wilson(k, n)
             ax.plot([s / n, s / n], [lo, hi], color=BLACK, lw=0.5)
         ax.plot(*zip(*pts), color=BLACK, marker=marker, mfc=fill, ms=3,

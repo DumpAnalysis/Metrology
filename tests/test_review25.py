@@ -430,8 +430,9 @@ class SpreadsThatAFloatCannotShow(unittest.TestCase):
     def test_a_result_and_an_interval(self):
         with self.assertRaisesRegex(ValueError, "too fine for a float of this size"):
             Result(EPOCH + 100, 1.4, "ns")                   # Version 25 printed 1700000000000000000.0(14) ns
-        with self.assertRaisesRegex(ValueError, "too fine for a float of this size"):
-            core.rect_interval(EPOCH, 0.5)
+        # Version 64: the limits of rect_interval() are exact fractions since Version 62, and no step of a
+        # float limits their width. Until Version 63 this call was refused as too fine for a float.
+        self.assertEqual(core.rect_interval(EPOCH, 0.5, 1), (EPOCH - Fraction(1, 2), EPOCH + Fraction(1, 2)))
         delta = Result((EPOCH + 100) - EPOCH, 1.4, "ns")
         self.assertEqual(str(delta), "100.0(14) ns")
         low, high = delta.interval()
