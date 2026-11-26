@@ -9,6 +9,9 @@ from .dist import t_cdf, t_isf, t_within
 from .stats import mean
 
 
+_ENDS = (math.inf, -math.inf)
+
+
 def _units(u, d):
     """u in units of the d-th decimal place,
     rounded once, half to even, from the
@@ -30,16 +33,16 @@ def _exact(x):
 def _ratio(a, b, u):
     """(a - b) / u from the exact numbers that
     the three are, as a float rounded once.
-    An infinite a keeps its sign, and a ratio
-    beyond the range of a float is the
-    infinity on its side."""
-    if a in (math.inf, -math.inf):
-        return float(a)
+    A ratio beyond the range of a float is
+    the largest float on its side: the
+    distance is finite, and does not get the
+    probability of an infinite one."""
     z = (_exact(a) - _exact(b)) / _exact(u)
     try:
         return float(z)
     except OverflowError:
-        return math.inf if z > 0 else -math.inf
+        top = math.nextafter(math.inf, 0)
+        return top if z > 0 else -top
 
 
 def _exp10(u):
@@ -89,18 +92,18 @@ def resolved(at, spread):
 
 
 def fixed(value, d):
-    """The value with d decimal places. A
-    float is formatted as a float. A whole
-    number or a fraction is rounded as the
-    number that it is, half to even, and
+    """The value with d decimal places,
+    rounded half to even from the number
+    that it is. A whole number or a fraction
     does not pass through a float: a float
-    does not hold a time stamp of nineteen
-    digits, and Python 3.11 has no such
-    format for a fraction."""
-    if isinstance(value, float):
-        return f"{value:.{d}f}"
+    does not hold every time stamp of
+    nineteen digits, and Python 3.11 has no
+    such format for a fraction. A value that
+    rounds to zero is shown without a sign."""
+    if value != value or value in _ENDS:
+        return f"{value}"
     n = round(Fraction(value) * 10 ** d)
-    sign = "-" if value < 0 else ""
+    sign = "-" if n < 0 else ""
     whole, part = divmod(abs(n), 10 ** d)
     if not d:
         return f"{sign}{whole}"
@@ -175,7 +178,13 @@ class Result:
     distributions instead. The default dof
     treats u as exactly known, which is itself
     an assumption. A value or a u beyond the
-    range of a float, 1.8e308, is refused."""
+    range of a float, 1.8e308, is refused.
+    With finite dof the model is value + u T
+    for a Student T: u is its scale, as an
+    estimated standard error is in a t
+    interval, and not its standard deviation,
+    which at 4 degrees of freedom is u times
+    the square root of 2."""
     value: float
     u: float
     unit: str = ""
@@ -205,7 +214,10 @@ class Result:
         times a power of two, near 2 ** -600,
         and divided by that power. As a float,
         a factor below the least float is 0.0:
-        the widths are formed from _k()."""
+        the widths are formed from _k(). A p
+        whose tail is below the least normal
+        float, 2.2e-308, is refused: such a
+        tail has lost its digits."""
         return float(self._k(p))
 
     def _k(self, p):
@@ -221,11 +233,17 @@ class Result:
             return self._k(p) / 2 ** e
         if p < 0.5:
             return Fraction(t_within(p, self.dof))
-        t = t_isf((1 - p) / 2, self.dof)
-        return Fraction(t)
+        tail = (1 - p) / 2
+        if tail < 2 ** -1022:
+            raise ValueError("p is too near 1")
+        return Fraction(t_isf(tail, self.dof))
 
     def _half(self, p):
-        """k * u as the fraction that it is."""
+        """k * u as the fraction that it is.
+        With u = 0 it is zero for every level,
+        and no factor is looked for."""
+        if not (_level(p) and self.u):
+            return Fraction(0)
         return self._k(p) * _exact(self.u)
 
     def expanded(self, p=0.95):
@@ -252,9 +270,10 @@ class Result:
         64 ns near 1e18 ns, and prob_below()
         would not find at it the probability
         that k stands for."""
-        if not (_level(p) and self.u):
+        w = self._half(p)
+        if not w:
             return self.value, self.value
-        v, w = _exact(self.value), self._half(p)
+        v = _exact(self.value)
         return v - w, v + w
 
     def prob_below(self, limit):
@@ -264,15 +283,17 @@ class Result:
         result is a point mass: the probability
         is 1 for a limit at or above the value
         and 0 for a limit below it. A limit
-        that is no number is refused. The
-        distance to the limit is that of
+        that is no number is refused, and an
+        infinite one has the probability 1 or
+        0 whatever the distribution. The
+        distance to a finite limit is that of
         _ratio(): 10 ** 18 is one limit as a
         whole number and as a float."""
         if limit != limit:
             raise ValueError("limit is no number")
+        if limit in _ENDS:
+            return float(limit > 0)
         if self.u == 0:
-            if limit in (math.inf, -math.inf):
-                return float(limit > 0)
             v = _exact(self.value)
             return float(_exact(limit) >= v)
         z = _ratio(limit, self.value, self.u)
@@ -288,12 +309,17 @@ class Result:
         the decimal context. With no
         uncertainty, and at p = 0, U is 0 and
         the value is shown in full, since
-        there is no such place. p is printed
-        as it was given: a float as the
-        shortest decimal that reads back as
-        the same float, a fraction in full.
-        Six digits would show 0.9999999, with
-        its k of 5.33, as p = 1."""
+        there is no such place. Without
+        uncertainty no factor is looked for,
+        and "u = 0" stands in its place. A
+        factor has two decimal places, or two
+        significant digits where that takes
+        more. p is printed as it was given: a
+        float as the shortest decimal that
+        reads back as the same float, a
+        fraction in full. Six digits would
+        show 0.9999999, with its k of 5.33,
+        as p = 1."""
         v, w = self.value, self._half(p)
         d = decimals(w)
         if d < 0:
@@ -305,7 +331,11 @@ class Result:
         else:
             v, w = fixed(v, d), fixed(w, d)
             body = f"({v} ± {w})"
-        tail = f"k = {self.k(p):.2f}"
+        tail = "u = 0"
+        if self.u:
+            k = self._k(p)
+            d = max(2, decimals(k)) if k else 2
+            tail = f"k = {fixed(k, d)}"
         if isinstance(p, float):
             p = repr(p)
         tail = f"{tail}, p = {full(p)}"
@@ -329,11 +359,12 @@ def type_a(xs, unit=""):
 
 
 def _width(w):
-    """A half-width or a step, if it is
-    finite and not negative."""
-    if not 0 <= w < math.inf:
+    """A half-width or a step as a float, if
+    it is finite and not negative: a whole
+    number, a fraction or a decimal as well."""
+    if not w >= 0 or w == math.inf:
         raise ValueError("need a width >= 0")
-    return w
+    return float(w)
 
 
 def u_rect(half_width):
@@ -347,15 +378,21 @@ def rect_interval(center, half_width, p=0.95):
     """Central coverage interval of a
     rectangular distribution: p of its width,
     whatever its standard deviation, for
-    0 <= p <= 1. With no width both limits
-    are the center as it was given."""
+    0 <= p <= 1. The limits are the center
+    less and plus the exact product of p and
+    the half-width, as fractions: rounded to
+    floats, they can leave out a part of the
+    width, also at p = 1. With no width both
+    limits are the center as it was given."""
     if not 0 <= p <= 1:
         raise ValueError("need 0 <= p <= 1")
-    w = p * _width(half_width)
-    if w == 0:
+    _width(half_width)
+    w = _exact(p) * _exact(half_width)
+    if not w:
         return center, center
     resolved(center, w)
-    return center - w, center + w
+    v = _exact(center)
+    return v - w, v + w
 
 
 def u_tri(half_width):

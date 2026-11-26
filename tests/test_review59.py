@@ -504,8 +504,10 @@ class ExactNumbersAtTheBoundary(unittest.TestCase):
         rng = random.Random(311)
         for _ in range(2000):
             x = rng.uniform(-1000, 1000) * 10 ** rng.randint(-3, 3)
-            self.assertEqual(case.shown(x), f"{x:.2f}")
-            self.assertEqual(fixed(x, 2), f"{x:.2f}")
+            # Since Version 63 a value that rounds to zero is shown without a sign.
+            want = f"{x:.2f}".lstrip("-") if not float(f"{x:.2f}") else f"{x:.2f}"
+            self.assertEqual(case.shown(x), want)
+            self.assertEqual(fixed(x, 2), want)
         before, after = periods()
         self.assertEqual((case.shown(case.reported(before, case.OLD)), case.shown(case.reported(after, case.NEW))),
                          ("191.57", "241.35"))

@@ -46,7 +46,7 @@ def p95_all(xs):
     statistic of that rank is censored and
     the value only a bound. A NaN is no
     timeout: completions() refuses it."""
-    done = completions(xs)
+    done = completions(xs := list(xs))
     k = ecdf_rank(0.95, len(xs))
     if k <= len(done):
         return done[k - 1], False

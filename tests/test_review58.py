@@ -284,7 +284,9 @@ class BoundsArePrintedOnTheirSafeSide(unittest.TestCase):
         # Chapter 18: one-sided ends of a temperature.
         self.assertEqual(cal.worded((0.0, 12.190118245514029)), "T up to 12.20")          # Version 58: 12.19
         self.assertEqual(cal.worded((64.76349379652108, math.inf)), "T from 64.76, no upper end")
-        self.assertEqual(cal.worded((4.830164851560481, 14.013935816351987)), "4.83 to 14.01")
+        # Version 58 to 62 left an interval with two ends rounded to the nearest, 14.01. The review of Version
+        # 62 showed a temperature inside the interval and beyond that print: both ends are now outward.
+        self.assertEqual(cal.worded((4.830164851560481, 14.013935816351987)), "4.83 to 14.02")
         self.assertIn("  100 positive: T up to 12.20\n", expected("ch18_calibration"))
 
 

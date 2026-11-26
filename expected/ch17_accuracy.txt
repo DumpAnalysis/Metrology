@@ -1,7 +1,7 @@
 observed accuracy 87.0 %
-n =   500: [83.8, 89.7] %  (±3.0)
-n =  2000: [85.5, 88.4] %  (±1.5)
-n = 10000: [86.3, 87.6] %  (±0.7)
+n =   500: [83.8, 89.7] %, half-width 3.0 points
+n =  2000: [85.5, 88.4] %, half-width 1.5 points
+n = 10000: [86.3, 87.6] %, half-width 0.7 points
 accuracy A 86.10 %, B 87.90 %
 only A right 112, only B right 148
 correlation of right answers +0.427

@@ -106,7 +106,10 @@ def _split(t, dof):
 def t_sf(t, dof):
     """Upper tail P(T > t) of Student's t for
     t >= 0, accurate far into the tail, and
-    next to t = 0 as well."""
+    next to t = 0 as well. Nothing lies
+    above infinity."""
+    if t == math.inf:
+        return 0.0
     if dof > 1e6:
         # Beyond 1000 the tail is 0 as a float.
         z = _far(min(t, 1e3), dof, -1)

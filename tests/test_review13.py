@@ -234,7 +234,9 @@ class ResultWithoutUncertainty(unittest.TestCase):
             r = Result(value, 0.0, "ms")
             short, long = str(r), r.report()
             self.assertEqual(short, f"{value!r}(0) ms")
-            self.assertEqual(long, f"({value!r} ± 0) ms, k = 1.96, p = 0.95")
+            # Version 62 and before printed "k = 1.96" here. Since Version 63 no factor is looked for where
+            # there is no uncertainty to multiply, and "u = 0" says why the width is zero.
+            self.assertEqual(long, f"({value!r} ± 0) ms, u = 0, p = 0.95")
             # Either printed form gives the stored estimate back.
             self.assertEqual(float(short.split("(")[0]), value)
             self.assertEqual(float(long[1:].split(" ±")[0]), value)
@@ -249,11 +251,11 @@ class ResultWithoutUncertainty(unittest.TestCase):
 
     def test_other_values_without_uncertainty(self):
         self.assertEqual(str(Result(2 ** 53 + 1, 0, "ns")), "9007199254740993(0) ns")
-        self.assertEqual(Result(2 ** 53 + 1, 0, "ns").report(), "(9007199254740993 ± 0) ns, k = 1.96, p = 0.95")
+        self.assertEqual(Result(2 ** 53 + 1, 0, "ns").report(), "(9007199254740993 ± 0) ns, u = 0, p = 0.95")
         self.assertEqual(str(Result(1e-07, 0.0, "s")), "1e-07(0) s")
         self.assertEqual(str(Result(0.1 + 0.2, 0.0)), "0.30000000000000004(0)")
-        self.assertEqual(Result(5.5, 0.0, "ms", 3).report(), "(5.5 ± 0) ms, k = 3.18, p = 0.95")
-        self.assertEqual(Result(5.5, 0.0).report(), "(5.5 ± 0), k = 1.96, p = 0.95")
+        self.assertEqual(Result(5.5, 0.0, "ms", 3).report(), "(5.5 ± 0) ms, u = 0, p = 0.95")     # Version 62: k = 3.18
+        self.assertEqual(Result(5.5, 0.0).report(), "(5.5 ± 0), u = 0, p = 0.95")
         self.assertEqual(fmt(5.5, 0.0), "5.5(0)")
 
     def test_results_with_an_uncertainty_print_as_before(self):

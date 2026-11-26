@@ -29,11 +29,23 @@ def make(n, scale, rng):
     return data
 
 
+def checked(data):
+    """The cases as a list: finite logits, and
+    labels that are 0 or 1 and not missing."""
+    data = list(data)
+    for logit, y in data:
+        if not math.isfinite(logit):
+            raise ValueError("no finite logit")
+        if y not in (0, 1):
+            raise ValueError("a label is 0 or 1")
+    return data
+
+
 def bins_of(data, temp=1.0, bins=10):
     """Per bin of stated probability: count,
     sum of probabilities, sum of labels."""
     tot = [[0, 0.0, 0] for _ in range(bins)]
-    for logit, y in data:
+    for logit, y in checked(data):
         p = sigmoid(logit / temp)
         b = tot[min(int(p * bins), bins - 1)]
         b[0] += 1
@@ -46,7 +58,7 @@ def ece(data, temp=1.0, bins=10):
     """Expected calibration error of P(y=1)."""
     tot = bins_of(data, temp, bins)
     gap = sum(abs(s - k) for _, s, k in tot)
-    return gap / len(data)
+    return gap / sum(n for n, _, _ in tot)
 
 
 def nll(data, temp=1.0):
@@ -56,7 +68,7 @@ def nll(data, temp=1.0):
     a scaled logit of 40 the loss of a case
     with the label 0 is 40, and the rounded
     probability gives the logarithm of 0."""
-    acc = 0.0
+    data, acc = checked(data), 0.0
     for logit, y in data:
         z = logit / temp
         t = -z if y else z
@@ -67,7 +79,7 @@ def nll(data, temp=1.0):
 
 def brier(data, temp=1.0):
     return st.fmean((sigmoid(z / temp) - y) ** 2
-                    for z, y in data)
+                    for z, y in checked(data))
 
 
 def margins(data):
@@ -85,26 +97,26 @@ def slope(ms, beta):
 
 
 def fit_temperature(data, lo=0.2, hi=10.0):
-    """The T between lo and hi that minimizes
-    the NLL on a calibration set. The shape
-    of the loss is settled from the margins
-    before anything is searched, because a
-    search among rounded losses can stop
-    where they are equal. With margins that
-    are all zero the loss is the same at
-    every T. Otherwise, with no margin below
-    zero it falls all the way as T falls,
-    and with margins that sum to zero or
-    less, all the way as T rises. None of
-    these has a finite T, and that is an
-    error, as is a minimum outside the
-    interval. A minimum at lo or at hi is
-    returned. Otherwise the slope changes
-    its sign once inside, and bisection
-    finds where."""
-    if not 0 < lo < hi:
-        raise ValueError("need 0 < lo < hi")
-    ms = margins(data)
+    """The T between lo and hi, both finite,
+    that minimizes the NLL on a calibration
+    set. The shape of the loss is settled
+    from the margins before anything is
+    searched, because a search among rounded
+    losses can stop where they are equal.
+    With margins that are all zero every T
+    has the same loss: the data leave T
+    unidentified. Otherwise, with no margin
+    below zero the loss falls all the way as
+    T falls, and with margins that sum to
+    zero or less, as T rises: there is no
+    finite T. These are errors, as is a
+    minimum outside the interval. A minimum
+    at lo or at hi is returned. Otherwise
+    the slope changes its sign once inside,
+    and bisection finds where."""
+    if not 0 < lo < hi < math.inf:
+        raise ValueError("need 0 < lo < hi < inf")
+    ms = margins(checked(data))
     if not ms:
         raise ValueError("no cases")
     if not any(ms):
@@ -220,12 +232,12 @@ def worded(ends):
     low, high = ends
     if high == math.inf and not low:
         return "any T above zero"
+    down = downward(low, 2)
     if high == math.inf:
-        low = downward(low, 2)
-        return f"T from {low}, no upper end"
+        return f"T from {down}, no upper end"
     if not low:
         return f"T up to {upward(high, 2)}"
-    return f"{low:.2f} to {high:.2f}"
+    return f"{down} to {upward(high, 2)}"
 
 
 def confident():

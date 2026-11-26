@@ -283,7 +283,7 @@ class TemperaturesThatTheLabelsAllow(unittest.TestCase):
         text = expected("ch18_calibration")
         lines = text.splitlines()
         self.assertEqual(len(lines), 24)                                         # 20 in Version 37, 23 in Version 38
-        self.assertEqual(lines[16], "  95 % interval for T: 4.83 to 14.01")
+        self.assertEqual(lines[16], "  95 % interval for T: 4.83 to 14.02")       # 14.01 to the nearest, until Version 62
         p55, p100 = exact_limits(55, 100), exact_limits(100, 100)
         self.assertEqual(lines[20:23], [
             f"  55 positive: T from {40 / math.log(p55[1] / (1 - p55[1])):.2f}, no upper end",

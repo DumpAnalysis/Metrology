@@ -188,7 +188,7 @@ class TheShapeOfTheLossBeforeTheSearch(unittest.TestCase):
         self.assertEqual(cal.fit_temperature(iter(data)), cal.fit_temperature(data))
         self.assertAlmostEqual(cal.fit_temperature(data), 2 / math.log(3), places=9)
         self.assertEqual(refusal(cal.fit_temperature, []), "no cases")
-        self.assertEqual(refusal(cal.fit_temperature, data, 0, 10), "need 0 < lo < hi")
+        self.assertEqual(refusal(cal.fit_temperature, data, 0, 10), "need 0 < lo < hi < inf")   # finite since Version 63
 
     def test_the_fit_of_the_listing(self):
         # The two searches agree where the loss has a minimum that floats can show: the data of the listing.
@@ -266,11 +266,13 @@ class TheIntervalOfAFittedTemperature(unittest.TestCase):
         none = Fraction(99, 100) ** 100
         one = 100 * Fraction(1, 100) * Fraction(99, 100) ** 99
         self.assertEqual(lines[16:20], [
-            f"  95 % interval for T: {40 / math.log(high / (1 - high)):.2f} to {40 / math.log(low / (1 - low)):.2f}",
+            # Since Version 63 the two ends are rounded outward: 4.8302 downward and 14.0139 upward.
+            f"  95 % interval for T: {math.floor(4000 / math.log(high / (1 - high))) / 100:.2f} to "
+            f"{math.ceil(4000 / math.log(low / (1 - low))) / 100:.2f}",
             f"  with two negative: T = {at_one_logit(40, 98, 100):.2f}",
             "  resampled, they hold no negative",
             f"  case in {100 * float(none):.1f} %, one in {100 * float(one):.1f} %"])
-        self.assertEqual(lines[16], "  95 % interval for T: 4.83 to 14.01")
+        self.assertEqual(lines[16], "  95 % interval for T: 4.83 to 14.02")       # 14.01 to the nearest, until Version 62
         self.assertEqual(printed(cal.main), text)
 
     def test_the_script_of_the_figure(self):

@@ -98,7 +98,12 @@ class TheLossFromTheLogit(unittest.TestCase):
         self.assertAlmostEqual(cal.nll(mild) / version_35(mild), 1, places=12)
 
     def test_no_logit_is_too_large(self):
-        for z in (709.0, 710.0, 1e6, 1e308, math.inf):
+        # Version 62 and before took an infinite logit as well. Since Version 63 a case has a finite logit:
+        # the review of Version 62 showed a NaN among the logits that was fitted as if it were a number.
+        for z in (math.inf, -math.inf, math.nan):
+            with self.assertRaises(ValueError):
+                cal.nll([(z, 0)])
+        for z in (709.0, 710.0, 1e6, 1e308):
             self.assertEqual(cal.nll([(z, 0)]), z)
             self.assertEqual(cal.nll([(-z, 1)]), z)
             # The loss of the right label is e ** -z, which a float still holds at 709 (1.2e-308) and at 710.

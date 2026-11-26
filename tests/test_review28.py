@@ -198,7 +198,9 @@ def by_decimal(value, places):
     with decimal.localcontext() as ctx:
         ctx.prec = 120
         number = decimal.Decimal(value.numerator) / decimal.Decimal(value.denominator)
-        return format(number.quantize(decimal.Decimal(1).scaleb(-places), rounding=decimal.ROUND_HALF_EVEN), "f")
+        text = format(number.quantize(decimal.Decimal(1).scaleb(-places), rounding=decimal.ROUND_HALF_EVEN), "f")
+    # Since Version 63 a value that rounds to zero is shown without a sign, which says nothing there.
+    return text.lstrip("-") if not decimal.Decimal(text) else text
 
 
 class AFractionInAReport(unittest.TestCase):
@@ -212,7 +214,7 @@ class AFractionInAReport(unittest.TestCase):
                 format(median, ".3f")                                                # what Version 28 ran into
         for value in (median, Python311(median)):
             result = Result(value, 0, "ns")
-            self.assertEqual(result.report(), "(1700000000000000100.5 ± 0) ns, k = 1.96, p = 0.95")
+            self.assertEqual(result.report(), "(1700000000000000100.5 ± 0) ns, u = 0, p = 0.95")   # Version 62: k = 1.96
             self.assertEqual(str(result), "1700000000000000100.5(0) ns")
             self.assertEqual(result.interval(), (median, median))
 
@@ -229,7 +231,7 @@ class AFractionInAReport(unittest.TestCase):
             self.assertEqual(str(huge), str(Result(10 ** 6 / 3, 2500)))
             # Without an uncertainty a third has no decimal places to end on, and is shown as what it is.
             alone = Result(third, 0)
-            self.assertEqual((str(alone), alone.report()), ("1/3(0)", "(1/3 ± 0), k = 1.96, p = 0.95"))
+            self.assertEqual((str(alone), alone.report()), ("1/3(0)", "(1/3 ± 0), u = 0, p = 0.95"))
 
     def test_fixed_point_text(self):
         rng = random.Random(2804)
@@ -241,11 +243,12 @@ class AFractionInAReport(unittest.TestCase):
                 self.assertEqual(core.fixed(value, places), want, (value, places))
                 self.assertEqual(core.fixed(Python311(value), places), want)
                 if sys.version_info >= (3, 12):
-                    self.assertEqual(format(value, f".{places}f"), want)
+                    python = format(value, f".{places}f")
+                    self.assertEqual(python.lstrip("-") if not Fraction(python) else python, want)
         # Ties go to the even digit, as they do for a float that is a tie.
-        self.assertEqual([core.fixed(Fraction(k, 2), 0) for k in (1, 3, 5, -1, -3)], ["0", "2", "2", "-0", "-2"])
+        self.assertEqual([core.fixed(Fraction(k, 2), 0) for k in (1, 3, 5, -1, -3)], ["0", "2", "2", "0", "-2"])   # Version 62: "-0" for -1/2
         self.assertEqual([f"{k / 2:.0f}" for k in (1, 3, 5, -1, -3)], ["0", "2", "2", "-0", "-2"])
-        self.assertEqual([core.fixed(Fraction(k, 1000), 2) for k in (125, 135, -5)], ["0.12", "0.14", "-0.00"])
+        self.assertEqual([core.fixed(Fraction(k, 1000), 2) for k in (125, 135, -5)], ["0.12", "0.14", "0.00"])   # Version 62: "-0.00"
         # A whole number keeps its digits, and a float is formatted as before.
         self.assertEqual(core.fixed(EPOCH + 1, 2), "1700000000000000001.00")
         self.assertEqual(f"{EPOCH + 1:.2f}", "1700000000000000000.00")               # through a float
@@ -253,7 +256,8 @@ class AFractionInAReport(unittest.TestCase):
         for _ in range(500):
             x = rng.choice((1e-9, 1.0, 842.0, 1e12)) * rng.uniform(-1.5, 1.5)
             for places in (0, 2, 5):
-                self.assertEqual(core.fixed(x, places), f"{x:.{places}f}")
+                want = f"{x:.{places}f}"
+                self.assertEqual(core.fixed(x, places), want.lstrip("-") if not float(want) else want)   # see by_decimal()
 
     def test_a_value_in_full(self):
         self.assertEqual([core.full(Fraction(1, 8)), core.full(Fraction(-1, 8)), core.full(Fraction(7))], ["0.125", "-0.125", "7"])
@@ -269,7 +273,7 @@ class AFractionInAReport(unittest.TestCase):
         self.assertEqual([core.full(0.1), core.full(99.9996), core.full(EPOCH + 100)], ["0.1", "99.9996", "1700000000000000100"])
         self.assertEqual(str(Result(99.9996, 0, "ms")), "99.9996(0) ms")
         self.assertEqual(str(Result(12.311, 0.0097, "ms")), "12.3110(97) ms")
-        self.assertEqual(Result(0.5, 0, "ns").report(), "(0.5 ± 0) ns, k = 1.96, p = 0.95")
+        self.assertEqual(Result(0.5, 0, "ns").report(), "(0.5 ± 0) ns, u = 0, p = 0.95")
 
     def test_whole_stamps_keep_their_digits(self):
         # Found while the review was worked: a whole value was formatted through a float.

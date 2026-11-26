@@ -53,7 +53,7 @@ def rectangular_coverage():
     """A value known only to lie within 1 of
     an estimate: what is its 95 % interval?"""
     u = u_rect(1.0)
-    lo, hi = rect_interval(0.0, 1.0)
+    lo, hi = map(float, rect_interval(0.0, 1.0))
     wide = 1.96 * u
     print(f"rectangular on [-1, 1]: u = {u:.3f}")
     print(f"1.96 u = {wide:.3f}, past the bound")

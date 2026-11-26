@@ -88,7 +88,7 @@ class AnExactValueStaysWhereItIs(unittest.TestCase):
         low, high = result.interval()
         self.assertEqual((result.prob_below(low - 1), result.prob_below(high)), (0.0, 1.0))
         self.assertEqual(result.expanded(), 0.0)
-        self.assertEqual(result.report(), "(1700000000000000100 ± 0) ns, k = 1.96, p = 0.95")
+        self.assertEqual(result.report(), "(1700000000000000100 ± 0) ns, u = 0, p = 0.95")   # Version 62: k = 1.96
         # A float that is held exactly stays the float that it is.
         self.assertEqual(Result(0.1, 0, "s").interval(), (0.1, 0.1))
         self.assertEqual(core.rect_interval(0.1, 0), (0.1, 0.1))

@@ -159,43 +159,44 @@ def classes(rec):
     cursor that iter() gives for it. A cursor
     under two names would be empty under the
     second: it is refused before it is read."""
-    opened = {name: xs if isinstance(xs, list)
-              else iter(xs)
-              for name, xs in rec.items()}
-    once = [id(xs) for xs in opened.values()
-            if not isinstance(xs, list)]
+    cs = {k: v if isinstance(v, list) else iter(v)
+          for k, v in rec.items()}
+    once = [id(v) for v in cs.values()
+            if not isinstance(v, list)]
     if len(set(once)) < len(once):
         raise ValueError("stream in two classes")
-    return {name: observed(xs)
-            for name, xs in opened.items()}
+    return {k: observed(v) for k, v in cs.items()}
 
 
-def size(ref):
-    """How many entries: by len() where there
-    is one, and else by reading to the end."""
+def size(ref, seen):
+    """How many entries: by len(), or by one
+    reading of the cursor, kept in `seen`."""
     try:
         return len(ref)
     except TypeError:
-        return sum(1 for _ in ref)
+        cur = iter(ref)
+    if id(cur) not in seen:
+        seen[id(cur)] = cur, sum(1 for _ in cur)
+    return seen[id(cur)][1]
 
 
 def both(rec, mix):
     """The record by classes(), and the mix
-    as ranges of its class counts: its
-    entries stand for requests and are only
-    counted, in no list. Each object is
-    counted once, and the count serves every
-    class that names it: one of the record,
-    as in a copy of it, or two of the mix.
-    An iterator is at its end after that."""
-    held = classes(rec)
-    count = {id(xs): len(held[name])
-             for name, xs in rec.items()}
+    as ranges of its class counts: entries
+    of the mix stand for requests and are
+    only counted. An object and a cursor are
+    counted once and kept, for every class
+    that names the one or reads the other."""
+    cs = {k: v if isinstance(v, list) else iter(v)
+          for k, v in rec.items()}
+    held = classes(cs)
+    seen = {id(x): (x, len(held[k])) for k in rec
+            for x in (rec[k], cs[k])}
     sizes = {}
     for name, ref in mix.items():
-        if id(ref) not in count:
-            count[id(ref)] = size(ref)
-        sizes[name] = range(count[id(ref)])
+        if id(ref) not in seen:
+            seen[id(ref)] = ref, size(ref, seen)
+        sizes[name] = range(seen[id(ref)][1])
     return held, sizes
 
 

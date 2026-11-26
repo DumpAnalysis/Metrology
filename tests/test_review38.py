@@ -118,7 +118,7 @@ class TheLabelsExchanged(unittest.TestCase):
         self.assertEqual(cal.temperatures(0, 50, 100), (0.0, math.inf))          # a half is within the interval
         self.assertEqual(cal.temperatures(40, 1, 1), (0.0, math.inf))            # one trial: 0.025 to 1
         self.assertEqual(cal.worded(cal.temperatures(40, 1, 1)), "any T above zero")
-        self.assertEqual(cal.worded(cal.temperatures(-40, 1, 100)), "4.83 to 14.01")
+        self.assertEqual(cal.worded(cal.temperatures(-40, 1, 100)), "4.83 to 14.02")     # outward since Version 63
         self.assertEqual(cal.worded(cal.temperatures(-40, 99, 100)), "no T above zero")
         self.assertEqual(cal.worded(cal.temperatures(0, 99, 100)), "no T above zero")
 
@@ -191,8 +191,11 @@ class TheLabelsExchanged(unittest.TestCase):
         self.assertEqual(len(lines), 24)                                         # 23 in Version 38
         low, high = exact_limits(99, 100)
         ends = (40 / math.log(high / (1 - high)), 40 / math.log(low / (1 - low)))
-        self.assertEqual(lines[23], f"  1 positive at -40: {ends[0]:.2f} to {ends[1]:.2f}")
-        self.assertEqual(lines[16], f"  95 % interval for T: {ends[0]:.2f} to {ends[1]:.2f}")
+        # Since Version 63 the two ends are printed outward: the lower one downward, the upper one upward.
+        shown = f"{math.floor(100 * ends[0]) / 100:.2f} to {math.ceil(100 * ends[1]) / 100:.2f}"
+        self.assertEqual(shown, "4.83 to 14.02")
+        self.assertEqual(lines[23], f"  1 positive at -40: {shown}")
+        self.assertEqual(lines[16], f"  95 % interval for T: {shown}")
         self.assertEqual(printed(cal.main), text)
 
 

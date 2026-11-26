@@ -14,9 +14,9 @@ def interval_widths():
     print("observed accuracy 87.0 %")
     for n in (500, 2000, 10_000):
         lo, hi = wilson(round(0.87 * n), n)
-        half = 50 * (hi - lo)
+        half = f"half-width {50 * (hi - lo):.1f}"
         print(f"n = {n:>5}: [{100 * lo:.1f}, "
-              f"{100 * hi:.1f}] %  (±{half:.1f})")
+              f"{100 * hi:.1f}] %, {half} points")
 
 
 def two_models(n, rng):

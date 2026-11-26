@@ -392,7 +392,9 @@ class AReportAtItsEdges(unittest.TestCase):
             for u in (300_000, 300_000.0, D("300000"), 0):
                 r = Result(value, u, "ms")
                 for p in (0, 0.0, D("0"), Fraction(0)):
-                    self.assertEqual(r.report(p), f"({shown} ± 0) ms, k = 0.00, p = {p}")
+                    # Since Version 63 a result without uncertainty has "u = 0" where its factor stood.
+                    tail = "k = 0.00" if u else "u = 0"
+                    self.assertEqual(r.report(p), f"({shown} ± 0) ms, {tail}, p = {p}")
                     self.assertEqual(r.interval(p), (value, value))
         self.assertEqual(Result(D("195.0004"), 3, "ms").report(0), "(195.0004 ± 0) ms, k = 0.00, p = 0")
         # With a coverage above zero the value is rounded to the place of the width, as before.
@@ -483,7 +485,8 @@ class AReportAtItsEdges(unittest.TestCase):
             self.assertAlmostEqual(2 * NormalDist().cdf(Result(0, 1).k(p)) - 1, p, delta=1e-15 + 1e-12 * p)
         # A report at such a level has its width in full: 1.3e-30 after 29 zeros.
         self.assertEqual(Result(0, 1, "ms").report(D("1e-30")),
-                         "(" + "0." + "0" * 31 + " ± 0." + "0" * 29 + "13) ms, k = 0.00, p = 1E-30")
+                         "(" + "0." + "0" * 31 + " ± 0." + "0" * 29 + "13) ms, k = 0." + "0" * 29 + "13, p = 1E-30")
+        # Version 62 printed "k = 0.00" beside that width: a factor keeps two significant digits since Version 63.
 
     def test_a_trapped_decimal_context(self):
         bound = Fraction(3, 2) + product(case.Z, 3.0)

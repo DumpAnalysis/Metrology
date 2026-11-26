@@ -2,7 +2,7 @@
 
 Code examples for the book *Metrology in Software Diagnostics, Observability,
 and Debugging: With Applications to Machine Learning and AI* by Dmitry Vostokov
-(OpenTask, ISBN 978-1-919135-15-1). Book Version 62, November 2026.
+(OpenTask, ISBN 978-1-919135-15-1). Book Version 63, November 2026.
 
 Repository: https://github.com/DumpAnalysis/Metrology
 
@@ -78,7 +78,7 @@ will print different numbers on your machine; that is what they are for.
 | `expected/` | The transcript of each example, as printed in the book. |
 | `data/` | The trace fixture of Chapter 16 (`app_trace.log`) and its seeded generator (`make_trace.py`); the measurement record of Chapter 22 (`measurement_record.json`), a blank template with the same fields (`record_template.json`), a description of the form, of the decision procedure and of what the checker examines (`RECORD_FORMAT.md`), and the program that writes both (`make_record.py`). |
 | `figures/` | `make_figures.py` draws the book's thirty-two figures from the same functions as the examples. Needs matplotlib and Pillow at the versions in `requirements.txt`; output goes to `figures/out/`. |
-| `tests/` | `test_swmetro.py`: unit tests of the package. `test_review.py`, `test_review2.py` to `test_review5.py`, `test_review7.py` to `test_review46.py` and `test_review48.py` to `test_review61.py`: regression tests, numbered by the version of the book whose review they followed; each checks the code against an independent fact (a closed form, a definition evaluated by brute force, a published table, a simulated coverage), not against saved output. `test_release.py`: the license text is the published one, and the record and this file name the repository and the release. |
+| `tests/` | `test_swmetro.py`: unit tests of the package. `test_review.py`, `test_review2.py` to `test_review5.py`, `test_review7.py` to `test_review46.py` and `test_review48.py` to `test_review62.py`: regression tests, numbered by the version of the book whose review they followed; each checks the code against an independent fact (a closed form, a definition evaluated by brute force, a published table, a simulated coverage), not against saved output. `test_release.py`: the license text is the published one, and the record and this file name the repository and the release. |
 | `tools/` | Two optional checks of the Student t quantile against high-precision arithmetic. They need mpmath. |
 | `run_all.py` | The replay program. |
 | `LICENSE` | PolyForm Strict License 1.0.0. |
@@ -119,7 +119,7 @@ will print different numbers on your machine; that is what they are for.
 | 16 | `ch16_bounds` | exact | Bounds on a failure share from an incomplete capture, and the decision they allow; the ranks that bound a percentile when some latencies are unknown; a percentile objective decided from completions, timeouts and lost records; what one more histogram bound would establish |
 | 17 | `ch17_accuracy` | exact | Intervals for accuracy; paired comparison in percentage points, with the correlation of the right answers and the exact test for the pairs that differ, one-sided and two-sided, for two pairs of lists with the same scores; the limits of that test that two scores alone allow, for a lead of either model and for a tie, with some pairs verified, with batches that keep the other pairs together, and with the counts that one doubtful label in each batch can hide; probabilities as exact fractions |
 | 17 | `ch17_seeds` | exact | Variation of a score across seeds and splits |
-| 18 | `ch18_calibration` | exact | Temperature scaling, with the loss taken from the logit; bias of the ECE estimator; a fit with one confident error, and the interval that a hundred labels leave for its temperature, for a logit of either sign |
+| 18 | `ch18_calibration` | exact | Temperature scaling, with the loss taken from the logit; bias of the ECE estimator; a fit with one confident error, and the interval that a hundred labels leave for its temperature, for a logit of either sign, its ends printed outward; cases held to a finite logit and a label of 0 or 1 |
 | 19 | `ch19_float` | exact | Floating-point resolution, among it stamps that count nanoseconds from 1970 and lie 1 ns apart; accumulation, order |
 | 19 | `ch19_inference_timing` | live | Cold start and steady state |
 | 20 | `ch20_error_bars` | exact | Clustered and paired standard errors; exact tests of a gain with the labels of the two models exchanged by question and by passage |
@@ -190,6 +190,18 @@ half-width as a float and refuses one beyond the range of a float, which
 uncertainty beyond that range is refused. The comparisons of a `Result` are
 exact, so that a `Decimal` beside a float needs no setting of the decimal
 context, and `report()` rounds half to even whatever that context says.
+An infinite limit has the probability 1 or 0 whatever the distribution, and
+a finite limit whose distance is beyond the range of a float has that of the
+largest distance the package can square, which overstates its tail. A result
+without uncertainty has an expanded uncertainty of zero at every level, and
+its report prints `u = 0` where a coverage factor would stand; no factor is
+looked for. A factor is printed with two decimal places, or with two
+significant digits where that takes more, and a value that rounds to zero
+without a sign. A level so close to 1 that its tail `(1 - p) / 2` is below
+the least normal float, 2.2e-308, is refused. `rect_interval()` returns
+exact fractions as well, the center less and plus the exact product of the
+level and the half-width, and `u_rect()`, `u_tri()` and `u_resolution()`
+take a width of any of the four types and return a float.
 
 ## Using the measurement record
 
@@ -288,7 +300,7 @@ of the versions before it. Seeds alone do not specify a result: the stored
 transcripts, the trace fixture and the measurement record are part of the
 repository for that reason.
 
-These are the files for Version 62 of the book.
+These are the files for Version 63 of the book.
 
 ## License
 
