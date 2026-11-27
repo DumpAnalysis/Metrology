@@ -1,5 +1,6 @@
 """Normal and Student t helpers."""
 import math
+from fractions import Fraction
 from functools import lru_cache
 from statistics import NormalDist
 
@@ -8,6 +9,7 @@ phi = _N.cdf        # standard normal CDF
 z_ppf = _N.inv_cdf  # standard normal quantile
 _TINY = 1e-300
 _T_MAX = 1e150
+_LEAST = 2.0 ** -1022  # the least normal float
 _FEW = 1e-9
 _MANY = 1e25
 
@@ -325,30 +327,50 @@ def t_within(p, dof):
 @lru_cache(maxsize=None)
 def t_isf(tail, dof):
     """Inverse upper tail of Student's t: the
-    t >= 0 with P(T > t) = tail, for
-    0 < tail <= 0.5 and dof > 0, by bisection
-    on t. Checked against the closed forms
-    for 1 and 2 degrees of freedom down to
-    tails of 1e-100 and against tables. A
-    quantile beyond 1e150 is refused. Above
-    a tail of 1/4 the quantile is found from
-    the distance of the tail from 1/2, and
+    t >= 0 with P(T > t) = tail, for dof > 0
+    and a tail from the least normal float,
+    2.2e-308, to 0.5, by bisection on t. A
+    smaller tail is refused: as a float it
+    has lost digits, and no tail that is
+    computed can be compared with it. The
+    tail is a float, or a Fraction or a
+    Decimal, which is compared as the number
+    that it is. Checked against the closed
+    forms for 1 and 2 degrees of freedom
+    down to tails of 1e-100 and against
+    tables. Above a tail of 1/4 the quantile
+    is found from the distance of the tail
+    from 1/2, which is formed exactly, and
     beyond 1e25 degrees of freedom it is the
-    normal quantile."""
-    if not 0 < tail <= 0.5:
-        raise ValueError("need 0 < tail <= 0.5")
+    normal quantile. A quantile beyond 1e150
+    is refused. If the tail at 1e150 exceeds
+    the tail asked for by 1e-12 of it or
+    less, the accuracy measured for a tail,
+    the quantile is taken as 1e150, so that
+    the rounding of a tail does not refuse a
+    quantile below it."""
+    if not _LEAST <= tail <= 0.5:
+        raise ValueError("need 2**-1022"
+                         " <= tail <= 0.5")
     if not dof > 0:
         raise ValueError("dof must be positive")
     if tail == 0.5:
         return 0.0
     if tail > 0.25:
-        return t_mid(0.5 - tail, dof)
+        gap = Fraction(1, 2) - Fraction(tail)
+        return t_mid(float(gap), dof)
     if dof > _MANY:
-        return -z_ppf(tail)
+        return -z_ppf(float(tail))
 
     def below(t):
         return t_sf(t, dof) > tail
-    return _bisect(below, 0.0, 1.0)
+    try:
+        return _bisect(below, 0.0, 1.0)
+    except ValueError:
+        near = t_sf(_T_MAX, dof) / (1 + 1e-12)
+        if near > tail:
+            raise
+    return _T_MAX
 
 
 def t_ppf(p, dof):
@@ -356,9 +378,11 @@ def t_ppf(p, dof):
     and dof > 0. The lower half is found from
     the tail probability p itself and not
     from 1 - p, which would lose the digits
-    of a small p."""
+    of a small p. The upper half is found
+    from 1 - p, which is formed exactly. The
+    tails are those of t_isf()."""
     if not 0 < p < 1:
         raise ValueError("p must be in (0, 1)")
     if p < 0.5:
         return -t_isf(p, dof)
-    return t_isf(1 - p, dof)
+    return t_isf(1 - Fraction(p), dof)

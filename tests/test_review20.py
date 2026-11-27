@@ -205,10 +205,13 @@ class OneShotArguments(unittest.TestCase):
 
     def test_what_is_left_fails_and_does_not_answer(self):
         # Functions that ask an argument for its length, or for an item by position, stop on a generator.
-        for call in (lambda: core.type_a(once([1.0, 2.0, 4.0])),
+        for call in (lambda: stats.quantile(once([1.0, 2.0, 4.0]), 0.5),
                      lambda: stats.bootstrap(once([1.0, 2.0, 3.0]), st.fmean, 10)):
             with self.assertRaises((TypeError, AttributeError, IndexError)):
                 call()
+        # Until Version 67 type_a() stood in the place of quantile() above. Since Version 68 it reads its
+        # indications into a list, each as native() gives it, and a generator gives what the list gives.
+        self.assertEqual(core.type_a(once([1.0, 2.0, 4.0])), core.type_a([1.0, 2.0, 4.0]))
         # completeness() stopped too, until Version 53: it keeps its lines in a list since it reads them twice. Numbers 1, 2, 5,
         # 9, 10: five of ten are missing, and the widest step, from 5 to 9, spans the stamps 40 s and 50 s.
         self.assertEqual(trace.completeness(once(lines(TIED))), (5, 10, 10000))

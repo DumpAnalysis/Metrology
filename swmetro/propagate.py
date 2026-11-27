@@ -7,6 +7,7 @@ from fractions import Fraction
 
 from .core import resolved
 from .stats import _floor, _root, exact_q, mean
+from .stats import native
 
 
 def correlations(corr, n):
@@ -93,9 +94,12 @@ def lpu(f, xs, us, corr=None):
     root is rounded once: what two fully
     correlated contributions of opposite
     sign leave can lie far below the last
-    digit of their squares.
+    digit of their squares. The estimates and
+    the uncertainties are taken as native()
+    gives them.
     """
-    xs, us = list(xs), list(us)
+    xs = [native(x) for x in xs]
+    us = [native(u) for u in us]
     if len(us) != len(xs):
         raise ValueError("one u for each x")
     if not all(0 <= u < math.inf for u in us):
@@ -166,6 +170,7 @@ def summarize(ys, p=0.95):
     asked for. Where p * n rounds to n, the
     draws are too few for p and are
     refused."""
+    ys = [native(y) for y in ys]
     n = len(ys)
     q = _floor(exact_q(p) * n + Fraction(1, 2))
     if q >= n:

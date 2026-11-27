@@ -155,7 +155,11 @@ class FlagsAreNoDurations(unittest.TestCase):
         self.assertEqual(mix.p95(mix.weighted(seen, ref, fill=math.inf)), math.inf)
         self.assertEqual(mix.p95(mix.weighted(seen, ref, fill=-math.inf)), 100.0)
         # The weighted quantile of the package keeps its contract.
-        self.assertIs(stats.weighted_quantile([(True, 1)], 0.5), True)
+        # Until Version 67 that contract took True for a value and returned it. The review of Version 67
+        # found flags taken for numbers elsewhere in the package, and a truth value is now refused there too.
+        self.assertEqual(stats.weighted_quantile([(1, 1)], 0.5), 1)
+        with self.assertRaises(ValueError):
+            stats.weighted_quantile([(True, 1)], 0.5)
         self.assertEqual(mix.observed([1, 2.5, None, NAN, math.inf, (">", 3)])[0], 1)
         text = (ROOT / "expected" / "ch23_mix.txt").read_text(encoding="utf-8")
         self.assertIn("and stored as infinity:", text)

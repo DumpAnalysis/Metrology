@@ -161,14 +161,13 @@ def margins(data):
 
 
 def quick(ms, beta):
-    """The sign of the slope from floats, or
-    None where their rounding could hide it.
-    A term -m * sigmoid(-beta * m) is right
-    to within 2|beta m| + 8 units of its
-    last place, and the terms are added
-    without a further error. Nothing is
-    concluded from a term below the least
-    normal float, or near the last one."""
+    """The sign of the slope from floats, or None
+    where their rounding could hide it. A term
+    -m * sigmoid(-beta * m) is right to within
+    2|beta m| + 8 units of its last place, and the
+    terms are added without a further error.
+    Nothing is concluded from a term below the
+    least normal float, or near the last one."""
     try:
         b = float(beta)
         fs = [float(m) for m in ms]
@@ -193,14 +192,13 @@ def quick(ms, beta):
 
 def sure(ms, beta, digits):
     """The sign of the slope from decimals of
-    `digits` digits, or None where they do
-    not show it. The terms are kept as
-    logarithms and added as shares of the
-    largest, apart for the margins below
-    zero and above: a margin far out or next
-    to zero gives a term too small for a
-    float. A share below 10 ** -digits is
-    left out and counted in the error."""
+    `digits` digits, or None where they do not
+    show it. The terms are kept as logarithms and
+    added as shares of the largest, apart for the
+    margins below zero and above: a margin far out
+    or next to zero gives a term too small for a
+    float. A share below 10 ** -digits is left out
+    and counted in the error."""
     room = Context(prec=digits, Emax=MAX_EMAX,
                    Emin=MIN_EMIN)
     with localcontext(room):
@@ -235,21 +233,19 @@ def sure(ms, beta, digits):
 
 
 def lean(ms, beta):
-    """Sign of the derivative of the summed
-    loss by beta, which is 1 / T, at an exact
-    beta. The derivative rises with beta.
-    Its terms are -m * sigmoid(-beta * m),
-    below zero for a margin above zero and
-    above zero for one below. The sign is
-    that of the sum of the terms as they
-    are, and not of their rounded values:
-    rounded terms can add up to zero, or to
-    the other sign, where the loss is nearly
-    flat. Where floats do not show it, it
-    is found with 40 decimal digits, and
-    with twice as many until it shows. A
-    slope with no sign in 640 digits is
-    refused. No margin, no slope."""
+    """Sign of the derivative of the summed loss
+    by beta, which is 1 / T, at an exact beta. The
+    derivative rises with beta. Its terms are
+    -m * sigmoid(-beta * m), below zero for a
+    margin above zero and above zero for one
+    below. The sign is that of the sum of the
+    terms as they are, and not of their rounded
+    values: rounded terms can add up to zero, or
+    to the other sign, where the loss is nearly
+    flat. Where floats do not show it, it is found
+    with 40 decimal digits, and with twice as many
+    until it shows. A slope with no sign in 640
+    digits is refused. No margin, no slope."""
     ms = [Fraction(m) for m in ms if m]
     beta = Fraction(beta)
     sign = quick(ms, beta) if ms else 0
@@ -264,28 +260,27 @@ def lean(ms, beta):
 
 
 def fit_temperature(data, lo=0.2, hi=10.0):
-    """The finite T above zero that minimizes
-    the NLL on a calibration set, as the
-    float nearest to it, if that float lies
-    between lo and hi, both finite: they
-    bound the search and not the model. A
-    minimum beyond them is reported, and not
-    replaced by the nearer of the two; one
-    that rounds to lo or to hi is that
-    float. The shape of the loss is settled
-    from the margins, as the numbers that
-    they are, before anything is searched,
-    because a search among rounded losses
-    can stop where they are equal. With
-    margins that are all zero every T has
-    the same loss: the data leave T
-    unidentified. Otherwise, with no margin
-    below zero the loss falls all the way as
-    T falls, and with margins that sum to
-    zero or less, as T rises: there is no
-    finite T. These are errors. Otherwise
-    the slope changes its sign once, between
-    two floats that bisection finds."""
+    """The finite T above zero that minimizes the
+    NLL on a calibration set, as the float nearest
+    to it, if that float lies between lo and hi,
+    both finite: they bound the search and not the
+    model. A minimum beyond them is reported, and
+    not replaced by the nearer of the two; one
+    that rounds to lo or to hi is that float; the
+    largest takes all below the middle between it
+    and 2 ** 1024, and lean() refuses a tie. The
+    shape of the loss is settled from the margins,
+    as the numbers that they are, before anything
+    is searched, because a search among rounded
+    losses can stop where they are equal. With
+    margins that are all zero every T has the same
+    loss: the data leave T unidentified.
+    Otherwise, with no margin below zero the loss
+    falls all the way as T falls, and with margins
+    that sum to zero or less, as T rises: there is
+    no finite T. These are errors. Otherwise the
+    slope changes its sign once, between two
+    floats that bisection finds."""
     try:
         lo, hi = map(float, known([lo, hi]))
     except ValueError:
@@ -314,7 +309,7 @@ def fit_temperature(data, lo=0.2, hi=10.0):
         raise ValueError("the minimum is "
                          "below lo")
     top = min(math.nextafter(hi, math.inf),
-              math.nextafter(math.inf, 0.0))
+              Fraction(2) ** 1024)
     if above(hi, top):
         raise ValueError("the minimum is "
                          "above hi")

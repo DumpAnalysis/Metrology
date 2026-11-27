@@ -461,7 +461,7 @@ class RealNumbersInOrder(unittest.TestCase):
             self.assertEqual(str(caught.exception), "a value is no number")
 
     def test_decimals_and_fractions_stay(self):
-        pairs = [(Decimal("1.5"), 1), (Fraction(7, 3), 1), (2, 1), (0.5, 1), (True, 1)]
+        pairs = [(Decimal("1.5"), 1), (Fraction(7, 3), 1), (2, 1), (0.5, 1), (1, 1)]   # until Version 67: (True, 1)
         self.assertEqual([weighted_quantile(pairs, q) for q in (0, 0.5, 1)], [0.5, Decimal("1.5"), Fraction(7, 3)])
         self.assertEqual(weighted_quantile([(math.inf, 1), (-math.inf, 1)], 0.5), -math.inf)
 

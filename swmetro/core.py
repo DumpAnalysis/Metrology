@@ -7,10 +7,20 @@ from fractions import Fraction
 from numbers import Real
 
 from .dist import t_cdf, t_isf, t_within
-from .stats import mean
+from .stats import mean, native
 
 
 _ENDS = (math.inf, -math.inf)
+
+
+def _exact(x):
+    """x as the fraction that it is. A text is
+    no number here, although Fraction() would
+    read one, and a truth value is none, see
+    native()."""
+    if isinstance(x, str):
+        raise TypeError("a text is no number")
+    return Fraction(native(x))
 
 
 def _units(u, d):
@@ -19,23 +29,14 @@ def _units(u, d):
     number that u is: as a float, u * 10**d
     is 16.5 for a u just above 1.65, and
     gives 16 where 17 is right."""
-    return round(Fraction(u) * Fraction(10) ** d)
-
-
-def _exact(x):
-    """x as the fraction that it is. A text is
-    no number here, although Fraction() would
-    read one."""
-    if isinstance(x, str):
-        raise TypeError("a text is no number")
-    return Fraction(x)
+    return round(_exact(u) * Fraction(10) ** d)
 
 
 def _exp10(u):
     """The e with 10 ** e <= u < 10 ** (e + 1)
     for a u above zero, in whole numbers: a
     logarithm would pass through a float."""
-    u = Fraction(u)
+    u = _exact(u)
     bits = u.numerator.bit_length()
     bits -= u.denominator.bit_length()
     e = bits * 30103 // 100000
@@ -88,7 +89,7 @@ def fixed(value, d):
     rounds to zero is shown without a sign."""
     if value != value or value in _ENDS:
         return f"{value}"
-    n = round(Fraction(value) * 10 ** d)
+    n = round(_exact(value) * 10 ** d)
     sign = "-" if n < 0 else ""
     whole, part = divmod(abs(n), 10 ** d)
     if not d:
@@ -125,6 +126,7 @@ def fmt(value, u, unit="", digits=2):
     99.9996(0) ms. The digits of u are those
     of the float: 0.165, stored just above
     itself, gives (17), and 0.155 gives (15)."""
+    value, u = native(value), native(u)
     d = decimals(u, digits)
     if u == 0:
         text = f"{full(value)}(0)"
@@ -133,7 +135,7 @@ def fmt(value, u, unit="", digits=2):
         text = f"{fixed(value, d)}({n})"
     else:
         scale = 10 ** -d
-        v = round(Fraction(value) / scale)
+        v = round(_exact(value) / scale)
         w = _units(u, d)
         text = f"{v * scale}({w * scale})"
     return f"{text} {unit}".strip()
@@ -165,7 +167,10 @@ def _dof(dof):
 
 def _level(p):
     """A coverage probability: a decimal p as
-    the fraction that it is."""
+    the fraction that it is. A truth value
+    is none."""
+    if isinstance(p, bool):
+        raise TypeError("p is no number")
     if isinstance(p, Decimal):
         p = Fraction(p)
     if not 0 <= p < 1:
@@ -188,7 +193,12 @@ class Result:
     distributions instead. The default dof
     treats u as exactly known, which is itself
     an assumption. A value or a u beyond the
-    range of a float, 1.8e308, is refused.
+    range of a float, 1.8e308, is refused,
+    and so is a truth value in the place of
+    either: False is not an uncertainty of
+    zero. Both are stored as native() gives
+    them, a whole number of a fixed width
+    as an int.
     With finite dof the model is value + u T
     for a Student T: u is its scale, as an
     estimated standard error is in a t
@@ -201,16 +211,17 @@ class Result:
     dof: float = math.inf
 
     def __post_init__(self):
-        u = self.u
-        if not math.isfinite(self.value):
+        v, u = native(self.value), native(self.u)
+        if not math.isfinite(v):
             raise ValueError("value is no number")
         if not (u >= 0 and math.isfinite(u)):
             raise ValueError("u must be >= 0")
-        # The class is frozen: the float is
-        # stored where the number was given.
-        dof = _dof(self.dof)
-        object.__setattr__(self, "dof", dof)
-        resolved(self.value, u)
+        # The class is frozen: each number is
+        # stored where it was given.
+        for name, x in (("value", v), ("u", u),
+                        ("dof", _dof(self.dof))):
+            object.__setattr__(self, name, x)
+        resolved(v, u)
 
     def k(self, p=0.95):
         """Coverage factor for probability p,
@@ -366,6 +377,7 @@ def type_a(xs, unit=""):
     sum is exact and the mean is rounded
     once; a whole mean of whole numbers
     stays a whole number, see mean()."""
+    xs = [native(x) for x in xs]
     n = len(xs)
     u = st.stdev(xs) / math.sqrt(n)
     return Result(mean(xs), u, unit, n - 1)
@@ -430,6 +442,7 @@ def _scaled(us):
     the squares and fourth powers of very
     small or very large values within what
     a float can hold."""
+    us = [native(u) for u in us]
     top = max(map(abs, us), default=0)
     e = math.frexp(top)[1]
     return [math.ldexp(u, -e) for u in us], e
@@ -487,13 +500,17 @@ class Budget:
         """kind: 'A' or 'B' (evaluation type).
         u must be finite and not negative.
         The degrees of freedom are held to
-        _dof() and kept as they were given."""
+        _dof() and kept as they were given,
+        both as native() gives them: a truth
+        value is no component."""
         if kind not in ("A", "B"):
             raise ValueError("kind is 'A' or 'B'")
+        u = native(u)
         if not (u >= 0 and math.isfinite(u)):
             raise ValueError("u must be >= 0")
         _dof(dof)
-        self.rows.append((name, kind, u, dof))
+        row = name, kind, u, native(dof)
+        self.rows.append(row)
         return self
 
     def u_c(self):

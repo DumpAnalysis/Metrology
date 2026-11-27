@@ -514,7 +514,12 @@ class NoneHasNoPlaceEither(unittest.TestCase):
                 weighted_quantile(pairs, 0.5)
             self.assertEqual(str(caught.exception), "a value is no number")
         from decimal import Decimal
-        self.assertEqual(weighted_quantile([(Decimal("1.5"), 1), (Fraction(1, 3), 1), (2, 1), (True, 1)], 0.5), True)
+        self.assertEqual(weighted_quantile([(Decimal("1.5"), 1), (Fraction(1, 3), 1), (2, 1), (1, 1)], 0.5), 1)
+        # Until Version 67 the 1 above was True, and True was returned. Since the review of Version 67 a truth
+        # value is no number in the package, see native().
+        with self.assertRaises(ValueError) as caught:
+            weighted_quantile([(Decimal("1.5"), 1), (True, 1)], 0.5)
+        self.assertEqual(str(caught.exception), "a value is no number")
         self.assertEqual(weighted_quantile([(Decimal("1.5"), 1), (Fraction(7, 3), 1), (2, 1)], 0.5), 2)
 
 

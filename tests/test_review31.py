@@ -335,7 +335,11 @@ class LabelsExchangedByQuestionOrByPassage(unittest.TestCase):
                 stats.exchange_exact(diffs)
         with self.assertRaises(TypeError):
             stats.exchange_exact([1, None])
-        self.assertEqual(stats.exchange_exact([True, True, False]), Fraction(1, 4))
+        self.assertEqual(stats.exchange_exact([1, 1, 0]), Fraction(1, 4))
+        # Until Version 67 the three differences above were True, True and False, which Python counts as
+        # 1, 1 and 0. Since the review of Version 67 a truth value is no number in the package: native().
+        with self.assertRaises(TypeError):
+            stats.exchange_exact([True, True, False])
 
     def test_the_transcript(self):
         text = expected("ch20_error_bars")

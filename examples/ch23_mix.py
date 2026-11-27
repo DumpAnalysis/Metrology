@@ -1,13 +1,15 @@
 # replay: exact
 """Chapter 23: a change of request mix."""
 import math
+import operator
 import random
 import statistics as st
 from decimal import Decimal
 from fractions import Fraction
 
 from swmetro.stats import as_count, downward
-from swmetro.stats import exact_q, known, upward
+from swmetro.stats import exact_q, known, native
+from swmetro.stats import upward
 from swmetro.stats import weighted_quantile
 
 # (class, requests, mean duration in ms)
@@ -114,7 +116,8 @@ def mean(pairs):
     odd = [x for x in xs if x != x or x in ENDS]
     if odd:
         return sum(map(float, odd))
-    top = sum(Fraction(x) * w for x, w in pairs)
+    top = sum(Fraction(native(x)) * w
+              for x, w in pairs)
     if any(isinstance(x, float) for x in xs):
         return float(top / total)
     return top / total
@@ -145,23 +148,33 @@ def observed(xs):
     of its requests is lost to the check. Each
     entry is a duration that known() admits: a
     flag is none, and Python would count False
-    as 0. What side() reads otherwise stays:
-    None, a NaN, an infinity, and a bound, a
-    pair of ">" or ">=" and such a duration.
-    A duration has elapsed: none is below 0."""
+    as 0. A whole number of a fixed width is
+    held as an int, which no sum wraps around,
+    and the list is then a new one. What
+    side() reads otherwise stays: None, a NaN,
+    an infinity, and a bound, a pair of ">"
+    or ">=" and such a duration. A duration
+    has elapsed: none is below 0."""
     if not isinstance(xs, list):
         xs = list(xs)
-    form = "a bound is > or >="
+    out, form = [], "a bound is > or >="
     for x in xs:
         if isinstance(x, tuple):
             if len(x) != 2 or x[0] not in SIGNS:
                 raise ValueError(form)
-            x = known([x[1]], "bound")[0]
+            t = known([x[1]], "bound")[0]
+            if t is not x[1]:
+                x = x[0], t
         elif unknown(x) or x == math.inf:
-            continue
-        if known([x])[0] < 0:
+            t = 0
+        else:
+            x = t = known([x])[0]
+        if t < 0:
             raise ValueError("a time below zero")
-    return xs
+        out.append(x)
+    if all(map(operator.is_, out, xs)):
+        return xs
+    return out
 
 
 def cursors(rec):
@@ -519,7 +532,7 @@ def exact(pairs):
     out = []
     for x, w in pairs:
         try:
-            x = Fraction(x)
+            x = Fraction(native(x))
         except (TypeError, ValueError,
                 OverflowError):
             pass
@@ -547,23 +560,24 @@ def is_open(x):
     return unknown(x) or isinstance(x, tuple)
 
 
+def least(x):
+    """The lower bound of an open duration:
+    0 for an unknown one, and for a bound
+    its time."""
+    return x[1] if isinstance(x, tuple) else 0
+
+
 def ends(pairs):
     """The pairs twice: with every open
-    duration at its lower bound, and at
-    infinity. The lower bound of an unknown
-    duration is 0, and that of a bound is
-    its time, which a strict bound does not
-    attain."""
+    duration at its lower bound, least(),
+    which a strict bound does not attain,
+    and at infinity: the request may never
+    have completed."""
     low, top = [], []
     for x, w in pairs:
-        least = x
-        if unknown(x):
-            least = 0
-        elif isinstance(x, tuple):
-            least = x[1]
-        most = math.inf if is_open(x) else x
-        low.append((least, w))
-        top.append((most, w))
+        gap = is_open(x)
+        low.append((least(x) if gap else x, w))
+        top.append((math.inf if gap else x, w))
     return low, top
 
 
@@ -587,20 +601,34 @@ def reach(stat, pairs):
     return least, most
 
 
+class Void(tuple):
+    """A span of the values that are defined,
+    where some state of the record defines
+    none: an infinity less an infinity is no
+    number."""
+
+
 def limits(low, top):
-    """Two ends as a span. An infinity less
-    an infinity is no number. As one end it
-    is no limit on that side. Where neither
-    end is a number the difference is not
-    defined, which is not the same as a
-    difference that can be anything, and
-    both ends stay what they are."""
+    """Two ends as a span. Where neither end
+    is a number, nothing is defined, which is
+    not the same as a difference that can be
+    anything, and both ends stay what they
+    are. Where one end alone is no number,
+    the other is an infinity, and whatever is
+    defined is that infinity: a duration that
+    is known to be infinite, less an open one
+    that may be infinite as well. The span is
+    that one number, as a Void. A span from
+    one infinity to the other is a Void too:
+    two infinities can meet in it."""
     if low != low and top != top:
         return low, top
     if low != low:
-        low = -math.inf
+        return Void((top, top))
     if top != top:
-        top = math.inf
+        return Void((low, low))
+    if (low, top) == ENDS[::-1]:
+        return Void((low, top))
     return low, top
 
 
@@ -637,20 +665,27 @@ def edge(x, up, plus=""):
 def spanned(span, plus="", unit=""):
     """A span as text: one number, rounded as
     shown() rounds it, or its limits, each
-    by edge()."""
+    by edge(). A Void is marked: it holds
+    only where the quantity is defined. With
+    no limit the quantity can be any number
+    and either infinity, and where two
+    infinities meet, none."""
     low, top = span
     if low != low:
         return "not defined"
-    if low == top:
-        return shown(low, plus) + unit
     if (low, top) == (-math.inf, math.inf):
         return "no limit"
+    tail = ""
+    if isinstance(span, Void):
+        tail = " if defined"
+    if low == top:
+        return shown(low, plus) + unit + tail
     a, b = edge(low, 0, plus), edge(top, 1, plus)
     if top == math.inf:
-        return f"{a}{unit} or more"
+        return f"{a}{unit} or more{tail}"
     if low == -math.inf:
-        return f"{b}{unit} or less"
-    return f"{a} to {b}{unit}"
+        return f"{b}{unit} or less{tail}"
+    return f"{a} to {b}{unit}{tail}"
 
 
 def shares(rec):
@@ -668,16 +703,22 @@ def blend(parts):
     is known of it. A class without requests
     has no mean, and with any other
     coefficient the sum is not determined:
-    None."""
+    None. A Void among the spans makes the
+    sum one."""
     low = top = 0
+    void = False
     for k, span in parts:
         if not k:
             continue
         if span is None:
             return None
+        void = void or isinstance(span, Void)
         a, b = sorted((k * span[0], k * span[1]))
         low, top = low + a, top + b
-    return limits(low, top)
+    span = limits(low, top)
+    if void and span[0] == span[0]:
+        return Void(span)
+    return span
 
 
 def of_mean(before, after, f):
@@ -711,6 +752,87 @@ def of_mean(before, after, f):
     return blend(via), blend(inner), blend(mixed)
 
 
+def way(stat, rec, mix):
+    """The span of a statistic of a period at
+    the mix of the other: a class that the
+    record lacks stands once below every
+    duration and once above every one."""
+    return tuple(
+        reach(stat, weighted(rec, mix, fill=x))[i]
+        for i, x in enumerate(ENDS[::-1]))
+
+
+def held(stat, rec, mix, own, via):
+    """The span of a percentile of a period
+    at its own mix less the same percentile
+    at `mix`: own - via, two statistics of
+    the same durations. With no duration
+    open, or with one of the two settled,
+    it is the difference of their spans. An
+    open duration x stands in both. Each is
+    then x held between two durations that
+    are known, and the difference has its
+    least and its greatest value where x is
+    at its lower bound or at an end of one
+    of the two spans. Where both are x
+    itself the difference is zero for every
+    x but infinity, at which it is not
+    defined: a Void. With more than one
+    duration open, or with a class missing
+    that matters, the difference is not
+    bounded here: None."""
+    if absent(rec, mix) and not one(via):
+        return None
+    gaps = [x for x, _ in weighted(rec)
+            if is_open(x)]
+    if not gaps or one(own) or one(via):
+        return apart(own, via)
+    if len(gaps) > 1:
+        return None
+    at, out = least(gaps[0]), []
+    for x in {at, math.inf, *own, *via}:
+        if x < at:
+            continue
+        a, b = (stat(exact(
+            [(x if is_open(d) else d, w)
+             for d, w in pairs]))
+            for pairs in (weighted(rec),
+                          weighted(rec, mix)))
+        out.append(a - b)
+    some = [d for d in out if d == d]
+    span = min(some), max(some)
+    if len(some) < len(out):
+        return Void(span)
+    return span
+
+
+def of_rank(stat, before, after):
+    """For a percentile: the statistic on the
+    way, the change within the classes and
+    the change of the mix, as of_mean() gives
+    them for the mean, in the two orders and
+    in their average, which has no way. The
+    change of the mix is held(), taken from
+    one period. The change within the classes
+    is a difference between the two periods,
+    which share no duration. In the average
+    each period stands with the sum of its
+    two statistics, which rise together."""
+    start = reach(stat, weighted(before))
+    end = reach(stat, weighted(after))
+    a = way(stat, after, before)
+    b = way(stat, before, after)
+    ja = held(stat, after, before, end, a)
+    jb = held(stat, before, after, start, b)
+    h = Fraction(1, 2)
+    inner = blend([(h, a), (h, end),
+                   (-h, start), (-h, b)])
+    mixed = blend([(h, ja), (-h, jb)])
+    return ((a, apart(a, start), ja),
+            (b, apart(end, b), blend([(-1, jb)])),
+            (None, inner, mixed))
+
+
 def components(before, after, stat=mean,
                name="mean", what="means"):
     """The change of a statistic of all the
@@ -741,18 +863,22 @@ def components(before, after, stat=mean,
     whatever the durations were. A mean is
     a sum over the classes, and of_mean()
     gives each part of its change as such a
-    sum. A percentile depends on ranks: an
-    order whose way is a span is not
-    determined for it. The spans enclose
-    only a statistic that does not fall when
-    a duration rises. A statistic of another
-    quantity, such as the distance of a
-    duration from a target, has to be given
-    records of that quantity. Every
-    statistic is taken from exact durations,
-    the differences and their average are
-    exact, and each number is rounded where
-    it is printed, and not before."""
+    sum. A statistic other than the mean is
+    taken to be a percentile by the inverse
+    empirical CDF, as p95() is: of_rank()
+    bounds the parts of its change with one
+    duration of a period open, and reports
+    an order as not bounded with more. The
+    spans enclose only a statistic that does
+    not fall when a duration rises. A
+    statistic of another quantity, such as
+    the distance of a duration from a
+    target, has to be given records of that
+    quantity. Every statistic is taken from
+    exact durations, the differences and
+    their average are exact, and each number
+    is rounded where it is printed, and not
+    before."""
     before, after = periods(before, after)
     start = reach(stat, weighted(before))
     end = reach(stat, weighted(after))
@@ -778,49 +904,36 @@ def components(before, after, stat=mean,
                after, before, "after"),
               ("mix first",
                before, after, "before"))
-    found = []
-    for f, (text, rec, mix, when) in enumerate(
-            orders):
-        if stat is mean:
-            via, inner, mixed = of_mean(
-                before, after, f)
-            fixed = via and via[0] not in ENDS
-        else:
-            via = tuple(
-                reach(stat, weighted(rec, mix,
-                                     fill=x))[i]
-                for i, x in enumerate(ENDS[::-1]))
-            inner = apart(via, start)
-            mixed = apart(end, via)
-            if rec is before:
-                inner, mixed = mixed, inner
-            fixed = one(via)
-        if not fixed:
-            gone = ", ".join(absent(rec, mix))
-            kind = "open"
-            if via and via[0] == via[1]:
-                kind = "infinite"
-            why = f"a duration {when} is {kind}"
-            if gone:
-                why = f"no {gone} requests {when}"
-            print(f"  {text}: not determined,")
+    if stat is mean:
+        rows = [of_mean(before, after, f)
+                for f in (0, 1, Fraction(1, 2))]
+    else:
+        rows = of_rank(stat, before, after)
+    found = 0
+    for row, order in zip(rows, orders):
+        via, inner, mixed = row
+        text, rec, mix, when = order
+        gone = ", ".join(absent(rec, mix))
+        verb, why = "determined", ""
+        if gone and None in (via, mixed):
+            why = f"no {gone} requests {when}"
+        elif via[0] in ENDS:
+            why = f"a duration {when} is infinite"
+        elif mixed is None:
+            verb = "bounded"
+            why = f"open {when}: more than one"
+        if why:
+            print(f"  {text}: not {verb},")
             print(f"    {why}")
             continue
-        if stat is mean or (one(inner)
-                            and one(mixed)):
-            found.append((inner[0], mixed[0]))
-        way = spanned(via, unit=" ms")
+        found += 1
+        via = spanned(via, unit=" ms")
         inner = spanned(inner, "+")
         mixed = spanned(mixed, "+")
-        print(f"  {text}, via {way}:")
+        print(f"  {text}, via {via}:")
         print(f"    within {inner}, mix {mixed}")
-    if len(found) == 2:
-        if stat is mean:
-            inner, mixed = of_mean(
-                before, after, Fraction(1, 2))[1:]
-        else:
-            inner, mixed = ((sum(xs) / 2,) * 2
-                            for xs in zip(*found))
+    if found == 2:
+        inner, mixed = rows[2][1:]
         print("  average of the two orders:")
         print(f"    within {spanned(inner, '+')},"
               f" mix {spanned(mixed, '+')}")

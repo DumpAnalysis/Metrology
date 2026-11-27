@@ -8,6 +8,8 @@ float 1e-9 turned one second into
 import math
 from fractions import Fraction
 
+from .stats import native
+
 _BIN = {"Ki": 2 ** 10, "Mi": 2 ** 20,
         "Gi": 2 ** 30, "Ti": 2 ** 40}
 _SI = {"k": 10 ** 3, "M": 10 ** 6,
@@ -44,10 +46,14 @@ def _whole(x):
 
 
 class Q:
-    """A quantity value: a number and a unit."""
+    """A quantity value: a number and a unit.
+    The number is held as native() gives it:
+    a whole number of a fixed width as an
+    int, and a truth value not at all."""
 
     def __init__(self, value, unit):
-        self.value, self.unit = value, unit
+        self.value = native(value)
+        self.unit = unit
         self.kind, self.factor = parse(unit)
 
     def to(self, unit):

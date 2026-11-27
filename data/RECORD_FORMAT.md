@@ -421,8 +421,8 @@ pass.
   than *n*. The declaration is taken at its word.
 - The fields of `data` other than `run_weighting`, the fields of `sources`
   and `replay`, the texts of `assumed` and `not_claimed`, the `kind` of any
-  group of values, and the type, the degrees of freedom and the source of a
-  component.
+  group of values, the stored step and the sampling rule of `capture`, and
+  the type, the degrees of freedom and the source of a component.
 
 `missing(record)` lists the inputs of the decision that are unknown: the
 required fields, the three lists, and in each component its name, its `u`

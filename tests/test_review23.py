@@ -197,7 +197,11 @@ class TheOffsetBetweenTwoClocks(unittest.TestCase):
         want = (1.0, 2.0, 0.0, 0.0, 0.0)
         self.assertEqual(stats.linfit((x for x in (0, 1, 2)), (y for y in (1, 3, 5))), want)
         self.assertEqual(stats.linfit([Fraction(0), Fraction(1), Fraction(2)], [Decimal(1), Decimal(3), Decimal(5)]), want)
-        self.assertEqual(stats.linfit(range(3), [True, 3, 5.0]), want)
+        self.assertEqual(stats.linfit(range(3), [1, 3, 5.0]), want)
+        # Until Version 67 this test gave True for the first y, and Python counted it as 1. A truth value is
+        # no reading: the review of Version 67 found a flag taken for a number, and native() refuses it.
+        with self.assertRaises(TypeError):
+            stats.linfit(range(3), [True, 3, 5.0])
 
     def test_the_lines_of_the_book_are_what_they_were(self):
         for name, piece in (("ch16_trace_measurements", "E1042 period, fitted slope: 7.501(10) s\n"),

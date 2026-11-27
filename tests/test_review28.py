@@ -252,7 +252,9 @@ class AFractionInAReport(unittest.TestCase):
         # A whole number keeps its digits, and a float is formatted as before.
         self.assertEqual(core.fixed(EPOCH + 1, 2), "1700000000000000001.00")
         self.assertEqual(f"{EPOCH + 1:.2f}", "1700000000000000000.00")               # through a float
-        self.assertEqual((core.fixed(-7, 0), core.fixed(True, 1)), ("-7", "1.0"))
+        self.assertEqual((core.fixed(-7, 0), core.fixed(1, 1)), ("-7", "1.0"))
+        with self.assertRaises(TypeError):                                           # until Version 67: "1.0"
+            core.fixed(True, 1)
         for _ in range(500):
             x = rng.choice((1e-9, 1.0, 842.0, 1e12)) * rng.uniform(-1.5, 1.5)
             for places in (0, 2, 5):

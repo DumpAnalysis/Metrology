@@ -191,10 +191,14 @@ class ZeroAndOneInTheirWilsonIntervals(unittest.TestCase):
 
 class CountsThatAreNotCounts(unittest.TestCase):
     def test_what_a_count_is(self):
-        for good, want in ((0, 0), (3, 3), (3.0, 3), (True, 1), (Fraction(4), 4), (Decimal("5"), 5), (10 ** 30, 10 ** 30)):
+        for good, want in ((0, 0), (3, 3), (3.0, 3), (Fraction(4), 4), (Decimal("5"), 5), (10 ** 30, 10 ** 30)):
             got = stats.as_count(good)
             self.assertEqual((got, type(got)), (want, int))
-        for bad in (-1, 0.5, 2.5, -0.0001, math.nan, math.inf, -math.inf, "3", None, [3], Fraction(7, 2), 1e-9):
+        # Until Version 67 this test counted True among the counts, as 1. The review of Version 67 found that
+        # rate_upper(False, 30) then gave the bound of a count of zero that nobody had observed, and that
+        # quantile_verdict() read a flag as a number of unknown requests: a truth value is no count.
+        for bad in (-1, 0.5, 2.5, -0.0001, math.nan, math.inf, -math.inf, "3", None, [3], Fraction(7, 2), 1e-9,
+                    True, False):
             with self.assertRaisesRegex(ValueError, "need a whole n >= 0"):
                 stats.as_count(bad)
         with self.assertRaisesRegex(ValueError, "need a whole windows >= 1"):

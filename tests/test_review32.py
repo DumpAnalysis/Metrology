@@ -272,7 +272,9 @@ class ABenchmarkReadOnce(unittest.TestCase):
         # refused an iterator; it now reads the margins once: (9, 11) became (10, 10). Since Version 55
         # from_raw() of Listing 22.1 reads its durations into a list where it checks them, and an iterator
         # gives what the list gives: (11, 9). The budget it returns is an object, compared without its address.
-        self.assertEqual((same, refused), (11, 9))
+        # Since Version 68 type_a() reads its indications into a list where it takes each as the number that
+        # it is, see native(), and an iterator gives what the list gives: (12, 8).
+        self.assertEqual((same, refused), (12, 8))
 
 
 class OneListOfTwo(unittest.TestCase):

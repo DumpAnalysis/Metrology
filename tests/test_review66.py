@@ -297,9 +297,14 @@ class TheMixContributionOfAMean(unittest.TestCase):
                           "    within -25 or more, mix +25"])
 
     def test_a_percentile_is_another_matter(self):
-        # It depends on ranks, and an order whose way is a span stays open for it.
+        # It depends on ranks. Until Version 67 an order whose way is a span was reported as not determined,
+        # "a duration after is open", and this test expected that line. The review of Version 67 showed that
+        # one open duration stands in both percentiles of such an order and can leave their difference
+        # settled; the order is now bounded, see test_review67. Here the p95 is the third of four durations:
+        # 200 ms and more at the mix of either period, and for an x up to 200 ms it is 200 ms at both.
         text = printed(mix.components, self.BEFORE, self.AFTER, mix.p95, "p95", "distributions")
-        self.assertIn("  class distributions first: not determined,\n    a duration after is open\n", text)
+        self.assertNotIn("not determined", text)
+        self.assertIn("  class distributions first, via 200 ms or more:\n", text)
 
     def test_every_completion_lies_in_the_spans(self):
         rng = random.Random(6603)

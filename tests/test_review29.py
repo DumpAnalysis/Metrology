@@ -215,9 +215,11 @@ class OneSecondInNanoseconds(unittest.TestCase):
                 self.assertEqual(Q(value, "s").to(unit).value * factor(unit), value)
 
     def test_the_same_unit_returns_the_value(self):
-        for value in (1, 10 ** 9, EPOCH + 100, 2 ** 53 + 1, 0.1, 999999999.9999999, Fraction(1, 3), decimal.Decimal("0.10"), True):
+        for value in (1, 10 ** 9, EPOCH + 100, 2 ** 53 + 1, 0.1, 999999999.9999999, Fraction(1, 3), decimal.Decimal("0.10")):
             for unit in TIMES + SIZES:
                 self.assertIs(Q(value, unit).to(unit).value, value)
+        with self.assertRaises(TypeError):                                           # until Version 67 True was a value
+            Q(True, "s")
         self.assertTrue(math.isnan(Q(math.nan, "s").to("s").value))
 
     def test_a_round_trip_through_seconds(self):

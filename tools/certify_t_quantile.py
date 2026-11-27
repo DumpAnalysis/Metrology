@@ -19,7 +19,9 @@ a = allowance / 100 it verifies
 which brackets the true quantile without finding it. Where t_isf refuses a
 quantile as too large, it verifies that the quantile is indeed beyond 1e150,
 the ceiling that t_isf states. Until Version 66 the search stopped at 2**498,
-the last doubling below that ceiling, and so did this check.
+the last doubling below that ceiling, and so did this check. Since Version 68
+a quantile whose tail agrees with the tail at the ceiling to within 1e-12 is
+returned as 1e150, and the bracket above holds for it as for any other.
 
 It needs mpmath, which the examples and the tests do not:
 

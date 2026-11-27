@@ -2,7 +2,7 @@
 
 Code examples for the book *Metrology in Software Diagnostics, Observability,
 and Debugging: With Applications to Machine Learning and AI* by Dmitry Vostokov
-(OpenTask, ISBN 978-1-919135-15-1). Book Version 67, November 2026.
+(OpenTask, ISBN 978-1-919135-15-1). Book Version 68, November 2026.
 
 Repository: https://github.com/DumpAnalysis/Metrology
 
@@ -78,7 +78,7 @@ will print different numbers on your machine; that is what they are for.
 | `expected/` | The transcript of each example, as printed in the book. |
 | `data/` | The trace fixture of Chapter 16 (`app_trace.log`) and its seeded generator (`make_trace.py`); the measurement record of Chapter 22 (`measurement_record.json`), a blank template with the same fields (`record_template.json`), a description of the form, of the decision procedure and of what the checker examines (`RECORD_FORMAT.md`), and the program that writes both (`make_record.py`). |
 | `figures/` | `make_figures.py` draws the book's thirty-two figures from the same functions as the examples. Needs matplotlib and Pillow at the versions in `requirements.txt`; output goes to `figures/out/`. |
-| `tests/` | `test_swmetro.py`: unit tests of the package. `test_review.py`, `test_review2.py` to `test_review5.py`, `test_review7.py` to `test_review46.py` and `test_review48.py` to `test_review66.py`: regression tests, numbered by the version of the book whose review they followed; each checks the code against an independent fact (a closed form, a definition evaluated by brute force, a published table, a simulated coverage), not against saved output. `test_release.py`: the license text is the published one, and the record and this file name the repository and the release. |
+| `tests/` | `test_swmetro.py`: unit tests of the package. `test_review.py`, `test_review2.py` to `test_review5.py`, `test_review7.py` to `test_review46.py` and `test_review48.py` to `test_review67.py`: regression tests, numbered by the version of the book whose review they followed; each checks the code against an independent fact (a closed form, a definition evaluated by brute force, a published table, a simulated coverage), not against saved output. `test_release.py`: the license text is the published one, and the record and this file name the repository and the release. |
 | `tools/` | Two optional checks of the Student t quantile against high-precision arithmetic. They need mpmath. |
 | `run_all.py` | The replay program. |
 | `LICENSE` | PolyForm Strict License 1.0.0. |
@@ -141,7 +141,7 @@ the raw data, the histogram and the record must then follow it.
 | Function | Convention | Used by |
 |----------|------------|---------|
 | `ecdf_quantile`, `ecdf_rank` | Inverse empirical CDF: the smallest value with at least a share q of the values at or below it. The quantile that cumulative counts determine. | `ch02_targets`, `ch10_censoring`, the last line of `ch10_coordinated_omission`, `ch22_budget`, `ch22_runs`, `ch23_case`, the measurement record. With weights it is `weighted_quantile`, which sums them as fractions: `ch08_selection`, `ch23_mix` |
-| `quantile` | Linear interpolation around rank q(n - 1). | `ch09_histogram` (first column), `ch09_dependent_tail`, `ch10_coordinated_omission`, `ch21_psi` |
+| `quantile` | Linear interpolation around rank q(n - 1), rounded once to a float where floats hold the two readings; with `exact=True` not rounded at all, for a comparison with a limit. | `ch09_histogram` (first column), `ch09_dependent_tail`, `ch10_coordinated_omission`, `ch21_psi` |
 | `order_stat` | Lower order statistic at rank floor(q(n - 1)), the definition under which the sketch guarantee is stated. | `ch09_histogram` (second column) |
 
 A probability is read exactly before any rank is computed (`exact_q`). A
@@ -153,9 +153,24 @@ in integer arithmetic. The two readings differ at boundaries:
 the stored number for 0.9 lies above nine tenths.
 
 A duration enters the examples through `known()` of `swmetro/stats.py`: a
-finite real number (an `int`, a `float`, a `Fraction` or a `Decimal`), kept
-in its type. A NaN, an infinity and a number beyond the range of a float are
-refused as missing, and a Boolean flag, a text and `None` as no numbers.
+finite real number, held as `native()` gives it: an `int`, a `float`, a
+`Fraction` or a `Decimal` of Python's own. A NaN, an infinity and a number
+beyond the range of a float are refused as missing, and a Boolean flag, a
+text and `None` as no numbers.
+
+`native()` is where a number enters the functions of the package that
+compute with it: a `Result`, a `Budget`, the Type A and Type B evaluations,
+the law of propagation and the summary of draws, a quantity value with its
+unit, the mean, the interpolated and the weighted quantile, the fitted line,
+the exact test for paired differences, and `known()`. A whole number of a
+fixed width, such as an integer of NumPy, becomes an `int` there, before any
+arithmetic: two readings of 100 in eight bits otherwise have the mean -28,
+because their sum wraps around. A float of another width becomes the float
+that is equal to it, or the fraction. A Boolean flag is refused, although
+Python counts `True` as 1: `Result(200, False, "ms")` is an error and not a
+result without uncertainty, and `as_count()` takes no flag for a count, so
+that `False` is not an observed count of zero. NumPy is not needed, and the
+tests that use its types are skipped where it is not installed.
 Where an entry that is no duration has a meaning, the listing says so:
 `None` is a timeout in `ch10_censoring`, whose completions lie below the
 deadline of the client, and `None`, a NaN, an infinity and a bound such as
@@ -219,7 +234,12 @@ looked for. A factor is printed with two decimal places, or with two
 significant digits where that takes more, and a value that rounds to zero
 without a sign. A level so close to 1 that its tail `(1 - p) / 2` is below
 the least normal float, 2.2e-308, is refused where a coverage factor has to
-be found; a result without uncertainty needs none. `rect_interval()` returns
+be found; a result without uncertainty needs none. The quantile function
+`t_isf()` itself has that range: a tail from 2.2e-308 to one half, as a
+float, a `Fraction` or a `Decimal`, whose distance from one half is formed
+exactly. A quantile beyond 1e150 is refused, and one whose tail agrees with
+the tail at 1e150 to within the measured accuracy, 1e-12, is taken as 1e150.
+`rect_interval()` returns
 exact fractions as well, the center less and plus the exact product of the
 level and the half-width. Nothing in it passes through a float, and no step
 of a float limits its width; its center has to be a finite number.
@@ -324,7 +344,7 @@ of the versions before it. Seeds alone do not specify a result: the stored
 transcripts, the trace fixture and the measurement record are part of the
 repository for that reason.
 
-These are the files for Version 67 of the book.
+These are the files for Version 68 of the book.
 
 ## License
 

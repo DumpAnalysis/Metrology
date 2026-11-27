@@ -4,9 +4,49 @@ import random
 import statistics as st
 from decimal import Decimal
 from fractions import Fraction
-from numbers import Real
+from numbers import Integral, Real
 
 from .dist import t_within, z_ppf
+
+
+def native(x):
+    """x as a number of Python's own that is
+    equal to it: an int, a float, a Fraction
+    or a Decimal. A truth value is no number
+    here, although Python counts True as 1:
+    a flag in the place of a reading is a
+    fault of the record, and it is refused,
+    as a text and None are. A whole number
+    of a fixed width, as an array holds it,
+    wraps around where a sum leaves that
+    width: two readings of 100 in eight bits
+    have the mean -28. It becomes an int
+    before any arithmetic. A float of another
+    width becomes the float that is equal to
+    it, or else the fraction that it is."""
+    real = isinstance(x, (Real, Decimal))
+    if isinstance(x, bool) or not real:
+        raise TypeError(f"no number: {x!r}")
+    own = isinstance(x, (Fraction, Decimal))
+    if own or type(x) in (int, float):
+        return x
+    if isinstance(x, Integral):
+        return int(x)
+    if isinstance(x, float):
+        return float(x)
+    ratio = getattr(x, "as_integer_ratio", None)
+    if ratio is None:
+        raise TypeError(f"no number: {x!r}")
+    try:
+        n, d = ratio()
+    except (ValueError, OverflowError):
+        return float(x)  # a NaN, an infinity
+    f = Fraction(int(n), int(d))
+    try:
+        y = float(f)
+    except OverflowError:
+        return f
+    return y if y == f else f
 
 
 def exact_q(q):
@@ -16,7 +56,10 @@ def exact_q(q):
     95/100 and not the binary number nearest
     to it. A Fraction, a Decimal, an int or a
     string is taken as it stands; pass one of
-    those when another reading is meant."""
+    those when another reading is meant. A
+    truth value is no probability."""
+    if isinstance(q, bool):
+        raise TypeError("q is no number")
     if isinstance(q, float):
         q = repr(float(q))
     f = Fraction(q)
@@ -33,9 +76,13 @@ def as_count(x, name="n", least=0):
     negative after a reset, and has to be
     interpreted before a rate or a bound is drawn
     from it: a bound of zero for it would claim
-    more than a true count of zero does."""
+    more than a true count of zero does. A truth
+    value is no count either: False would pass
+    for a count of zero that was observed."""
+    real = isinstance(x, (Real, Decimal))
+    ok = real and not isinstance(x, bool)
     try:
-        ok = x == int(x) and x >= least
+        ok = ok and x == int(x) and x >= least
     except (TypeError, ValueError,
             OverflowError):
         ok = False
@@ -47,8 +94,8 @@ def as_count(x, name="n", least=0):
 
 def known(xs, what="duration"):
     """xs as a list, each of them a finite real
-    number in the type in which it came: an int,
-    a float, a Fraction or a Decimal. A NaN has
+    number as native() gives it: an int, a
+    float, a Fraction or a Decimal. A NaN has
     no rank among the others, and sorting a
     record that holds one can make a percentile
     depend on the order of its rows; to drop it
@@ -58,7 +105,7 @@ def known(xs, what="duration"):
     boolean, a text and None are no numbers."""
     xs = list(xs)
     gone = f"a {what} is missing or too large"
-    for x in xs:
+    for i, x in enumerate(xs):
         real = isinstance(x, (Real, Decimal))
         if isinstance(x, bool) or not real:
             raise ValueError(f"no number: {x!r}")
@@ -68,6 +115,7 @@ def known(xs, what="duration"):
             there = False
         if not there:
             raise ValueError(gone)
+        xs[i] = native(x)
     return xs
 
 
@@ -92,14 +140,16 @@ def upward(x, places):
     binary number that it is, and `places` is a
     whole number not below 0."""
     places = as_count(places, "number of places")
-    n = math.ceil(Fraction(x) * 10 ** places)
+    x = Fraction(native(x))
+    n = math.ceil(x * 10 ** places)
     return _placed(n, places)
 
 
 def downward(x, places):
     """The same toward -inf, for a lower bound."""
     places = as_count(places, "number of places")
-    n = math.floor(Fraction(x) * 10 ** places)
+    x = Fraction(native(x))
+    n = math.floor(x * 10 ** places)
     return _placed(n, places)
 
 
@@ -107,26 +157,32 @@ def _floor(f):
     return f.numerator // f.denominator
 
 
-def quantile(xs, q):
+def quantile(xs, q, exact=False):
     """Quantile of sorted xs by linear
     interpolation between the order statistics
     around rank q * (n - 1), counted from 0. Where
     the rank is a whole number, or the two values
     are the same, there is nothing to interpolate,
-    and the value is returned as it is stored.
-    Between two values the interpolation is exact
-    and is rounded once, so that it stays between
-    them, and between two that are no floats it is
-    not rounded at all, see _kept()."""
+    and the value is returned as native() gives
+    it. Between two values the interpolation is
+    exact. It is rounded once, to a float between
+    them, if floats hold both, and it is not
+    rounded if a float does not hold one of them,
+    see _kept(). With `exact` it is never rounded.
+    Between 100 and 101 the 95th percentile is
+    2019/20; the float 100.95 lies above that,
+    and compared with a limit of 2019/20 it would
+    exceed a limit that the percentile meets."""
     pos = exact_q(q) * (len(xs) - 1)
     i = _floor(pos)
     j = min(i + 1, len(xs) - 1)
-    w, a, b = pos - i, xs[i], xs[j]
+    a, b = native(xs[i]), native(xs[j])
+    w = pos - i
     if not w or b == a:
         return a
     f = Fraction(a)
     f += w * (Fraction(b) - f)
-    return _kept(f, (a, b))
+    return f if exact else _kept(f, (a, b))
 
 
 def lower_rank(q, n):
@@ -181,11 +237,17 @@ def weighted_quantile(pairs, q):
     leaves the result alone if it is applied
     exactly: 19 * 0.7 and 0.7 are no longer in the
     ratio 19 to 1. Whatever is no real number is
-    refused, None or 2 + 3j, and so is a float
-    that is not a number."""
-    pairs = [(x, Fraction(w)) for x, w in pairs]
-    if any(not isinstance(x, (Real, Decimal))
-           or x != x for x, _ in pairs):
+    refused, None, True or 2 + 3j, and so is a
+    float that is not a number. Values and weights
+    are taken as native() gives them."""
+    pairs = [(x, Fraction(native(w)))
+             for x, w in pairs]
+    try:
+        pairs = [(native(x), w) for x, w in pairs]
+        ok = all(x == x for x, _ in pairs)
+    except TypeError:
+        ok = False
+    if not ok:
         raise ValueError("a value is no number")
     pairs.sort()
     total = sum(w for _, w in pairs)
@@ -356,7 +418,7 @@ def quiet_bound(exposure, level=0.95):
     is the time in which an event would have
     been counted, or that time multiplied by
     the probability that an event is kept."""
-    if not exposure > 0:
+    if not native(exposure) > 0:
         raise ValueError("no exposure")
     if not 0 < level < 1:
         raise ValueError("need 0 < level < 1")
@@ -438,7 +500,7 @@ def rate_upper(n, exposure, level=0.95):
     with probability `level`: 1 - level
     would be rounded there."""
     n = as_count(n)
-    if not exposure > 0:
+    if not native(exposure) > 0:
         raise ValueError("no exposure")
     if not 0 < level < 1:
         raise ValueError("need 0 < level < 1")
@@ -461,7 +523,7 @@ def rate_limits(n, exposure, level=0.95):
     the lower limit is 0. Each limit is
     found from its own tail."""
     n = as_count(n)
-    if not exposure > 0:
+    if not native(exposure) > 0:
         raise ValueError("no exposure")
     if not 0 < level < 1:
         raise ValueError("need 0 < level < 1")
@@ -560,10 +622,11 @@ def _kept(f, readings):
 
 
 def mean(xs):
-    """Mean of the readings: an exact sum,
-    rounded once. A whole mean of whole
-    numbers stays whole, and see _kept()."""
-    xs = list(xs)
+    """Mean of the readings, each as native()
+    gives it: an exact sum, rounded once. A
+    whole mean of whole numbers stays whole,
+    and see _kept()."""
+    xs = [native(x) for x in xs]
     m = st.mean(xs)
     if isinstance(m, int) or all(map(_plain, xs)):
         return m
@@ -643,8 +706,8 @@ def linfit(xs, ys):
     whole numbers, readings that scatter
     give floats. A reading that is not a
     finite number is refused."""
-    xs = [Fraction(x) for x in xs]
-    ys = [Fraction(y) for y in ys]
+    xs = [Fraction(native(x)) for x in xs]
+    ys = [Fraction(native(y)) for y in ys]
     n = len(xs)
     if len(ys) != n:
         raise ValueError("one y for each x")
@@ -712,7 +775,7 @@ def exchange_exact(diffs):
     its differences. Sizes of 1 alone give
     paired_exact()."""
     ways, total, pairs = {0: 1}, 0, 0
-    for d in diffs:
+    for d in map(native, diffs):
         size = as_count(abs(d), "difference")
         if not size:
             continue
