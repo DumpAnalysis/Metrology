@@ -175,7 +175,10 @@ class AMinimumAtALimit(unittest.TestCase):
         # observed frequency, and the loss is least there.
         data = [(math.log(2), 1), (math.log(2), 1), (math.log(2), 0)]
         self.assertAlmostEqual(at_one(math.log(2), 2, 3), 1.0, places=12)
-        self.assertEqual(cal.slope(cal.margins(data), 1.0), 0.0)
+        # Until Version 64 this read slope() == 0.0; lean() of Version 65 returns the sign, which is 0 here
+        # because exp(-ln 2) is the float 0.5 and the two sums of terms are then equal.
+        self.assertEqual(math.exp(-math.log(2)), 0.5)
+        self.assertEqual(cal.lean(cal.margins(data), 1.0), 0)
         self.assertEqual(f"{cal.fit_temperature(data, 0.2, 10):.4f}", "1.0000")
         self.assertEqual(cal.fit_temperature(data, 0.2, 1), 1)                   # Version 37: "the minimum is above hi"
         self.assertEqual(cal.fit_temperature(data, 1, 10), 1)                    # Version 37: "the minimum is below lo"

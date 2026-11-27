@@ -288,8 +288,11 @@ class TwoEndsAreComparedAsTheyAre(unittest.TestCase):
         self.assertNotEqual(*ends)
         self.assertEqual(float(ends[0]), float(ends[1]))                       # as floats they were equal
         got = printed(mix.components, before, after, mix.p95, "p95", "distributions")
-        self.assertEqual(got, "p95, 100 -> 100 ms: +0 ms\n"
-                              "  class distributions first, via 100 ms:\n    within +0, mix +0\n"
+        # Until Version 64 the three changes printed as +0: the two ends were floats before they were
+        # subtracted. The 95th percentile falls by 1e-15 ms, and Version 65 prints the change with its sign.
+        self.assertEqual(mix.p95(mix.weighted(before)) - mix.p95(mix.weighted(after)), D("1e-15"))
+        self.assertEqual(got, "p95, 100 -> 100 ms: -0 ms\n"
+                              "  class distributions first, via 100 ms:\n    within -0, mix +0\n"
                               "  mix first: not determined,\n    no new requests before\n")
 
     def test_what_is_determined_stays_determined(self):
@@ -469,13 +472,15 @@ class LogitsAtTheEndOfTheFloats(unittest.TestCase):
 
     def test_the_sign_of_a_sum_beyond_a_float(self):
         ms = [1e308, 1e308, -1e308, -1e308, -1e308]
-        self.assertGreater(cal.slope(ms, 1.0), 0)
-        self.assertEqual(cal.slope(ms, 1.0), 3 * Fraction(1e308))
+        # Until Version 64: slope(ms, 1.0) == 3 * Fraction(1e308), an exact sum beyond a float. lean() of
+        # Version 65 returns its sign from the logarithms of the terms.
+        self.assertEqual(cal.lean(ms, 1.0), 1)
         with self.assertRaisesRegex(ValueError, "the loss falls as T rises"):
             cal.fit_temperature([(1e308, 1), (1e308, 1), (1e308, 0), (1e308, 0), (1e308, 0)])
         with self.assertRaisesRegex(ValueError, "the loss falls as T rises"):
             cal.fit_temperature([(1e308, 1), (1e308, 0), (1.0, 0), (1.0, 1)])  # the margins sum to zero exactly
-        self.assertAlmostEqual(cal.slope([2.0, -1.0], 0.5), -2 / (1 + math.e) + 1 / (1 + math.exp(-0.5)), places=12)
+        value = -2 / (1 + math.e) + 1 / (1 + math.exp(-0.5))                    # the slope there, as a number
+        self.assertEqual(cal.lean([2.0, -1.0], 0.5), (value > 0) - (value < 0))
 
     def test_the_ends_of_a_search(self):
         data = [(2, 1), (1, 0), (0, 1)]
@@ -532,7 +537,8 @@ class TwoCasesAndTheNameOfALabel(unittest.TestCase):
             for logit in near:
                 tot = cal.bins_of([(logit, 1)])
                 b = next(i for i, row in enumerate(tot) if row[0])
-                p = tot[b][1]
+                p = float(tot[b][1])                 # Version 65 returns the sum as a fraction: of one case, that float
+                self.assertEqual(tot[b][1], Fraction(p))
                 self.assertEqual(b, min(int(Fraction(p) * 10), 9))
                 if p == edge:
                     found += 1

@@ -55,6 +55,13 @@ def version_36(data, lo=0.2, hi=10.0):
     return math.exp((a + b) / 2)
 
 
+def slope_v64(ms, beta):
+    """slope() of Listing 18.1 until Version 64: the derivative of the summed loss by 1/T as an exact sum of
+    rounded products. Version 65 has lean() in its place, which returns the sign and keeps it where a product
+    rounds to zero. (Note added with Version 65.)"""
+    return sum(Fraction(-m * cal.sigmoid(-beta * m)) for m in ms)
+
+
 def refusal(function, *args, **named):
     try:
         function(*args, **named)
@@ -172,16 +179,22 @@ class TheShapeOfTheLossBeforeTheSearch(unittest.TestCase):
             self.assertEqual(margins, [z if y else -z for z, y in data])
             beta, step = rng.uniform(0.05, 5), 1e-6
             numeric = (total_loss(data, 1 / (beta + step)) - total_loss(data, 1 / (beta - step))) / (2 * step)
-            self.assertAlmostEqual(cal.slope(margins, beta), numeric, places=5)
-            self.assertLessEqual(cal.slope(margins, beta), cal.slope(margins, beta * 1.5) + 1e-12)   # it rises with beta
+            self.assertAlmostEqual(slope_v64(margins, beta), numeric, places=5)
+            self.assertLessEqual(slope_v64(margins, beta), slope_v64(margins, beta * 1.5) + 1e-12)   # it rises with beta
+            if abs(numeric) > 1e-4:                                              # Version 65: the sign, from lean()
+                self.assertEqual(cal.lean(margins, beta), (numeric > 0) - (numeric < 0))
         # The slope rounds as the losses do: for the first case of the review it is below zero at T = 10 and
         # exactly zero at T = 0.25, where e ** -800 is no float. The function therefore decides such a case
         # from the signs of the margins, and uses the slope only where a margin is below zero.
-        self.assertLess(cal.slope([200.0, 200.0], 1 / 10), 0)
-        self.assertEqual(cal.slope([200.0, 200.0], 1 / 0.25), 0.0)
+        self.assertLess(slope_v64([200.0, 200.0], 1 / 10), 0)
+        self.assertEqual(slope_v64([200.0, 200.0], 1 / 0.25), 0.0)
+        # Version 65: lean() compares logarithms and keeps the sign that the product had lost.
+        self.assertEqual(cal.lean([200.0, 200.0], 1 / 10), -1)
+        self.assertEqual(cal.lean([200.0, 200.0], 1 / 0.25), -1)
         self.assertEqual(refusal(cal.fit_temperature, [(200.0, 1), (-200.0, 0)]), "no finite T: the loss falls as T falls")
         # With one margin below zero, however small, the slope at the lower end is above zero and is computed so.
-        self.assertGreater(cal.slope([200.0, 200.0, -1e-300], 1 / 0.2), 0)
+        self.assertGreater(slope_v64([200.0, 200.0, -1e-300], 1 / 0.2), 0)
+        self.assertEqual(cal.lean([200.0, 200.0, -1e-300], 1 / 0.2), 1)
 
     def test_an_iterator_is_read_once(self):
         data = [(2.0, 1), (-2.0, 0)] * 3 + [(2.0, 0), (-2.0, 1)]
@@ -196,7 +209,7 @@ class TheShapeOfTheLossBeforeTheSearch(unittest.TestCase):
         data = cal.make(2000, 2.0, rng)
         self.assertAlmostEqual(cal.fit_temperature(data), version_36(data), places=6)
         self.assertEqual(f"{cal.fit_temperature(data):.2f}", "2.04")
-        self.assertAlmostEqual(cal.slope(cal.margins(data), 1 / cal.fit_temperature(data)), 0, delta=1e-9)
+        self.assertAlmostEqual(slope_v64(cal.margins(data), 1 / cal.fit_temperature(data)), 0, delta=1e-9)
 
 
 def tail(n, k, p, upper):

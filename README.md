@@ -2,7 +2,7 @@
 
 Code examples for the book *Metrology in Software Diagnostics, Observability,
 and Debugging: With Applications to Machine Learning and AI* by Dmitry Vostokov
-(OpenTask, ISBN 978-1-919135-15-1). Book Version 64, November 2026.
+(OpenTask, ISBN 978-1-919135-15-1). Book Version 65, November 2026.
 
 Repository: https://github.com/DumpAnalysis/Metrology
 
@@ -78,7 +78,7 @@ will print different numbers on your machine; that is what they are for.
 | `expected/` | The transcript of each example, as printed in the book. |
 | `data/` | The trace fixture of Chapter 16 (`app_trace.log`) and its seeded generator (`make_trace.py`); the measurement record of Chapter 22 (`measurement_record.json`), a blank template with the same fields (`record_template.json`), a description of the form, of the decision procedure and of what the checker examines (`RECORD_FORMAT.md`), and the program that writes both (`make_record.py`). |
 | `figures/` | `make_figures.py` draws the book's thirty-two figures from the same functions as the examples. Needs matplotlib and Pillow at the versions in `requirements.txt`; output goes to `figures/out/`. |
-| `tests/` | `test_swmetro.py`: unit tests of the package. `test_review.py`, `test_review2.py` to `test_review5.py`, `test_review7.py` to `test_review46.py` and `test_review48.py` to `test_review63.py`: regression tests, numbered by the version of the book whose review they followed; each checks the code against an independent fact (a closed form, a definition evaluated by brute force, a published table, a simulated coverage), not against saved output. `test_release.py`: the license text is the published one, and the record and this file name the repository and the release. |
+| `tests/` | `test_swmetro.py`: unit tests of the package. `test_review.py`, `test_review2.py` to `test_review5.py`, `test_review7.py` to `test_review46.py` and `test_review48.py` to `test_review64.py`: regression tests, numbered by the version of the book whose review they followed; each checks the code against an independent fact (a closed form, a definition evaluated by brute force, a published table, a simulated coverage), not against saved output. `test_release.py`: the license text is the published one, and the record and this file name the repository and the release. |
 | `tools/` | Two optional checks of the Student t quantile against high-precision arithmetic. They need mpmath. |
 | `run_all.py` | The replay program. |
 | `LICENSE` | PolyForm Strict License 1.0.0. |
@@ -194,7 +194,10 @@ An infinite limit has the probability 1 or 0 whatever the distribution. A
 finite limit has its own, however far it lies: its distance is the exact
 ratio, and where the square of that ratio is beyond the range of a float the
 tail of Student's distribution is taken from the logarithm of the distance. A
-tail below the least float is 0. A result
+tail below the least float is 0. Any number of degrees of freedom above zero
+is admitted: below 1e-9 the tail is taken from the limiting form of the
+incomplete beta function, so that the least positive float has a probability
+at every limit, and none that falls as the limit rises. A result
 without uncertainty has an expanded uncertainty of zero at every level, and
 its report prints `u = 0` where a coverage factor would stand; no factor is
 looked for. A factor is printed with two decimal places, or with two
@@ -306,7 +309,7 @@ of the versions before it. Seeds alone do not specify a result: the stored
 transcripts, the trace fixture and the measurement record are part of the
 repository for that reason.
 
-These are the files for Version 64 of the book.
+These are the files for Version 65 of the book.
 
 ## License
 

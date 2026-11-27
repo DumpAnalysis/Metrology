@@ -8,6 +8,7 @@ phi = _N.cdf        # standard normal CDF
 z_ppf = _N.inv_cdf  # standard normal quantile
 _TINY = 1e-300
 _T_MAX = 1e150
+_FEW = 1e-9
 
 
 def _fix(x):
@@ -52,20 +53,26 @@ def betainc(a, b, x, y=None):
     I_x(a, b) for a, b > 0 and 0 <= x <= 1.
     Give y = 1 - x as well where it is known
     more exactly than the subtraction leaves
-    it, as it is for an x next to 1."""
+    it, as it is for an x next to 1. The
+    factor before the continued fraction is
+    formed from the gamma function at a + 1
+    and at b + 1. Next to 0 the logarithm of
+    that function is large, and what its
+    rounding leaves would be the error of
+    the result."""
     if y is None:
         y = 1 - x
     if x <= 0:
         return 0.0
     if y <= 0:
         return 1.0
-    ln = math.lgamma(a + b) - math.lgamma(a)
-    ln -= math.lgamma(b)
+    ln = math.lgamma(a + b) - math.lgamma(a + 1)
+    ln -= math.lgamma(b + 1)
     ln += a * _log(x, y) + b * _log(y, x)
     front = math.exp(ln)
     if x < (a + 1) / (a + b + 2):
-        return front * _betacf(a, b, x) / a
-    return 1 - front * _betacf(b, a, y) / b
+        return b * front * _betacf(a, b, x)
+    return 1 - a * front * _betacf(b, a, y)
 
 
 def _far(z, v, sign):
@@ -107,14 +114,35 @@ def _tail(t, dof):
     """Upper tail where t^2 / dof is beyond a
     float: the first term of the series of
     the incomplete beta function, all of it
-    there, from the logarithm of t."""
+    there, from the logarithm of t. Its
+    factor is formed as in betainc(), and
+    below _FEW degrees of freedom as in
+    _few(), of which this is the far end."""
     n, d = t.as_integer_ratio()
     a = dof / 2
     ln = math.log(dof) + 2 * math.log(d)
     ln = a * (ln - 2 * math.log(n))
-    ln += math.lgamma(a + 0.5) - math.lgamma(a)
-    ln -= math.lgamma(0.5) + math.log(a)
+    if dof < _FEW:
+        ln -= dof * math.log(2)
+        return 0.5 * math.exp(ln)
+    ln += math.lgamma(a + 0.5)
+    ln -= math.lgamma(a + 1) + math.lgamma(0.5)
     return 0.5 * math.exp(ln)
+
+
+def _few(dof, x, y):
+    """Upper tail below _FEW degrees of freedom,
+    from x = dof / (dof + t^2) and y = 1 - x.
+    With a = dof / 2 next to 0 the incomplete
+    beta function I_x(a, 1/2) is x^a times
+    1 - 2 a log(1 + sqrt(y)), and what that
+    leaves out is of the order of a^2, below
+    the rounding of a float. The tail is
+    half of it: it falls as t rises, and
+    never exceeds one half. The least float
+    has no half, and needs none here."""
+    ln = _log(x, y) / 2 - math.log1p(math.sqrt(y))
+    return 0.5 * math.exp(dof * ln)
 
 
 def t_sf(t, dof):
@@ -132,6 +160,8 @@ def t_sf(t, dof):
     if t > 1e153 * math.sqrt(dof):
         return _tail(t, dof)
     y, x = _split(float(t), dof)
+    if dof < _FEW:
+        return _few(dof, x, y)
     return 0.5 * betainc(dof / 2, 0.5, x, y)
 
 

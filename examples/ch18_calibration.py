@@ -9,6 +9,8 @@ from examples.ch20_judge import exact_interval
 from swmetro.stats import as_count, known
 from swmetro.stats import downward, upward
 
+LEAST = 2.0 ** -1022  # the least normal float
+
 
 def sigmoid(z):
     """1 / (1 + exp(-z)), with an exponent that
@@ -31,29 +33,47 @@ def make(n, scale, rng):
     return data
 
 
+def scaled(z, temp):
+    """z / temp, rounded once. Two floats are
+    divided so by the machine. Any other two
+    numbers are divided as the fractions that
+    they are: as floats, the decimals 3e-324
+    and 5e-324 are one number, and 1e-400 is
+    zero. A quotient beyond a float is
+    refused."""
+    if {type(z), type(temp)} == {float}:
+        q = z / temp
+    else:
+        try:
+            q = Fraction(z) / Fraction(temp)
+            q = float(q)
+        except OverflowError:
+            q = math.inf
+    if abs(q) == math.inf:
+        raise ValueError("logit / T too large")
+    return q
+
+
 def checked(data, temp=1.0):
     """The cases as a list, at least one, of
     (logit / T, label). The logit and T are
     finite numbers that known() admits, the
-    label is 0 or 1, and T is above zero:
-    below it the labels would change places,
-    and a confident error would score well.
-    A quotient beyond a float is refused."""
+    label is 0 or 1, and T is above zero in
+    the type in which it came: below zero
+    the labels would change places, and a
+    confident error would score well."""
     data = list(data)
     if not data:
         raise ValueError("no cases")
-    temp = float(known([temp], "T")[0])
+    temp = known([temp], "T")[0]
     if not temp > 0:
         raise ValueError("need T > 0")
     zs = known([z for z, _ in data], "logit")
     for _, y in data:
         if y not in (0, 1):
             raise ValueError("a label is 0 or 1")
-    out = [(float(z) / temp, int(y == 1))
-           for z, (_, y) in zip(zs, data)]
-    if any(abs(z) == math.inf for z, _ in out):
-        raise ValueError("logit / T too large")
-    return out
+    return [(scaled(z, temp), int(y == 1))
+            for z, (_, y) in zip(zs, data)]
 
 
 def residual(z, y):
@@ -69,17 +89,23 @@ def bins_of(data, temp=1.0, bins=10):
     sum of probabilities, sum of labels, sum
     of residuals. A probability is in the
     bin where the float that it is lies: on
-    the edge of two bins, in the upper one."""
+    the edge of two bins, in the upper one.
+    The two sums of floats are exact, as
+    fractions: a sum of floats that is
+    rounded at each step depends on the
+    order of the cases, and two residuals of
+    one half hide a small third between
+    them."""
     bins = as_count(bins, "bin count", 1)
-    tot = [[0, 0.0, 0, 0.0] for _ in range(bins)]
+    tot = [[0, 0, 0, 0] for _ in range(bins)]
     for z, y in checked(data, temp):
         p = sigmoid(z)
         n, d = p.as_integer_ratio()
         b = tot[min(n * bins // d, bins - 1)]
         b[0] += 1
-        b[1] += p
+        b[1] += Fraction(n, d)
         b[2] += y
-        b[3] += residual(z, y)
+        b[3] += Fraction(residual(z, y))
     return tot
 
 
@@ -88,7 +114,7 @@ def ece(data, temp=1.0, bins=10):
     the probability of the label 1."""
     tot = bins_of(data, temp, bins)
     gap = sum(abs(b[3]) for b in tot)
-    return gap / sum(b[0] for b in tot)
+    return float(gap / sum(b[0] for b in tot))
 
 
 def nll(data, temp=1.0):
@@ -122,13 +148,41 @@ def margins(data):
     return [z if y else -z for z, y in data]
 
 
-def slope(ms, beta):
-    """Derivative of the summed loss by beta,
-    which is 1 / T. It rises with beta. The
-    terms are added as fractions: the sum
-    may be beyond a float, and has a sign."""
-    return sum(Fraction(-m * sigmoid(-beta * m))
-               for m in ms)
+def lean(ms, beta):
+    """Sign of the derivative of the summed
+    loss by beta, which is 1 / T. The
+    derivative rises with beta. Its terms
+    are -m * sigmoid(-beta * m), below zero
+    for a margin above zero and above zero
+    for one below. They are added as
+    fractions: the sum may be beyond a
+    float, and has a sign. A term below the
+    least normal float has lost digits, or
+    all of them, and the sum can have lost
+    its sign with them: a margin far out and
+    one next to zero both give a term that
+    rounds to zero. The terms are then kept
+    as logarithms, and the two sums, of the
+    terms of either sign, are compared as
+    shares of the largest term."""
+    ms = [m for m in ms if m]
+    ss = [sigmoid(-beta * m) for m in ms]
+    if all(min(s, abs(m * s)) >= LEAST
+           for m, s in zip(ms, ss)):
+        total = sum(Fraction(-m * s)
+                    for m, s in zip(ms, ss))
+        return (total > 0) - (total < 0)
+    up, down = [], []
+    for m in ms:
+        x = beta * m
+        v = math.log(abs(m)) - max(x, 0)
+        v -= math.log1p(math.exp(-abs(x)))
+        (down if m > 0 else up).append(v)
+    top = max(up + down)
+    up = math.fsum(math.exp(v - top) for v in up)
+    down = math.fsum(math.exp(v - top)
+                     for v in down)
+    return (up > down) - (up < down)
 
 
 def fit_temperature(data, lo=0.2, hi=10.0):
@@ -165,8 +219,8 @@ def fit_temperature(data, lo=0.2, hi=10.0):
     if sum(map(Fraction, ms)) <= 0:
         raise ValueError("no finite T: the loss "
                          "falls as T rises")
-    at_lo = slope(ms, 1 / float(lo))
-    at_hi = slope(ms, 1 / float(hi))
+    at_lo = lean(ms, 1 / float(lo))
+    at_hi = lean(ms, 1 / float(hi))
     if at_lo < 0:
         raise ValueError("the minimum is "
                          "below lo")
@@ -178,7 +232,7 @@ def fit_temperature(data, lo=0.2, hi=10.0):
     a, b = math.log(lo), math.log(hi)
     for _ in range(60):
         mid = (a + b) / 2
-        if slope(ms, math.exp(-mid)) > 0:
+        if lean(ms, math.exp(-mid)) > 0:
             a = mid
         else:
             b = mid
@@ -200,7 +254,8 @@ def correction():
               f"{nll(test, t):>8.3f}")
     print("stated   observed   n   (as reported)")
     for n, s, k, _ in bins_of(test, 1.0, 5):
-        print(f"{s / n:6.3f}{k / n:>10.3f}{n:>6}")
+        print(f"{float(s / n):6.3f}"
+              f"{k / n:>10.3f}{n:>6}")
 
 
 def estimator_bias():

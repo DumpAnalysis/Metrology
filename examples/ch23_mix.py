@@ -509,6 +509,38 @@ def new_class(before, after):
     components(before, more)
 
 
+def exact(pairs):
+    """The pairs with every finite duration as
+    the fraction that it is, so that a
+    statistic of them is rounded neither
+    before it is compared nor before it is
+    subtracted. What is no finite number
+    stays what it is."""
+    out = []
+    for x, w in pairs:
+        try:
+            x = Fraction(x)
+        except (TypeError, ValueError,
+                OverflowError):
+            pass
+        out.append((x, w))
+    return out
+
+
+def shown(x, plus=""):
+    """x in whole milliseconds, rounded once,
+    half to even, from the number that it
+    is. With plus="+" the sign is written,
+    and a change that rounds to zero keeps
+    its own."""
+    if not isinstance(x, Fraction):
+        return f"{x:{plus}.0f}"
+    n = round(x)
+    if plus and not n:
+        return "-0" if x < 0 else "+0"
+    return f"{n:{plus}d}"
+
+
 def components(before, after, stat=mean,
                name="mean", what="means"):
     """The change of a statistic of all the
@@ -532,14 +564,17 @@ def components(before, after, stat=mean,
     duration rises. A statistic of another
     quantity, such as the distance of a
     duration from a target, has to be given
-    records of that quantity. The two are
-    compared as the numbers that they are,
-    and rounded for printing afterward."""
+    records of that quantity. Every
+    statistic is taken from exact durations,
+    the differences and their average are
+    exact, and each number is rounded where
+    it is printed, and not before."""
     before, after = periods(before, after)
-    start = float(stat(weighted(before)))
-    end = float(stat(weighted(after)))
-    print(f"{name}, {start:.0f} -> {end:.0f} ms:"
-          f" {end - start:+.0f} ms")
+    start = stat(exact(weighted(before)))
+    end = stat(exact(weighted(after)))
+    print(f"{name}, {shown(start)} ->"
+          f" {shown(end)} ms:"
+          f" {shown(end - start, '+')} ms")
     orders = ((f"class {what} first",
                after, before, "after"),
               ("mix first",
@@ -547,7 +582,8 @@ def components(before, after, stat=mean,
     found = []
     for text, rec, mix, when in orders:
         low, top = (
-            stat(weighted(rec, mix, fill=x))
+            stat(exact(weighted(rec, mix,
+                                fill=x)))
             for x in (-math.inf, math.inf))
         if low != top:
             gone = ", ".join(absent(rec, mix))
@@ -555,20 +591,19 @@ def components(before, after, stat=mean,
             print(f"    no {gone} requests"
                   f" {when}")
             continue
-        low = float(low)
         inner, mixed = low - start, end - low
         if rec is before:
             inner, mixed = mixed, inner
         found.append((inner, mixed))
-        print(f"  {text}, via {low:.0f} ms:")
-        print(f"    within {inner:+.0f},"
-              f" mix {mixed:+.0f}")
+        print(f"  {text}, via {shown(low)} ms:")
+        print(f"    within {shown(inner, '+')},"
+              f" mix {shown(mixed, '+')}")
     if len(found) == 2:
         inner, mixed = (sum(xs) / 2
                         for xs in zip(*found))
         print("  average of the two orders:")
-        print(f"    within {inner:+.0f},"
-              f" mix {mixed:+.0f}")
+        print(f"    within {shown(inner, '+')},"
+              f" mix {shown(mixed, '+')}")
 
 
 def one_bulk():
