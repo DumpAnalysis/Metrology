@@ -406,13 +406,20 @@ class LevelsNextToOne(unittest.TestCase):
 
     def test_levels_that_the_two_sums_cannot_resolve(self):
         ten = [(30 * i, 30 * i + 30) for i in range(10)]
-        for level in (0, 1e-300, 9.99e-10, 1, 1.5):
-            with self.assertRaisesRegex(ValueError, "need 1e-9 <= level < 1"):
+        # Until Version 70 the two bounds were found from sums of floats, and a level below 1e-9, which those
+        # sums cannot resolve, was refused: 1e-300 and 9.99e-10 among these. Since Version 71 the chance is enclosed
+        # between two fractions and compared with the level exactly (tests/test_review70.py), such a level has
+        # its bound, and only a level that is no probability between 0 and 1 is refused.
+        for level in (0, 1, 1.5):
+            with self.assertRaisesRegex(ValueError, "need 0 < level < 1"):
                 silence.gap_bound(300, 30, level)
-            with self.assertRaisesRegex(ValueError, "need 1e-9 <= level < 1"):
+            with self.assertRaisesRegex(ValueError, "need 0 < level < 1"):
                 silence.searched_pairs(ten, 10, level)
-        # At the lowest level allowed the chance at the bound is 1 - level to eleven places, to sixty digits.
-        for level in (1e-9, 1e-3, 0.5, 0.95):
+        for level in (1e-300, 9.99e-10):
+            for rate in (silence.gap_bound(300, 30, level), silence.searched_pairs(ten, 10, level)):
+                self.assertTrue(0 < rate < 0.02, (level, rate))
+        # At a low level the chance at the bound is 1 - level to eleven places, to sixty digits.
+        for level in (9.99e-10, 1e-9, 1e-3, 0.5, 0.95):
             rate = silence.gap_bound(300, 30, level)
             self.assertAlmostEqual(float(gap_to_sixty_digits(rate, 300, 30)), 1 - level, places=11, msg=level)
         self.assertAlmostEqual(float(gap_to_sixty_digits(silence.gap_bound(300, 30, NEXT_TO_ONE), 300, 30))

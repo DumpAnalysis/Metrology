@@ -2,7 +2,7 @@
 
 Code examples for the book *Metrology in Software Diagnostics, Observability,
 and Debugging: With Applications to Machine Learning and AI* by Dmitry Vostokov
-(OpenTask, ISBN 978-1-919135-15-1). Book Version 70, November 2026.
+(OpenTask, ISBN 978-1-919135-15-1). Book Version 71, November 2026.
 
 Repository: https://github.com/DumpAnalysis/Metrology
 
@@ -78,7 +78,7 @@ will print different numbers on your machine; that is what they are for.
 | `expected/` | The transcript of each example, as printed in the book. |
 | `data/` | The trace fixture of Chapter 16 (`app_trace.log`) and its seeded generator (`make_trace.py`); the measurement record of Chapter 22 (`measurement_record.json`), a blank template with the same fields (`record_template.json`), a description of the form, of the decision procedure and of what the checker examines (`RECORD_FORMAT.md`), and the program that writes both (`make_record.py`). |
 | `figures/` | `make_figures.py` draws the book's thirty-two figures from the same functions as the examples. Needs matplotlib and Pillow at the versions in `requirements.txt`; output goes to `figures/out/`. |
-| `tests/` | `test_swmetro.py`: unit tests of the package. `test_review.py`, `test_review2.py` to `test_review5.py`, `test_review7.py` to `test_review46.py` and `test_review48.py` to `test_review69.py`: regression tests, numbered by the version of the book whose review they followed; each checks the code against an independent fact (a closed form, a definition evaluated by brute force, a published table, a simulated coverage), not against saved output. `test_release.py`: the license text is the published one, and the record and this file name the repository and the release. |
+| `tests/` | `test_swmetro.py`: unit tests of the package. `test_review.py`, `test_review2.py` to `test_review5.py`, `test_review7.py` to `test_review46.py` and `test_review48.py` to `test_review70.py`: regression tests, numbered by the version of the book whose review they followed; each checks the code against an independent fact (a closed form, a definition evaluated by brute force, a published table, a simulated coverage), not against saved output. `test_release.py`: the license text is the published one, and the record and this file name the repository and the release. |
 | `tools/` | Two optional checks of the Student t quantile against high-precision arithmetic. They need mpmath. |
 | `run_all.py` | The replay program. |
 | `LICENSE` | PolyForm Strict License 1.0.0. |
@@ -186,17 +186,26 @@ that use its types are skipped where it is not installed.
 The rank helpers `quantile()`, `order_stat()` and `ecdf_quantile()` take a
 sorted list and look at every value of it once, through `ordered()`, before
 a rank is formed: a flag among the durations would otherwise take a place
-and move the rank of the others, and a NaN, which a sort leaves where it
-stood, would give the same rows another percentile in another order. A NaN
-is refused wherever it stands, and an infinity is a value like any other. A
-stream that can be read once, a set and a table of names and values are
-refused there too: they have no first value.
+and move the rank of the others, and a NaN, which a sort leaves in a place
+that depends on the order of the list and on the version of Python, would
+give the same rows one percentile or another. A NaN is refused wherever it
+stands. An infinity takes its rank like any other value, and
+`ecdf_quantile()` and `order_stat()` return it where its rank is asked for.
+`quantile()` interpolates between two finite values: between a finite value
+and an infinity it returns that infinity, and between the two infinities it
+refuses. A stream that can be read once, a set and a table of names and
+values are refused there too: they have no first value.
 Sums are exact for readings of several types: `mean()`, `variance()` and
 `type_a()` take a float beside a `Decimal`, which Python's `statistics`
 module leaves undefined. A reading that is not finite has no variance, and
 indications whose standard deviation of the mean rounds to zero are refused
 and not reported without uncertainty. A rate bound beyond the floats is
-refused as well: an infinity is no lower limit of a rate.
+refused as well. An exact result that no float is large enough for, such as
+the mean of 10 ** 310 and the next whole number, is returned as the whole
+number or the fraction that it is, by `quantile()`, `mean()` and, for its
+two coefficients, `linfit()`. The uncertainties and the residual scatter of
+`linfit()` are those of the line of least squares itself, also where a
+coefficient that is returned is rounded within its tolerance.
 
 One convention holds for what the examples print. A value is rounded to the
 nearest digit shown. A bound, and each end of an interval or of a range, is
@@ -209,15 +218,28 @@ does not reach it either: 94.9934 % under an objective of 95 % prints as
 a number, in either direction, and so cannot tell a bound from its
 neighbor; the tests compare the printed ends with references of their own.
 
-The rounding begins before the printing. `quiet_bound()`, the bound for a
-count of zero, is formed to forty digits in decimals from the numbers that
-the exposure and the level are, and returned as the nearest float that is
-not below it; a level so near 1 that it is 1 as a float keeps its
-complement, and a positive bound below every float is the least float above
-zero. `rate_upper()` and `rate_limits()` find their limits by a search that
-places them to about 1e-15 of their values, move each outward by 1e-12 of
-itself, and round the quotient by the exposure to the float on the outer
-side. A lower limit of zero stays zero.
+The rounding begins before the printing. A confidence limit for a count is
+returned as the float next to the limit of the model on its outer side: the
+least float that is not below an upper limit, and the greatest that is not
+above a lower one. That holds for `quiet_bound()`, `rate_upper()` and
+`rate_limits()` of the package, for the bounds of `ch16_silence`
+(`paired_bound()`, `paired_upper()`, `searched_bound()`, `gap_bound()` and
+`searched_pairs()`) and for `exact_interval()` of `ch20_judge`. `least()`
+searches the floats with a test that is decided and not estimated:
+`poisson_within()`, `binomial_within()` and `sum_within()` enclose a
+probability between two fractions, from sums in decimals that are rounded
+downward for the one and upward for the other, and the fractions are
+compared with the level exactly. Where they lie on both sides of it, the
+digits are doubled, from 40 up to 5120, and a level that is still undecided
+there is refused. The rate times the exposure is an exact product, and the
+exposures of `ch16_silence` are fractions until they are printed. A level
+is the number that it is: the float `0.95` lies a little below 95 %, and a
+level of 95 % exactly is `Fraction(19, 20)`. A level so near 1 that it is 1
+as a float, or whose tail is zero as a float, keeps its complement as a
+fraction; a positive bound below every float is the least float above zero,
+and a bound above every float is refused. Other intervals of the examples,
+a Student interval or the Wilson interval among them, are computed in
+floats and printed outward from what was computed.
 
 The limits of a span in `ch23_mix` are printed by that convention, to the
 hundredth of a millisecond: rounded to the nearest, a
@@ -393,7 +415,7 @@ of the versions before it. Seeds alone do not specify a result: the stored
 transcripts, the trace fixture and the measurement record are part of the
 repository for that reason.
 
-These are the files for Version 70 of the book.
+These are the files for Version 71 of the book.
 
 ## License
 

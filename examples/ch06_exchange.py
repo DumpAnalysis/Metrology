@@ -56,10 +56,17 @@ def gap(stamp_a, stamp_b, span, err=0):
     """The true time from an event stamped on
     A to one stamped on B: the difference of
     the stamps less each end of `span`, with
-    each stamp within `err` of its event."""
+    each stamp within `err` of its event. A
+    negative `err` or a span with its ends
+    reversed would give holds() an order
+    that is not known, and is refused."""
     d = exact(stamp_b) - exact(stamp_a)
     lo, hi = map(exact, span)
     w = 2 * exact(err)
+    if w < 0:
+        raise ValueError("err must be >= 0")
+    if lo > hi:
+        raise ValueError("no offset in the span")
     return d - hi - w, d - lo + w
 
 

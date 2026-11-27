@@ -306,7 +306,16 @@ class PrintedRateLimits(Precision):
         self.assertEqual(poisson_limit(1, D("0.025"), lower=True)[0].quantize(D("1e-30")),
                          (-(1 - D("0.025")).ln()).quantize(D("1e-30")))        # the search against the closed form
         got = stats.rate_limits(1, 30)
+        # In Version 70 the two limits were compared with those references, for a tail of 0.025, and held them by
+        # the 1e-12 that the limits were moved outward. The level is the float 0.95, which lies below 95 %: its
+        # half tail is above 0.025, and the limits of the model lie inside those for 95 % by parts in 1e16. Since
+        # Version 71 a limit is the float next to the limit for the level as the number that it is
+        # (tests/test_review70.py), and the reference is taken for that number: the expectation was wrong.
+        half = (1 - dec(0.95)) / 2
+        low = -(1 - half).ln() / 30
+        top = poisson_limit(1, half)[1] / 30
         self.assertTrue(dec(got[0]) <= low and top <= dec(got[1]))
+        self.assertTrue(dec(math.nextafter(got[0], 1.0)) > low and top > dec(math.nextafter(got[1], 0.0)))
         self.assertEqual(stats.enclosed(*got, 5), ("0.00084", "0.18573"))       # Version 69 printed 0.18572
         self.assertEqual((down(low, 5), up(top, 5)), ("0.00084", "0.18573"))
         self.assertIn("  exact, 95 %: 0.00084 to 0.18573\n", expected("ch16_silence"))
@@ -359,8 +368,12 @@ class PrintedRateLimits(Precision):
                     self.assertGreater(1 - at_most(n - 1, low / inside), tail / 2)
         self.assertEqual(stats.rate_limits(0, 30)[0], 0.0)                      # a zero stays a zero
         self.assertIs(type(stats.rate_limits(0, 30)[0]), float)
-        self.assertIn("not above the limit of the model", " ".join(stats.rate_limits.__doc__.split()))
-        self.assertIn("1e-12 of itself", " ".join(stats._mean_at.__doc__.split()))
+        # The words of Version 70 were "not above the limit of the model" and, for _mean_at(), "1e-12 of itself".
+        # Since Version 71 no limit is moved by a margin: it is the float next to the limit of the model.
+        text = " ".join(stats.rate_limits.__doc__.split())
+        self.assertIn("the greatest float not above it", text)
+        self.assertIn("the least float not below it", text)
+        self.assertFalse(hasattr(stats, "_mean_at"))
 
     def test_the_interval_of_the_case(self):
         # The change of the handler percentile with its standard uncertainty: value less and plus 1.959964 u.
@@ -454,11 +467,12 @@ class TheBoundForNoEvent(Precision):
         self.assertEqual(stats.upward(stats.rate_upper(2, 1.0), 3), "6.296")
 
     def test_the_docstrings_state_the_contract(self):
+        # Version 70 formed the bound to forty digits, with a margin, in _silence() and _rate(). Version 71 has
+        # neither: the bound is found by least(), and the words are those of its contract.
         text = " ".join(stats.quiet_bound.__doc__.split())
-        self.assertIn("formed to forty digits", text)
-        self.assertIn("is not below it", text)
-        self.assertIn("the least float above zero", " ".join(stats._rate.__doc__.split()))
-        self.assertIn("as a float, 1 - 1e-20 is 1", " ".join(stats._silence.__doc__.split()))
+        self.assertIn("the least one that is not below the bound of the model", text)
+        self.assertIn("A bound below every float above zero is the least of them", text)
+        self.assertFalse(hasattr(stats, "_rate") or hasattr(stats, "_silence"))
 
 
 class ANaNBeforeARank(Precision):
@@ -513,7 +527,7 @@ class ANaNBeforeARank(Precision):
     def test_the_docstrings_say_where(self):
         text = " ".join(stats.ordered.__doc__.split())
         self.assertIn("also where no rank would select it", text)
-        self.assertIn("An infinity is a value like any other", text)
+        self.assertIn("An infinity takes its rank like any other value", text)   # Version 70: "is a value like any other"
 
 
 class TheSameMixWithAnOpenDuration(Precision):

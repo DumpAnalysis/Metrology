@@ -1,6 +1,7 @@
 # replay: exact
 """Chapter 22: checking a record before use."""
 import copy
+from decimal import Decimal
 from pathlib import Path
 
 from swmetro.core import decimals
@@ -108,22 +109,31 @@ def near(title, rec, value):
     close: the lower is rounded downward and
     the upper upward, to two places or to
     the second digit of their distance, and
-    neither is printed across the limit.
+    neither is printed across the limit or
+    onto it. That holds for the one end of
+    a range without an upper end as well.
     Equal ends are one value, rounded to
-    the nearest."""
+    the nearest, with more places where two
+    would print it as the limit."""
     change = {("result", "value"): value}
     rec = altered(rec, change)
     report(title, rec)
     lo, hi = guard(rec)[0]
-    text = f"{lo:.2f}"
+    limit = rec["decision"]["limit"]
     if hi.is_infinite():
-        text = f"{downward(lo, 2)} or more"
+        low = downward(lo, 2, limit)
+        text = f"{low} or more"
     elif hi != lo:
         places = 1 - (hi - lo).adjusted()
-        limit = rec["decision"]["limit"]
         ends = enclosed(lo, hi, max(2, places),
                         limit)
         text = " to ".join(ends)
+    else:
+        places = 2
+        text = f"{lo:.2f}"
+        while Decimal(text) == limit != lo:
+            places += 1
+            text = f"{lo:.{places}f}"
     print(f"  estimate + band: {text}")
 
 

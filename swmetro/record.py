@@ -381,6 +381,28 @@ def _shown(q):
     return _tidy(SHOW.divide(Decimal(n), d))
 
 
+def _full(q):
+    """A fraction as a decimal for display,
+    as _shown() gives it where that is exact,
+    and otherwise in full where the fraction
+    is a decimal: its denominator then has no
+    factors but 2 and 5. Two ends that lie
+    half a step of 1e-45 on either side of a
+    limit stay two ends, each on its side."""
+    d = _shown(q)
+    k, twos, fives = q.denominator, 0, 0
+    while k % 2 == 0:
+        k, twos = k // 2, twos + 1
+    while k % 5 == 0:
+        k, fives = k // 5, fives + 1
+    if Fraction(d) == q or k > 1:
+        return d
+    e = max(twos, fives)
+    whole = q.numerator * 2 ** (e - twos)
+    whole *= 5 ** (e - fives)
+    return Decimal(f"{whole}e{-e}")
+
+
 def _root(q):
     """Square root of a fraction, as a decimal
     of at most 40 digits. No float is formed
@@ -531,8 +553,10 @@ def guard(rec):
     band has the 17 digits of a float and is
     added to the estimate exactly, so that
     with no band the estimate appears as it
-    is written. An unbounded band gives an
-    infinite bound."""
+    is written. The sum is a decimal and is
+    returned in full, see _full(). An
+    unbounded band gives an infinite
+    bound."""
     room, us, ks = _parts(rec)
     limit = exact(rec["decision"]["limit"])
     v = limit - room[1], limit - room[0]
@@ -553,7 +577,7 @@ def guard(rec):
     def end(x, band, sign):
         if band is None:
             return sign * Decimal("Infinity")
-        return _shown(x + sign * band)
+        return _full(x + sign * band)
     return ((end(v[0], b[0], 1),
              end(v[1], b[1], 1)),
             (end(v[0], b[1], -1),

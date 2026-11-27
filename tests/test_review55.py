@@ -229,8 +229,13 @@ class TwoTimeScales(unittest.TestCase):
         shown = {name: f"{-math.log(0.05) / (ms / 1000):.5f}" for name, ms in sure.items()}
         self.assertEqual(shown, {"lines": "4.62304", "readings": "3.99964"})
         self.assertAlmostEqual(stats.quiet_bound(0.648), -math.log(0.05) / 0.648, places=12)
+        # To the nearest hundredth, as the text of the chapter had the four bounds until Version 70: three of the
+        # four lie below what they bound. Since Version 71 the text has them upward at three places, as its table
+        # has had them since Version 70 (tests/test_review70.py).
         self.assertEqual((f"{stats.quiet_bound(0.648):.2f}", f"{stats.quiet_bound(0.749):.2f}"), ("4.62", "4.00"))
         self.assertEqual((f"{stats.quiet_bound(0.65):.2f}", f"{stats.quiet_bound(0.75):.2f}"), ("4.61", "3.99"))
+        self.assertEqual([stats.upward(stats.quiet_bound(t), 3) for t in (0.749, 0.648, 0.75, 0.65)],
+                         ["4.000", "4.624", "3.995", "4.609"])
         self.assertIn("by the stamps", " ".join(trace.verified.__doc__.split()))
 
     def test_an_end_inside_a_step(self):
@@ -255,6 +260,9 @@ class TwoTimeScales(unittest.TestCase):
         one = stats.rate_upper(1, 20)
         self.assertEqual((f"{stats.quiet_bound(20):.5f}", f"{one:.5f}", f"{one:.3f}"), ("0.14979", "0.23719", "0.237"))
         self.assertTrue(0.237 < one)
+        # The 0.237 stood in the text until Version 70, below the bound. Version 71 has it upward, as the caption
+        # of Figure 16.3 had it.
+        self.assertEqual(stats.upward(one, 3), "0.238")
         self.assertEqual(f"{stats.quiet_bound(30):.5f}", "0.09986")                # the 0.100 of the chapter
 
 

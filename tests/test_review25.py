@@ -181,9 +181,13 @@ class ExposureAtAClockOrigin(unittest.TestCase):
         self.assertTrue(all(type(t) is Fraction for pair in found for t in pair))
         self.assertEqual(silence.reach([(EPOCH, EPOCH + 300)], 2.5), 302.5)
         self.assertEqual(silence.by_messages([(EPOCH, EPOCH + 300)], 2.5), (297.5, 5))
-        # A length that is whole comes back as an int, and any other as the nearest float.
-        self.assertEqual([type(v) for v in (silence.reach([(0, 30)], 10), silence.reach([(0, 30)], 10.0), silence.reach([(0, 30)], 2.346))],
-                         [int, int, float])
+        # Until Version 70 a length that is whole came back as an int, and any other as the nearest float. Since
+        # Version 71 reach() and by_messages() return the fraction that the length is, because a bound is formed
+        # from it, and plain() rounds it where it is printed (tests/test_review70.py).
+        lengths = (silence.reach([(0, 30)], 10), silence.reach([(0, 30)], 10.0), silence.reach([(0, 30)], 2.346))
+        self.assertEqual([type(v) for v in lengths], [Fraction, Fraction, Fraction])
+        self.assertEqual([type(silence.plain(v)) for v in lengths], [int, int, float])
+        self.assertEqual(lengths[2], 30 + Fraction(2.346))
         self.assertEqual((silence.plain(Fraction(6, 2)), silence.plain(Fraction(1, 3))), (3, 1 / 3))
         self.assertEqual(silence.mean_reach([(0, 30)], [(Fraction(1, 3), 10), (Fraction(2, 3), 40)]), Fraction(160, 3))
         # Windows given as floats are the floats that they are: at this size, 256 ns long.
@@ -284,8 +288,11 @@ class TenWindowsSearched(unittest.TestCase):
             silence.selections([], 10)
         with self.assertRaisesRegex(ValueError, "need 1 to 16 windows"):
             silence.selections([(30 * i, 30 * i + 30) for i in range(17)], 10)
+        # From Version 27 to Version 70 the two searched bounds summed floats and refused a level below 1e-9. Since
+        # Version 71 their chances are enclosed and compared exactly (tests/test_review70.py), and every level
+        # between 0 and 1 has its bound: "need 0 < level < 1", as in Version 26.
         for level in (0, 1, 1.5):
-            with self.assertRaisesRegex(ValueError, "need 1e-9 <= level < 1"):     # "need 0 < level < 1" in Version 26
+            with self.assertRaisesRegex(ValueError, "need 0 < level < 1"):
                 silence.searched_pairs(self.TEN, 10, level)
         with self.assertRaisesRegex(ValueError, "need delta >= 0"):
             silence.searched_pairs(self.TEN, -1)

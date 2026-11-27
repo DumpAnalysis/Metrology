@@ -8,10 +8,12 @@ from pathlib import Path
 from examples import ch16_trace_measurements as tm
 from examples.ch20_judge import exact_interval
 from swmetro.stats import as_count, enclosed
+from swmetro.stats import least, not_above
 from swmetro.stats import paired_exact
-from swmetro.stats import poisson_tails, upward
+from swmetro.stats import poisson_within
 from swmetro.stats import quiet_bound
 from swmetro.stats import rate_limits, rate_upper
+from swmetro.stats import sum_within, upward
 
 ROOT = Path(__file__).resolve().parent.parent
 LOG = ROOT / "data" / "app_trace.log"
@@ -62,7 +64,9 @@ def starts(spans, delta):
 
 def plain(f):
     """A fraction as an int if it is whole,
-    and as the nearest float if it is not."""
+    and as the nearest float if it is not:
+    a length as it is printed, and not as a
+    bound is formed from it."""
     if f.denominator == 1:
         return f.numerator
     return float(f)
@@ -73,9 +77,13 @@ def reach(spans, delta):
     window of length T it is T + min(T, delta).
     The summed length of the stretches plus
     delta would lose where they lie. The sum
-    is exact, and it is rounded once."""
+    is exact and is returned as the fraction
+    that it is: a bound is formed from it,
+    and a length rounded upward to a float
+    would give a bound that is too low.
+    plain() rounds it where it is printed."""
     found = starts(spans, delta)
-    return plain(sum(y - x for x, y in found))
+    return sum(y - x for x, y in found)
 
 
 def paired_bound(spans, delta, level=0.95):
@@ -84,9 +92,12 @@ def paired_bound(spans, delta, level=0.95):
     held none: requests start as a Poisson
     process, before the stretches as well as
     in them, and each stands for two
-    messages."""
+    messages. A message rate is twice the
+    rate of requests, and half the exposure
+    gives its bound in one step, see
+    quiet_bound()."""
     exposure = reach(spans, delta)
-    return 2 * quiet_bound(exposure, level)
+    return quiet_bound(exposure / 2, level)
 
 
 def mean_reach(spans, shares):
@@ -103,13 +114,15 @@ def mean_reach(spans, shares):
     of reach() over the durations. That is
     not reach() at the mean duration, which
     for a single window is never smaller and
-    can give too low a bound."""
+    can give too low a bound. The shares are
+    taken as the numbers that they are, and
+    the mean is a fraction."""
     spans, shares = list(spans), list(shares)
     total = sum(p for p, _ in shares)
     if (abs(total - 1) > 1e-9
             or min(p for p, _ in shares) < 0):
         raise ValueError("shares must sum to 1")
-    return sum(p * reach(spans, d)
+    return sum(Fraction(p) * reach(spans, d)
                for p, d in shares)
 
 
@@ -120,13 +133,25 @@ def by_messages(spans, delta):
     start and its end are seen, and where
     only one of them is. The stretches are
     merged first: time that two of them
-    share was observed once."""
+    share was observed once. Both lengths
+    are returned as the fractions that they
+    are."""
     spans = merged(spans)
     seen = sum(y - x for x, y in spans)
     union = sum(y - x
                 for x, y in starts(spans, delta))
-    return (plain(2 * seen - union),
-            plain(2 * (union - seen)))
+    return 2 * seen - union, 2 * (union - seen)
+
+
+def partial(x, n):
+    """The sums of x^i / i! up to i = 0, 1 and
+    so on to n, as fractions, for a fraction
+    x."""
+    out, term = [Fraction(1)], Fraction(1)
+    for i in range(1, n + 1):
+        term = term * x / i
+        out.append(out[-1] + term)
+    return out
 
 
 def paired_upper(n, spans, delta, level=0.95):
@@ -141,50 +166,35 @@ def paired_upper(n, spans, delta, level=0.95):
     Poisson counts. The bound is the rate at
     which so few messages still have
     probability 1 - level; for n = 0 it is
-    paired_bound(). Below a level of one
-    half it is found from the other tail,
-    more than n messages with probability
-    `level`, and each term from the tails on
-    its side of the mean, the small ones."""
+    paired_bound(). With the expected counts
+    a and b of the two sets, that
+    probability is exp(-a - b) times a sum
+    of products of a^j / j! and b^i / i!,
+    which is formed exactly. The float that
+    is returned is the least at which the
+    probability is known to be 1 - level or
+    less, see least()."""
     n = as_count(n)
     if not 0 < level < 1:
         raise ValueError("need 0 < level < 1")
     if not n:
         return paired_bound(spans, delta, level)
     two, one = by_messages(spans, delta)
-    union = two + one
-    if not union > 0:
+    if not two + one > 0:
         raise ValueError("no exposure")
+    tail = 1 - Fraction(level)
 
-    def exactly(k, mean):
-        a = poisson_tails(k - 1, mean)
-        b = poisson_tails(k, mean)
-        if k > mean:
-            return a[1] - b[1]
-        return b[0] - a[0]
-
-    def small(r):
-        low = 0.0
-        high = poisson_tails(n // 2, r * two)[1]
+    def test(rate, digits):
+        half = Fraction(rate) / 2
+        a, b = half * two, half * one
+        sums = partial(b, n)
+        c, term = 0, Fraction(1)
         for j in range(n // 2 + 1):
-            p = exactly(j, r * two)
-            rest = n - 2 * j
-            a, b = poisson_tails(rest, r * one)
-            low, high = low + p * a, high + p * b
-        if level < 0.5:
-            return high < level
-        return low > 1 - level
-    lo, hi = 0.0, 1 / union
-    while small(hi):
-        lo, hi = hi, 2 * hi
-    while True:
-        mid = (lo + hi) / 2
-        if mid in (lo, hi):
-            return 2 * mid
-        if small(mid):
-            lo = mid
-        else:
-            hi = mid
+            c += term * sums[n - 2 * j]
+            term = term * a / (j + 1)
+        ends = sum_within([(c, a + b)], digits)
+        return not_above(ends, tail)
+    return least(test)
 
 
 def kept_starts(spans, delta, keep, unit):
@@ -203,9 +213,12 @@ def kept_starts(spans, delta, keep, unit):
     messages, as when traces are sampled by
     their identifier, and that probability
     is keep. The decisions are independent
-    of the times and of one another."""
+    of the times and of one another. The
+    share is taken as the number that it is,
+    and the length is a fraction."""
     if not 0 < keep <= 1:
         raise ValueError("need 0 < keep <= 1")
+    keep = Fraction(keep)
     two, one = by_messages(spans, delta)
     both = {"message": keep * (2 - keep),
             "request": keep}[unit]
@@ -219,19 +232,33 @@ def searched_bound(seconds, windows, level=0.95):
     looking through all of them, held no
     message: the rate at which such a search
     still succeeds with probability
-    1 - level."""
+    1 - level. Then every window holds a
+    message with probability `level`: the
+    chance of that is the chance for one
+    window, 1 less that of no event, to the
+    power of their number. It is enclosed
+    and compared exactly, and the float
+    that is returned is the least at which
+    it is known to reach the level, see
+    least(). For one window that is
+    quiet_bound()."""
     windows = as_count(windows, "windows", 1)
-    if not seconds > 0:
+    if not 0 < seconds < math.inf:
         raise ValueError("no exposure")
     if not 0 < level < 1:
         raise ValueError("need 0 < level < 1")
-    part = math.log(level) / windows
-    if part < -1:
-        full = level ** (1 / windows)
-        seen = -math.log1p(-full)
-    else:
-        seen = -math.log(-math.expm1(part))
-    return seen / seconds
+    seconds = Fraction(seconds)
+    level = Fraction(level)
+
+    def test(rate, digits):
+        mean = Fraction(rate) * seconds
+        lo, hi = poisson_within(0, mean, digits)
+        if (1 - hi) ** windows >= level:
+            return True
+        if (1 - lo) ** windows < level:
+            return False
+        return None
+    return least(test)
 
 
 def gap_somewhere(rate, total, length):
@@ -243,20 +270,36 @@ def gap_somewhere(rate, total, length):
     Windows that overlap are not independent.
     The sum is the chance for the largest of
     the gaps, see gap_given(), taken over the
-    Poisson count."""
-    if not 0 < length <= total:
+    Poisson count. It is summed in floats
+    from gap_terms(), with signs that
+    alternate, and is good to some thirteen
+    digits."""
+    terms = gap_terms(rate, total, length)
+    return sum(float(c) * math.exp(-x)
+               for c, x in terms)
+
+
+def gap_terms(rate, total, length):
+    """The chance of gap_somewhere() as pairs
+    (c, x), of which it is the sum of
+    c * exp(-x). The three arguments are
+    taken as the numbers that they are, and
+    the pairs are fractions."""
+    if not 0 < length <= total < math.inf:
         raise ValueError("no room for the gap")
     if total > 20 * length:
         raise ValueError("need 20 gaps or fewer")
-    if not rate >= 0:
+    if not 0 <= rate < math.inf:
         raise ValueError("need rate >= 0")
-    out = 0.0
+    rate, total, length = map(
+        Fraction, (rate, total, length))
+    out = []
     for k in range(1, int(total // length) + 1):
         m = rate * (total - k * length)
-        term = m ** (k - 1) * (m / k + 1)
-        term /= math.factorial(k - 1)
-        term *= math.exp(-k * rate * length)
-        out += term if k % 2 else -term
+        c = m ** (k - 1) * (m / k + 1)
+        c /= math.factorial(k - 1)
+        out.append((c if k % 2 else -c,
+                    k * rate * length))
     return out
 
 
@@ -409,38 +452,25 @@ def matched(before=9, now=3, n=60):
           f" {100 * float(p):.2f} %")
 
 
-def rate_at(found, level):
-    """The rate at which found(rate), a chance
-    that falls as the rate grows, is
-    1 - level. The sums behind the two
-    searches are good to some thirteen
-    digits, and a level below 1e-9 would
-    ask more of them."""
-    if not 1e-9 <= level < 1:
-        raise ValueError("need 1e-9 <= level < 1")
-    lo, hi = 0.0, 1.0
-    while found(hi) > 1 - level:
-        lo, hi = hi, 2 * hi
-    for _ in range(200):
-        mid = (lo + hi) / 2
-        if mid in (lo, hi):
-            break
-        if found(mid) > 1 - level:
-            lo = mid
-        else:
-            hi = mid
-    return hi
-
-
 def gap_bound(total, length, level=0.95):
     """Upper bound for the rate when the
     observation is that the record held a
     gap of `length` somewhere: the rate at
     which one is found with probability
-    1 - level."""
-    def found(rate):
-        return gap_somewhere(rate, total, length)
-    return rate_at(found, level)
+    1 - level. The chance is enclosed from
+    gap_terms(), and the float that is
+    returned is the least at which it is
+    known to be 1 - level or less, see
+    least()."""
+    if not 0 < level < 1:
+        raise ValueError("need 0 < level < 1")
+    tail = 1 - Fraction(level)
+
+    def test(rate, digits):
+        terms = gap_terms(rate, total, length)
+        ends = sum_within(terms, digits)
+        return not_above(ends, tail)
+    return least(test)
 
 
 def selections(windows, delta):
@@ -489,12 +519,28 @@ def searched_pairs(windows, delta, level=0.95):
     least one of the windows, found by
     looking through all of them, held none:
     the rate at which such a search still
-    succeeds with probability 1 - level."""
-    terms = selections(windows, delta)
+    succeeds with probability 1 - level. The
+    chance of some_empty() is enclosed, with
+    the selections of one reach taken
+    together: the 1023 selections of ten
+    windows in a row have 24 reaches. The
+    float that is returned is the least at
+    which it is known to be 1 - level or
+    less, see least()."""
+    if not 0 < level < 1:
+        raise ValueError("need 0 < level < 1")
+    net = {}
+    for sign, a in selections(windows, delta):
+        net[a] = net.get(a, 0) + sign
+    tail = 1 - Fraction(level)
 
-    def found(rate):
-        return some_empty(rate, terms)
-    return rate_at(found, level)
+    def test(rate, digits):
+        half = Fraction(rate) / 2
+        pairs = [(c, half * a)
+                 for a, c in net.items()]
+        ends = sum_within(pairs, digits)
+        return not_above(ends, tail)
+    return least(test)
 
 
 def up(rate):
@@ -605,7 +651,8 @@ def models(rows, span, counter=tm.COUNTER):
     covered = reach(live, d)
     print("  requests arriving, each with a")
     print(f"  start and an end {d:g} s apart:")
-    print(f"    starts covered: {covered:g} s")
+    print("    starts covered:"
+          f" {plain(covered):g} s")
     print("    " + most(paired_upper(k, live, d)))
     if k == 0:
         one = quiet_bound(t)
@@ -720,7 +767,7 @@ def spacing(rows, span):
     whole = [(0, 30)]
     print("requests of 60 s, window of 30 s:")
     print("  starts covered:"
-          f" {reach(whole, 60):g} s")
+          f" {plain(reach(whole, 60)):g} s")
     print("    " + most(paired_bound(whole, 60)))
     d = tm.time_delta(rows).value / 1000
     live = seconds(tm.stretches(
@@ -732,7 +779,7 @@ def spacing(rows, span):
     print(f"  {text} s:")
     print(f"  {t:g} s, and for pairs {d:g} s")
     print("  apart, starts covered:"
-          f" {reach(live, d):g} s")
+          f" {plain(reach(live, d)):g} s")
 
 
 def durations():
@@ -751,8 +798,9 @@ def durations():
     for text, shares in cases:
         a = mean_reach(whole, shares)
         print(f"  {text}:")
-        print(f"    starts covered: {a:g} s")
-        print("    " + most(2 * quiet_bound(a)))
+        print("    starts covered:"
+              f" {plain(a):g} s")
+        print("    " + most(quiet_bound(a / 2)))
     low = paired_bound(whole, 30)
     a = mean_reach(whole, cases[1][1])
     still = math.exp(-low / 2 * a)
@@ -783,7 +831,8 @@ def eligible(window, rule, d):
     return {"start": window,
             "end": window,
             "both": max(0, window - d),
-            "either": reach([(0, window)], d)
+            "either": plain(
+                reach([(0, window)], d))
             }[rule]
 
 
@@ -838,13 +887,14 @@ def sampling():
             f"{100 * p:.0f} % of {d} s"
             for p, d in seen)
         a = mean_reach(whole, seen)
-        top = 2 * quiet_bound(a)
+        top = quiet_bound(a / 2)
         true = mean_reach(whole, source)
         still = math.exp(-top / 2 * true)
         print(f"  {text}:")
         print(f"    from {room} of start times")
         print(f"    {mix}")
-        print(f"    starts covered: {a:g} s")
+        print("    starts covered:"
+              f" {plain(a):g} s")
         print("    " + nominal(top))
         print("    the source is silent at"
               f" that: {100 * still:.2f} %")
@@ -868,9 +918,11 @@ def calibrated(k=2, n=20):
     window are independent. The last case
     needs no sample: every request short."""
     def covered(p):
+        p = Fraction(p)
         a = mean_reach([(0, 30)], [(p, 10),
                                    (1 - p, 50)])
-        print(f"    starts covered: {a:g} s")
+        print("    starts covered:"
+              f" {plain(a):g} s")
         return a
     risk = 0.05 / 2
     top = exact_interval(k, n, 1 - 2 * risk)[1]
@@ -880,20 +932,21 @@ def calibrated(k=2, n=20):
           " A silence of 30 s:")
     print(f"  the {100 * k / n:g} %"
           " taken as known:")
-    plain = 2 * quiet_bound(covered(k / n))
-    print("    " + nominal(plain))
+    known = covered(Fraction(k, n))
+    known = quiet_bound(known / 2)
+    print("    " + nominal(known))
     share = upward(100 * top, 3)
     print(f"  at most {share} % of 10 s,"
           " at 97.5 %:")
     a = covered(top)
-    still = math.exp(-plain / 2 * a)
+    still = math.exp(-known / 2 * a)
     print("    silent at the nominal rate:"
           f" {100 * still:.2f} %")
-    held = 2 * quiet_bound(a, 1 - risk)
+    held = quiet_bound(a / 2, 1 - risk)
     print("    " + most(held))
     print("  no sample, all of 10 s:")
-    print("    " + most(2 * quiet_bound(
-        covered(1))))
+    print("    " + most(quiet_bound(
+        covered(1) / 2)))
 
 
 def first_count():
@@ -965,7 +1018,7 @@ def retained():
         a = kept_starts(whole, 10, keep, unit) / 2
         still = math.exp(-single * a)
         print("  pairs 10 s apart, a decision")
-        print(f"  for {text}: {a:g} s")
+        print(f"  for {text}: {plain(a):g} s")
         print("    " + most(quiet_bound(a)))
         print("    silent at the first bound:"
               f" {100 * still:.2f} %")

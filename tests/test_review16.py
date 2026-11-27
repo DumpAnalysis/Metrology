@@ -232,21 +232,36 @@ class FirstPositiveCount(unittest.TestCase):
     def test_closed_forms_for_counts_of_0_1_and_2(self):
         # n = 0: exp(-m) is the whole tail. n = 1: exp(-m)(1 + m). n = 2: exp(-m)(1 + m + m^2 / 2).
         self.assertEqual(rate_limits(0, 30)[0], 0.0)
-        # Since Version 70 an upper limit is moved upward by 1e-12 of itself, so that it is not below the limit
-        # of the model (tests/test_review69.py): 13 places until then.
-        self.assertAlmostEqual(rate_limits(0, 30)[1], -math.log(0.025) / 30, places=12)
-        self.assertGreaterEqual(rate_limits(0, 30)[1], -math.log(0.025) / 30)
-        self.assertAlmostEqual(rate_upper(0, 30), quiet_bound(30), places=14)
+        # In Version 70 an upper limit was moved upward by 1e-12 of itself, and this test asked for 12 places and
+        # for a limit of -log(0.025) / 30 or more. Since Version 71 a limit is the float next to the limit of the
+        # model on its outer side, for the level as the number that it is (tests/test_review70.py). The float 0.95
+        # lies below 95 %, its half tail above 0.025, and the limit for no event two floats below that quotient,
+        # which is the limit of another level, rounded: the floor of Version 70 was a wrong expectation. The
+        # places are 14 again, and the side is tested with fifty digits, at the float and at the float before it.
+        self.assertAlmostEqual(rate_limits(0, 30)[1], -math.log(0.025) / 30, places=14)
+        self.assertEqual(rate_upper(0, 30), quiet_bound(30))
         self.assertAlmostEqual(rate_limits(1, 30)[0], -math.log(0.975) / 30, places=14)
-        # 12 places since Version 70, for the same reason: at a limit on its outer side the tail is 1e-13 below
-        # its nominal value, and never above it.
-        for tail, m in ((0.025, 30 * rate_limits(1, 30)[1]), (0.05, 30 * rate_upper(1, 30))):
-            self.assertAlmostEqual(math.exp(-m) * (1 + m), tail, places=12)
-            self.assertLessEqual(math.exp(-m) * (1 + m), tail)
+        half = (1 - Decimal(0.95)) / 2
+        for n, tail, rate in ((0, half, rate_limits(0, 30)[1]), (1, half, rate_limits(1, 30)[1]),
+                              (1, 2 * half, rate_upper(1, 30))):
+            with localcontext() as ctx:
+                ctx.prec = 50
+                tail = 1 * tail
+                at, before = (30 * Decimal(r) for r in (rate, math.nextafter(rate, 0.0)))
+                self.assertLessEqual((-at).exp() * (1 + n * at), tail, (n, rate))
+                self.assertGreater((-before).exp() * (1 + n * before), tail, (n, rate))
+            m = 30 * rate
+            self.assertAlmostEqual(math.exp(-m) * (1 + n * m), float(tail), places=14)
         low, high = (7 * x for x in rate_limits(2, 7))
-        self.assertAlmostEqual(1 - math.exp(-low) * (1 + low), 0.025, places=12)
-        self.assertAlmostEqual(math.exp(-high) * (1 + high + high * high / 2), 0.025, places=12)
-        self.assertLessEqual(math.exp(-high) * (1 + high + high * high / 2), 0.025)
+        self.assertAlmostEqual(1 - math.exp(-low) * (1 + low), 0.025, places=14)
+        self.assertAlmostEqual(math.exp(-high) * (1 + high + high * high / 2), 0.025, places=14)
+        # Version 70 also asked that this float be 0.025 or less. It is a rounded sum set against the tail of
+        # another level, as above; the side of the limit is tested with fifty digits against the tail of 0.95.
+        with localcontext() as ctx:
+            ctx.prec = 50
+            for rate, more in ((rate_limits(2, 7)[1], False), (math.nextafter(rate_limits(2, 7)[1], 0.0), True)):
+                m = 7 * Decimal(rate)
+                self.assertEqual((-m).exp() * (1 + m + m * m / 2) > half, more, rate)
         # The exposure only scales the limits.
         self.assertAlmostEqual(rate_limits(2, 7)[1] * 7, rate_limits(2, 1)[1], places=12)
 

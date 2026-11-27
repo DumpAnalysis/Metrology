@@ -599,11 +599,12 @@ def mean_duration():
     whole = [(0, 30)]
     ds = [d / 2 for d in range(0, 111)]
     fig, ax = plt.subplots(figsize=(WIDTH, 1.5))
-    ax.plot(ds, [c16s.reach(whole, d) for d in ds], color=BLACK, lw=1.2)
-    ends = [(d, c16s.reach(whole, d)) for d in (10, 50)]
+    # The lengths are fractions since Version 71; plain() gives the numbers that were drawn before.
+    ax.plot(ds, [c16s.plain(c16s.reach(whole, d)) for d in ds], color=BLACK, lw=1.2)
+    ends = [(d, c16s.plain(c16s.reach(whole, d))) for d in (10, 50)]
     ax.plot(*zip(*ends), color=BLACK, lw=0.6, ls=(0, (3.2, 1.6)), marker="o", ms=2.2)
-    one = c16s.mean_reach(whole, [(1, 30)])
-    two = c16s.mean_reach(whole, [(0.5, 10), (0.5, 50)])
+    one = c16s.plain(c16s.mean_reach(whole, [(1, 30)]))
+    two = c16s.plain(c16s.mean_reach(whole, [(0.5, 10), (0.5, 50)]))
     ax.plot([30, 30], [two, one], color=GREY, lw=0.5, ls=":")
     ax.plot([30], [one], marker="o", ms=3.6, color=BLACK, lw=0, zorder=3)
     ax.plot([30], [two], marker="o", ms=3.6, mfc="white", mec=BLACK, mew=0.8, lw=0, zorder=3)

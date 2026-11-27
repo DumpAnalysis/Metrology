@@ -2,10 +2,13 @@
 """Chapter 20: an LLM judge as an instrument."""
 import math
 import random
+from fractions import Fraction
 
 from swmetro.propagate import lpu
 from swmetro.stats import as_count, cohen_kappa
-from swmetro.stats import enclosed
+from swmetro.stats import binomial_within
+from swmetro.stats import enclosed, least
+from swmetro.stats import not_above
 
 # Simulation truth, unknown to the analyst:
 SENS, SPEC = 0.90, 0.85  # judge's hit rates
@@ -118,9 +121,15 @@ def exact_interval(k, n, level=0.95):
     still has probability (1 - level) / 2.
     Without a trial there is no interval, as
     for wilson(), and both counts are whole
-    numbers. Each limit is found from its own
-    tail, and the proportion is halved in
-    until its ends are neighboring floats."""
+    numbers. Each limit is returned on its
+    outer side, as a float next to the
+    limit of the model: the upper one is
+    the least float at which a count this
+    low is known to have that probability
+    or less, and the lower one the float
+    below the least at which a count this
+    high has more, see least() and
+    binomial_within()."""
     n, k = as_count(n), as_count(k, "k")
     if not n:
         raise ValueError("no trials")
@@ -128,25 +137,23 @@ def exact_interval(k, n, level=0.95):
         raise ValueError("need 0 <= k <= n")
     if not 0 < level < 1:
         raise ValueError("need 0 < level < 1")
-    a = (1 - level) / 2
+    a = (1 - Fraction(level)) / 2
 
-    def solve(too_low):
-        lo, hi = 0.0, 1.0
-        while True:
-            mid = (lo + hi) / 2
-            if mid in (lo, hi):
-                return mid
-            if too_low(mid):
-                lo = mid
-            else:
-                hi = mid
+    def low_enough(p, digits):
+        ends = binomial_within(k, n, p, digits)
+        return not_above(ends, a)
+
+    def too_high(p, digits):
+        lo, hi = binomial_within(k - 1, n, p,
+                                 digits)
+        found = not_above((1 - hi, 1 - lo), a)
+        if found is not None:
+            return not found
     low, high = 0.0, 1.0
     if k > 0:
-        low = solve(lambda p:
-                    tails(k - 1, n, p)[1] < a)
+        low = math.nextafter(least(too_high), 0.0)
     if k < n:
-        high = solve(lambda p:
-                     tails(k, n, p)[0] > a)
+        high = least(low_enough)
     return low, high
 
 

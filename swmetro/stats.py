@@ -2,8 +2,11 @@
 import math
 import random
 import statistics as st
-from decimal import Decimal, localcontext
+from decimal import MAX_EMAX, MIN_EMIN, Context
+from decimal import ROUND_CEILING, ROUND_FLOOR
+from decimal import Decimal
 from fractions import Fraction
+from functools import lru_cache
 from numbers import Integral, Real
 
 from .dist import t_within, z_ppf
@@ -88,14 +91,24 @@ def _nan(x):
     return x != x
 
 
+def _finite(x):
+    if isinstance(x, Decimal):
+        return x.is_finite()
+    return x - x == 0
+
+
 def ordered(xs):
     """natives() for values that take ranks. A
-    NaN has no rank. Sorted with the others it
-    stays where it stood, and the same rows in
-    another order then give another percentile.
-    It is refused wherever it stands in the
-    list, also where no rank would select it.
-    An infinity is a value like any other."""
+    NaN has no rank. Where a sort leaves it
+    depends on the order of the list and on
+    the version of Python, and the same rows
+    then give one percentile or another. It is
+    refused wherever it stands in the list,
+    also where no rank would select it. An
+    infinity takes its rank like any other
+    value. What is computed from the values
+    at the ranks is for each function to
+    say, see quantile()."""
     xs = natives(xs)
     if any(map(_nan, xs)):
         raise ValueError("a NaN has no rank")
@@ -258,7 +271,15 @@ def quantile(xs, q, exact=False):
     Between 100 and 101 the 95th percentile is
     2019/20; the float 100.95 lies above that,
     and compared with a limit of 2019/20 it would
-    exceed a limit that the percentile meets."""
+    exceed a limit that the percentile meets.
+    The interpolation is between two finite
+    values. Between a finite value and an
+    infinity it is that infinity, at any rank
+    between theirs, and between the two
+    infinities there is no value, which is
+    refused. The percentile of ecdf_quantile()
+    is a value of the list and needs none of
+    this."""
     xs = ordered(xs)
     pos = exact_q(q) * (len(xs) - 1)
     i = _floor(pos)
@@ -266,6 +287,12 @@ def quantile(xs, q, exact=False):
     w, a, b = pos - i, xs[i], xs[j]
     if not w or b == a:
         return a
+    far = [v for v in (a, b) if not _finite(v)]
+    if far:
+        if len(far) > 1:
+            raise ValueError("no value between"
+                             " the infinities")
+        return far[0]
     f = Fraction(a)
     f += w * (Fraction(b) - f)
     return f if exact else _kept(f, (a, b))
@@ -518,60 +545,217 @@ def _span(exposure, level):
     return exposure, level
 
 
-_FINE = Decimal("1e-45")
-_SLACK = Fraction(1, 10 ** 12)
+DEEPEST = 5120
 
 
-def _rate(count, exposure, up):
-    """An expected count over an exposure:
-    one division of the two numbers that
-    they are, rounded once, to the float on
-    the side that `up` names. An upper bound
-    rounded to the nearest float can lie
-    below what it bounds, and no printing can
-    then recover it. A positive upper bound
-    below every float is the least float
-    above zero, and a lower limit there is
-    zero. A rate beyond the floats is
-    refused: inf is no lower limit of one."""
-    rate = Fraction(count) / Fraction(exposure)
-    try:
-        f = float(rate)
-    except OverflowError:
-        raise ValueError("no rate in a float")
-    if up and f < rate:
-        return math.nextafter(f, math.inf)
-    if not up and f > rate:
-        return math.nextafter(f, -math.inf)
-    return f
+@lru_cache(maxsize=None)
+def _sides(digits):
+    """Two ways of rounding a decimal to so
+    many digits, downward and upward, with
+    exponents as far as Python has them."""
+    return tuple(
+        Context(prec=digits, rounding=way,
+                Emax=MAX_EMAX, Emin=MIN_EMIN)
+        for way in (ROUND_FLOOR, ROUND_CEILING))
 
 
-def _silence(level):
-    """-ln(1 - level), the expected count at
-    which no event has the probability
-    1 - level: to forty digits, and not
-    below it. Under one half it is the sum
-    of level^k / k in decimals. From one
-    half on it is the logarithm of the
-    complement, which is formed exactly
-    first: as a float, 1 - 1e-20 is 1."""
-    x = Fraction(level)
-    with localcontext() as ctx:
-        ctx.prec = 60
-        if 2 * x < 1:
-            d = Decimal(x.numerator)
-            d /= x.denominator
-            term, total, k = d, d, 1
-            while term > total * _FINE:
-                k += 1
-                term *= d
-                total += term / k
+def poisson_within(n, mean, digits=40):
+    """Two fractions that enclose P(X <= n)
+    for a Poisson count with the given
+    expected value, which is taken as the
+    number that it is. The n + 1 terms are
+    summed twice in decimals of so many
+    digits, every step rounded downward for
+    the one sum and upward for the other.
+    Python rounds its exponential to the
+    nearest decimal, and the neighbors of
+    that decimal on either side enclose it.
+    A probability below 10 to the power
+    -10 * digits is enclosed by zero and
+    that power, which keeps the fractions
+    short."""
+    n = as_count(n)
+    mean = native(mean)
+    if not 0 <= mean < math.inf:
+        raise ValueError("need a mean >= 0")
+    mean = Fraction(mean)
+    if not mean:
+        return Fraction(1), Fraction(1)
+    down, up = _sides(digits)
+    a = Decimal(mean.numerator)
+    b = Decimal(mean.denominator)
+    lo, hi = down.divide(a, b), up.divide(a, b)
+    e_lo = down.exp(hi.copy_negate())
+    e_hi = up.exp(lo.copy_negate())
+    p_lo = t_lo = e_lo.next_minus(down)
+    p_hi = t_hi = e_hi.next_plus(up)
+    for k in range(1, n + 1):
+        t_lo = down.multiply(t_lo, lo)
+        t_lo = down.divide(t_lo, k)
+        t_hi = up.multiply(t_hi, hi)
+        t_hi = up.divide(t_hi, k)
+        p_lo = down.add(p_lo, t_lo)
+        p_hi = up.add(p_hi, t_hi)
+    return _ends(p_lo, p_hi, digits)
+
+
+def _ends(lo, hi, digits):
+    """Two decimals that enclose a
+    probability, as fractions."""
+    least_kept = Decimal(10) ** (-10 * digits)
+    if hi < least_kept:
+        return Fraction(0), Fraction(least_kept)
+    return (max(Fraction(lo), Fraction(0)),
+            min(Fraction(hi), Fraction(1)))
+
+
+def _raised(x, n, way):
+    """x >= 0 to the whole power n, each
+    product rounded the one way."""
+    out = Decimal(1)
+    while n:
+        if n % 2:
+            out = way.multiply(out, x)
+        x, n = way.multiply(x, x), n // 2
+    return out
+
+
+def binomial_within(k, n, p, digits=40):
+    """Two fractions that enclose P(X <= k)
+    for k of n independent trials that each
+    succeed with probability p, taken as the
+    number that it is: the k + 1 terms
+    summed twice in decimals, as in
+    poisson_within(). Such a chance is a
+    fraction itself and can be equal to a
+    level, which no number of digits would
+    decide. With more than 40 digits asked
+    for, it is therefore formed in whole
+    numbers, and the two fractions are that
+    chance."""
+    n, k = as_count(n), as_count(k, "k")
+    p = native(p)
+    if not 0 <= p <= 1:
+        raise ValueError("need 0 <= p <= 1")
+    p = Fraction(p)
+    s, t = p.numerator, p.denominator
+    if k >= n or not s:
+        return Fraction(1), Fraction(1)
+    if s == t:
+        return Fraction(0), Fraction(0)
+    if digits > 40:
+        term, total = (t - s) ** n, 0
+        for i in range(k + 1):
+            total += term
+            term = term * ((n - i) * s)
+            term //= (i + 1) * (t - s)
+        return (Fraction(total, t ** n),) * 2
+    down, up = _sides(digits)
+    lo = _raised(down.divide(t - s, t), n, down)
+    hi = _raised(up.divide(t - s, t), n, up)
+    t_lo, t_hi = lo, hi
+    o_lo = down.divide(s, t - s)
+    o_hi = up.divide(s, t - s)
+    for i in range(k):
+        t_lo = down.multiply(t_lo, n - i)
+        t_lo = down.multiply(t_lo, o_lo)
+        t_lo = down.divide(t_lo, i + 1)
+        t_hi = up.multiply(t_hi, n - i)
+        t_hi = up.multiply(t_hi, o_hi)
+        t_hi = up.divide(t_hi, i + 1)
+        lo = down.add(lo, t_lo)
+        hi = up.add(hi, t_hi)
+    return _ends(lo, hi, digits)
+
+
+def sum_within(terms, digits=40):
+    """Two fractions that enclose the sum of
+    c * exp(-x) over the pairs (c, x) of
+    `terms`, with every x >= 0: exp(-x) is
+    the chance of no event at the expected
+    value x and is enclosed as in
+    poisson_within(). The c are taken as
+    the numbers that they are, and they
+    multiply and add exactly."""
+    lo = hi = Fraction(0)
+    for c, x in terms:
+        c = Fraction(native(c))
+        a, b = poisson_within(0, x, digits)
+        if c < 0:
+            a, b = b, a
+        lo, hi = lo + c * a, hi + c * b
+    return lo, hi
+
+
+def not_above(ends, x):
+    """Whether a number that the two ends
+    enclose is at most x: True, False, or
+    None where the ends lie on both sides
+    of x and do not decide."""
+    lo, hi = ends
+    if hi <= x:
+        return True
+    return False if lo > x else None
+
+
+def least(test, digits=40):
+    """The least float above zero at which
+    test(x, digits) holds, for a test that
+    fails below some number and holds above
+    it. The test answers None where its
+    digits do not decide. It is then asked
+    with twice as many, up to DEEPEST, and
+    what stays undecided there is refused.
+    The search doubles a float until the
+    test holds and halves the interval
+    until its ends are neighboring floats:
+    the test fails at the float below the
+    one that is returned. A test that fails
+    at the largest float has no float for
+    an answer, and that is refused too."""
+    def sure(x):
+        nonlocal digits
+        while True:
+            found = test(x, digits)
+            if found is not None:
+                return found
+            if 2 * digits > DEEPEST:
+                raise ValueError(
+                    "not decided in"
+                    f" {digits} digits")
+            digits *= 2
+    top = math.nextafter(math.inf, 0.0)
+    lo, hi = 0.0, 1.0
+    while not sure(hi):
+        if hi == top:
+            raise ValueError("no rate in a float")
+        lo, hi = hi, min(2 * hi, top)
+    while True:
+        mid = lo + (hi - lo) / 2
+        if mid in (lo, hi):
+            return hi
+        if sure(mid):
+            hi = mid
         else:
-            rest = 1 - x
-            d = Decimal(rest.numerator)
-            total = -(d / rest.denominator).ln()
-        total *= 1 + 10 * _FINE
-        return Fraction(total)
+            lo = mid
+
+
+def _upper(n, exposure, tail):
+    """The least float rate at which a count
+    of at most n in the exposure has the
+    probability `tail` or less. The rate
+    times the exposure is formed exactly.
+    At no float is the probability equal to
+    the tail, which would stay undecided: e
+    to a fraction other than zero is no
+    fraction."""
+    exposure = Fraction(exposure)
+
+    def test(rate, digits):
+        mean = Fraction(rate) * exposure
+        ends = poisson_within(n, mean, digits)
+        return not_above(ends, tail)
+    return least(test)
 
 
 def quiet_bound(exposure, level=0.95):
@@ -583,13 +767,18 @@ def quiet_bound(exposure, level=0.95):
     is the time in which an event would have
     been counted, or that time multiplied by
     the probability that an event is kept.
-    The bound is formed to forty digits from
-    the numbers that the exposure and the
-    level are, and the float that is
-    returned is not below it: the nearest
-    float on that side."""
+    The float that is returned is the least
+    one that is not below the bound of the
+    model, for the numbers that the exposure
+    and the level are: at it the silence
+    has at most that probability, and at
+    the float below it more, see least().
+    A bound below every float above zero is
+    the least of them, and a bound above
+    every float is refused."""
     exposure, level = _span(exposure, level)
-    return _rate(_silence(level), exposure, True)
+    tail = 1 - Fraction(level)
+    return _upper(0, exposure, tail)
 
 
 def poisson_tails(n, mean):
@@ -631,44 +820,6 @@ def poisson_at_most(n, mean):
     return poisson_tails(n, mean)[0]
 
 
-def _mean_at(n, tail, above=False, up=None):
-    """The expected value at which a count of
-    at most n has the probability `tail`,
-    or, with `above`, a count above n. The
-    interval is halved until its ends are
-    neighboring floats, however near zero
-    the value lies. With `up` the upper end
-    of that interval is returned, moved
-    upward by 1e-12 of itself, and with
-    `up` false the lower end, moved
-    downward: the tails are sums of floats,
-    which place the value to about 1e-15 of
-    itself, and a limit must not fall on the
-    inner side of the value. Either is a
-    Fraction."""
-    def small(mean):
-        low, high = poisson_tails(n, mean)
-        if above:
-            return high < tail
-        return low > tail
-    lo, hi = 0.0, n + 1.0
-    while small(hi):
-        lo, hi = hi, 2 * hi
-    while True:
-        mid = (lo + hi) / 2
-        if mid in (lo, hi):
-            break
-        if small(mid):
-            lo = mid
-        else:
-            hi = mid
-    if up is None:
-        return mid
-    if up:
-        return Fraction(hi) * (1 + _SLACK)
-    return Fraction(lo) * (1 - _SLACK)
-
-
 def rate_upper(n, exposure, level=0.95):
     """One-sided upper confidence bound for
     the rate of a homogeneous Poisson process
@@ -676,22 +827,15 @@ def rate_upper(n, exposure, level=0.95):
     rate at which a count this low still has
     probability 1 - level. For n = 0 it is
     quiet_bound(). The count is a whole
-    number of events, see as_count(). Below
-    a level of one half the rate is found
-    from the other tail, a count above n
-    with probability `level`: 1 - level
-    would be rounded there. The float that
-    is returned is not below the bound of
-    the model, see _mean_at() and _rate()."""
+    number of events, see as_count(). The
+    float that is returned is the least one
+    that is not below the bound of the
+    model, as for quiet_bound(), at any
+    level that DEEPEST digits decide."""
     n = as_count(n)
     exposure, level = _span(exposure, level)
-    if not n:
-        return quiet_bound(exposure, level)
-    if level < 0.5:
-        top = _mean_at(n, level, True, True)
-    else:
-        top = _mean_at(n, 1 - level, up=True)
-    return _rate(top, exposure, True)
+    tail = 1 - Fraction(level)
+    return _upper(n, exposure, tail)
 
 
 def rate_limits(n, exposure, level=0.95):
@@ -702,20 +846,21 @@ def rate_limits(n, exposure, level=0.95):
     the upper one a count this low, has
     probability (1 - level) / 2. For n = 0
     the lower limit is 0. Each limit is
-    found from its own tail, and each is
-    returned on its outer side: the lower
-    one is not above the limit of the model
-    and the upper one not below it, see
-    _mean_at() and _rate()."""
+    returned on its outer side, as the float
+    next to the limit of the model: the
+    upper one is the least float not below
+    it, and the lower one the greatest float
+    not above it, the float below the least
+    one at which fewer than n events have a
+    probability under 1 less that tail."""
     n = as_count(n)
     exposure, level = _span(exposure, level)
-    a = (1 - level) / 2
-    low = 0
+    a = (1 - Fraction(level)) / 2
+    low = 0.0
     if n:
-        low = _mean_at(n - 1, a, True, False)
-    high = _mean_at(n, a, up=True)
-    return (_rate(low, exposure, False),
-            _rate(high, exposure, True))
+        low = _upper(n - 1, exposure, 1 - a)
+        low = math.nextafter(low, 0.0)
+    return low, _upper(n, exposure, a)
 
 
 def bootstrap(xs, stat, n_boot=1000, seed=1):
@@ -798,10 +943,15 @@ def _kept(f, readings):
     nineteen digits a float can lie outside
     all of them, and the result is returned
     as the whole number or the fraction
-    that it is."""
-    x = float(f)
-    if x == f or all(map(_plain, readings)):
-        return x
+    that it is. So is a result that no float
+    is large enough for."""
+    try:
+        x = float(f)
+    except OverflowError:
+        x = None
+    else:
+        if x == f or all(map(_plain, readings)):
+            return x
     return int(f) if f.denominator == 1 else f
 
 
@@ -831,15 +981,20 @@ def mean(xs):
     exact sum, rounded once. A whole mean of
     ints stays an int, and see _kept(). With
     a reading that is no finite number the
-    mean is the sum of the floats over their
-    number."""
+    mean is what the readings of that kind
+    sum to as floats: an infinity, or a NaN
+    for both infinities or a NaN. The finite
+    readings beside them change nothing, and
+    one too large for a float is no
+    infinity."""
     xs = natives(list(xs))
     try:
         f = st.mean([Fraction(x) for x in xs])
     except (OverflowError, ValueError):
         if not xs:
             raise
-        return sum(map(float, xs)) / len(xs)
+        return sum(float(x) for x in xs
+                   if not _finite(x))
     if set(map(type, xs)) == {int}:
         if f.denominator == 1:
             return int(f)
@@ -866,8 +1021,10 @@ def _held(a, b, var, n, sx, sxx):
     uncertainty: the line would no longer
     be the line of least squares, nor s its
     scatter. A fit with no residual rounds
-    nothing that a float does not hold."""
-    fa, fb = float(a), float(b)
+    nothing that a float does not hold, and
+    a coefficient that no float is large
+    enough for is not rounded."""
+    fa, fb = _near(a), _near(b)
     for ka, kb in ((fa, fb), (a, fb), (fa, b),
                    (a, b)):
         da = Fraction(ka) - a
@@ -877,6 +1034,13 @@ def _held(a, b, var, n, sx, sxx):
         if 10 ** 6 * moved <= var:
             break
     return _whole(ka), _whole(kb)
+
+
+def _near(c):
+    try:
+        return float(c)
+    except OverflowError:
+        return c
 
 
 def _whole(c):
@@ -916,8 +1080,14 @@ def linfit(xs, ys):
     nanoseconds off. With an origin
     subtracted from the stamps first, in
     whole numbers, readings that scatter
-    give floats. A reading that is not a
-    finite number is refused."""
+    give floats. The two uncertainties and s
+    are those of the line of least squares
+    itself, also where the coefficients that
+    are returned are rounded: the residuals
+    of the rounded line can differ from s by
+    what that thousandth allows. A reading
+    that is not a finite number is
+    refused."""
     xs = [Fraction(native(x)) for x in xs]
     ys = [Fraction(native(y)) for y in ys]
     n = len(xs)

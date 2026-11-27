@@ -213,7 +213,8 @@ class RiskNextToOneHalf(unittest.TestCase):
         # Version 15 a lower bound of 1e149.
         rec = opened(file_text("50", "100", dof="1e-9", risk="0.05"))
         self.assertEqual(decide(rec), ("undecided", []))
-        self.assertEqual(guard(rec)[0], (Decimal("1E+149"), Decimal("Infinity")))
+        # In full since Version 71 (tests/test_review70.py); until Version 70 it was rounded to forty digits, 1E+149.
+        self.assertEqual(guard(rec)[0], (Decimal(10 ** 149 + 50), Decimal("Infinity")))
 
     def test_the_tail_is_not_lost_far_out_with_few_degrees_of_freedom(self):
         # With 1e-30 degrees of freedom the upper tail stays near one half as far as floats go,

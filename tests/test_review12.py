@@ -286,7 +286,10 @@ class WhatIsShown(unittest.TestCase):
         # Until Version 14 all four ends were infinite. Since Version 15 a factor that is not
         # computed has its known lower bound, 1e149, and no upper one.
         self.assertEqual((hi, down), (Decimal("Infinity"), Decimal("-Infinity")))
-        self.assertEqual((lo, up), (Decimal("1E+149"), Decimal("-1E+149")))
+        # Until Version 70 a guarded value of more than forty digits was rounded to forty for display, here to
+        # 1E+149 and -1E+149. Since Version 71 guard() returns such a decimal in full, so that two ends next to a
+        # limit stay on their sides of it (tests/test_review70.py): the estimate of 50 is in both.
+        self.assertEqual((lo, up), (Decimal(10 ** 149 + 50), Decimal(50 - 10 ** 149)))
         self.assertEqual(decide(rec), ("undecided", []))
 
     def test_extreme_scales(self):

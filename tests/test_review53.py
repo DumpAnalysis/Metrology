@@ -475,7 +475,10 @@ class PairedModel(unittest.TestCase):
         self.assertEqual(f"{2 * -math.log(0.05) / 30:.3f}", "0.200")
         # The request of the fixture, 2.346 s long: 32.346 s of start times.
         self.assertAlmostEqual(silence.reach(window, 2.346), 32.346, places=12)
-        self.assertEqual(silence.reach(window, Fraction(2346, 1000)), 32.346)
+        # Until Version 70 reach() rounded the length to a float, 32.346. Since Version 71 it returns the fraction
+        # that the length is (tests/test_review70.py), which that float is not, and plain() rounds it.
+        self.assertEqual(silence.reach(window, Fraction(2346, 1000)), Fraction(16173, 500))
+        self.assertEqual(silence.plain(silence.reach(window, Fraction(2346, 1000))), 32.346)
 
     def test_pairs_that_coincide_are_requests_counted_twice(self):
         # With no delay every request brings both messages: at most n messages are at most n // 2 requests.

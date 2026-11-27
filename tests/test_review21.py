@@ -421,8 +421,11 @@ class RequestsOfSeveralDurations(unittest.TestCase):
 
     def test_the_figures(self):
         source = (ROOT / "figures" / "make_figures.py").read_text(encoding="utf-8")
+        # Until Version 70 the figure drew what reach() and mean_reach() returned. Since Version 71 the two return
+        # fractions (tests/test_review70.py), and the figure draws them through plain(), as the numbers it drew.
         for piece in ('save(fig, "fig-16-2-mean-duration.png")', 'save(fig, "fig-16-3-counted-where.png")',
-                      "two = c16s.mean_reach(whole, [(0.5, 10), (0.5, 50)])", "[c16s.reach(whole, d) for d in ds]"):
+                      "two = c16s.plain(c16s.mean_reach(whole, [(0.5, 10), (0.5, 50)]))",
+                      "[c16s.plain(c16s.reach(whole, d)) for d in ds]"):
             self.assertIn(piece, source)
         self.assertNotIn("fig-16-2-counted-where.png", source)
         self.assertEqual(source.count("\n    save(fig, "), 32)

@@ -408,8 +408,12 @@ class DriftCounts(unittest.TestCase):
         self.assertEqual(round(100 * lower, 4), 99.0064)
         self.assertLess(Fraction(990063, 10 ** 6) ** 300, Fraction(1, 20))
         self.assertGreater(Fraction(990064, 10 ** 6) ** 300, Fraction(1, 20))
-        # As the book prints them.
+        # To the nearest hundredth, as the book printed them until Version 70. The 0.30 lies above its bound, as
+        # an upper bound has to, and the 99.01 above a lower one, which it does not hold. Since Version 71 the
+        # text has the lower bound downward at three places, 99.006 % (tests/test_review70.py).
         self.assertEqual((f"{100 * upper:.2f}", f"{100 * lower:.2f}"), ("0.30", "99.01"))
+        self.assertTrue(100 * upper <= 0.30 and 99.006 <= 100 * lower < 99.01)
+        self.assertEqual(math.floor(100_000 * lower) / 1000, 99.006)
         # The rule of three gives nearly the same upper bound.
         self.assertAlmostEqual(3 / 1000, upper, places=4)
 
