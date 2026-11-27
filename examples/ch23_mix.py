@@ -734,22 +734,37 @@ def of_mean(before, after, f):
     open duration stands once, and one whose
     coefficient is zero not at all: a class
     that keeps its share adds nothing to the
-    change of the mix, whatever its
-    durations were."""
+    change of the mix, whatever its finite
+    durations were. The change of the mix
+    is also the mean of one period at its
+    own mix less its mean on the way. Where
+    the way can be infinite, both are, and
+    their difference is not defined: the
+    sum is then a Void, and no number at all
+    where the way is infinite for certain."""
     s, t = shares(before), shares(after)
     m, n = ({k: reach(mean, [(x, 1) for x in v])
              for k, v in rec.items() if v}
             for rec in (before, after))
-    via, inner, mixed = [], [], []
+    ways, inner, mixed = ([], []), [], []
     for c in {*s, *t}:
         a, b = s.get(c, 0), t.get(c, 0)
         x, y = m.get(c), n.get(c)
         w = (1 - f) * a + f * b
-        via.append((b, x) if f else (a, y))
+        ways[0].append((a, y))
+        ways[1].append((b, x))
         inner += [(w, y), (-w, x)]
         mixed += [((1 - f) * (b - a), y),
                   (f * (b - a), x)]
-    return blend(via), blend(inner), blend(mixed)
+    ways = [blend(v) for g, v
+            in zip((1 - f, f), ways) if g]
+    mixed = blend(mixed)
+    if mixed and math.inf in map(min, ways):
+        mixed = math.nan, math.nan
+    elif mixed and math.inf in map(max, ways):
+        mixed = Void(mixed)
+    via = ways[0] if len(ways) == 1 else None
+    return via, blend(inner), mixed
 
 
 def way(stat, rec, mix):
@@ -800,6 +815,8 @@ def held(stat, rec, mix, own, via):
                           weighted(rec, mix)))
         out.append(a - b)
     some = [d for d in out if d == d]
+    if not some:
+        return math.nan, math.nan
     span = min(some), max(some)
     if len(some) < len(out):
         return Void(span)
@@ -917,8 +934,6 @@ def components(before, after, stat=mean,
         verb, why = "determined", ""
         if gone and None in (via, mixed):
             why = f"no {gone} requests {when}"
-        elif via[0] in ENDS:
-            why = f"a duration {when} is infinite"
         elif mixed is None:
             verb = "bounded"
             why = f"open {when}: more than one"

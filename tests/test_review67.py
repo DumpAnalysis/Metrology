@@ -650,7 +650,11 @@ class TheMixContributionOfAPercentile(unittest.TestCase):
         self.assertIn("  mix first: not determined,\n    no bulk requests before\n", text)
         text = printed(mix.components, {"a": [10], "b": [20, 20]}, {"a": [INF, 10], "b": [20]},
                        mix.p95, "p95", "distributions")
-        self.assertIn("  class distributions first: not determined,\n    a duration after is infinite\n", text)
+        # Until Version 68 this order read "not determined, a duration after is infinite", and this test
+        # expected it. The review of Version 68 asked for the two parts where one of them survives: the way
+        # is infinite, the change within the classes is +inf, and the change of the mix takes an infinity
+        # from an infinity.
+        self.assertIn("  class distributions first, via inf ms:\n    within +inf, mix not defined\n", text)
 
     def test_the_docstrings_say_what_is_assumed(self):
         text = " ".join(mix.components.__doc__.split())
@@ -754,8 +758,12 @@ class TheRangeOfTheStudentQuantile(unittest.TestCase):
     def test_the_least_tail(self):
         want = "ValueError: need 2**-1022 <= tail <= 0.5"
         for tail in (5e-324, 1e-320, math.nextafter(LEAST, 0.0), Fraction(1, 10 ** 400), D("1e-400"), 0, 0.0,
-                     -0.1, 0.5000001, 1, True, False):
+                     -0.1, 0.5000001, 1):
             self.assertEqual(refusal(dist.t_isf, tail, 4), want, repr(tail))  # Version 67: 9.49e80 for 1e-400
+        # Until Version 68 True and False stood in the list above and were refused by their range, as 1 and
+        # 0. Since Version 69 the module takes no truth value for a number at all.
+        for flag in (True, False):
+            self.assertEqual(refusal(dist.t_isf, flag, 4), f"TypeError: no number: {flag}")
         for tail in (LEAST, 1e-307, 1e-300, 1e-200):
             got = dist.t_isf(tail, 4)
             with localcontext() as ctx:
@@ -799,7 +807,8 @@ class TheRangeOfTheStudentQuantile(unittest.TestCase):
         text = " ".join(dist.t_isf.__doc__.split())
         self.assertIn("a tail from the least normal float, 2.2e-308, to 0.5", text)
         self.assertIn("A smaller tail is refused", text)
-        self.assertIn("the quantile is taken as 1e150", text)
+        self.assertIn("taken as 1e150, see _capped()", text)                  # until Version 68 said here in full
+        self.assertIn("exceeds `tail` by 1e-12 of it or less", " ".join(dist._capped.__doc__.split()))
 
 
 class TheLargestFloatAsATemperature(unittest.TestCase):

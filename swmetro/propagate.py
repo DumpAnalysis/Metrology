@@ -2,12 +2,12 @@
 (first order) and the Monte Carlo method."""
 import math
 import random
-import statistics as st
 from fractions import Fraction
 
 from .core import resolved
-from .stats import _floor, _root, exact_q, mean
-from .stats import native
+from .stats import _floor, _root, as_count
+from .stats import exact_q, mean, native, natives
+from .stats import variance
 
 
 def correlations(corr, n):
@@ -29,13 +29,18 @@ def correlations(corr, n):
     share all of their error. On that edge
     the rounding of one coefficient can
     decide, and the joint measurements are
-    what to keep."""
+    what to keep. A coefficient is a number
+    as native() gives it: True is no
+    correlation of 1, which would take the
+    whole uncertainty of a difference."""
+    n = as_count(n)
     m = [[Fraction(i == j) for j in range(n)]
          for i in range(n)]
     seen = set()
     for (i, j), r in (corr or {}).items():
         if not (0 <= i < n and 0 <= j < n):
             raise ValueError("no such input")
+        r = native(r)
         if isinstance(r, float):
             r = repr(r)
         r = Fraction(r)
@@ -119,26 +124,64 @@ def lpu(f, xs, us, corr=None):
     return y, _root(var), [float(c) for c in cu]
 
 
+def _finite(*xs):
+    """The numbers as fractions, or None
+    where one of them is not finite."""
+    try:
+        return [Fraction(x) for x in xs]
+    except (ValueError, OverflowError):
+        return None
+
+
 def normal(mu, sigma):
-    """Sampler for a normal distribution. The
-    draws are floats, and a spread that a
-    float of the size of mu cannot show is
-    refused, see resolved(). With no spread
-    every draw is mu as it was given."""
+    """Sampler for a normal distribution with
+    a finite center and a finite standard
+    deviation that is not below zero, both
+    taken as native() gives them. The draws
+    are floats of 64 bits, whatever the type
+    of the two: drawn in the 32 bits of an
+    array, a thousand draws about 1e9 with a
+    standard deviation of 1 are one number.
+    A spread that a float of the size of mu
+    cannot show is refused, see resolved().
+    With no spread every draw is mu."""
+    mu, sigma = native(mu), native(sigma)
+    both = _finite(mu, sigma)
+    if not both or both[1] < 0:
+        raise ValueError("need a finite center"
+                         " and a spread >= 0")
     if sigma == 0:
         return lambda rng: mu
     resolved(mu, sigma)
+    mu, sigma = float(mu), float(sigma)
     return lambda rng: rng.gauss(mu, sigma)
 
 
 def rect(lo, hi):
-    """Sampler for a rectangular distribution,
-    with the same refusal, and with every
-    draw lo where hi is lo."""
-    if hi == lo:
+    """Sampler for a rectangular distribution
+    between two finite limits in their order,
+    taken and drawn in the same way, with the
+    same refusal, and with every draw lo
+    where hi is lo. The width is formed from
+    the limits as the numbers that they are:
+    in eight bits 100 less -100 is -56. No
+    draw lies outside the two limits: a limit
+    that is no float is taken as the float
+    next to it on the inside."""
+    lo, hi = native(lo), native(hi)
+    ends = _finite(lo, hi)
+    if not ends or ends[0] > ends[1]:
+        raise ValueError("need finite lo <= hi")
+    low, top = ends
+    if low == top:
         return lambda rng: lo
-    resolved(max(abs(lo), abs(hi)), hi - lo)
-    return lambda rng: rng.uniform(lo, hi)
+    resolved(max(-low, top), top - low)
+    a, b = float(lo), float(hi)
+    if a < low:
+        a = math.nextafter(a, math.inf)
+    if b > top:
+        b = math.nextafter(b, -math.inf)
+    return lambda rng: rng.uniform(a, b)
 
 
 def monte_carlo(f, samplers, n=100_000, seed=1):
@@ -147,7 +190,7 @@ def monte_carlo(f, samplers, n=100_000, seed=1):
     rng = random.Random(seed)
     samplers = list(samplers)
     ys = [f([s(rng) for s in samplers])
-          for _ in range(n)]
+          for _ in range(as_count(n))]
     ys.sort()
     return ys
 
@@ -170,11 +213,11 @@ def summarize(ys, p=0.95):
     asked for. Where p * n rounds to n, the
     draws are too few for p and are
     refused."""
-    ys = [native(y) for y in ys]
+    ys = natives(list(ys))
     n = len(ys)
     q = _floor(exact_q(p) * n + Fraction(1, 2))
     if q >= n:
         raise ValueError("more draws needed")
     r = (n - q + 1) // 2
     lo, hi = ys[r - 1], ys[r + q - 1]
-    return mean(ys), st.stdev(ys), lo, hi
+    return mean(ys), _root(variance(ys)), lo, hi

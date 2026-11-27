@@ -1,7 +1,15 @@
-"""Normal and Student t helpers."""
+"""Normal and Student t helpers. They compute
+with floats of 64 bits. Degrees of freedom
+are held as such a float, and so is a
+probability unless it is a Fraction or a
+Decimal, which is compared as the number
+that it is. What is a number, and in which
+range, is settled where a result is formed."""
 import math
+from decimal import Decimal
 from fractions import Fraction
 from functools import lru_cache
+from numbers import Real
 from statistics import NormalDist
 
 _N = NormalDist()
@@ -12,6 +20,25 @@ _T_MAX = 1e150
 _LEAST = 2.0 ** -1022  # the least normal float
 _FEW = 1e-9
 _MANY = 1e25
+
+
+def _float(x, exact=False):
+    """x as a float of 64 bits: a float of 32
+    bits would carry its width into every
+    product. With `exact`, a Fraction or a
+    finite Decimal is the fraction that it
+    is: Python compares a fraction with a
+    float exactly, and does not divide a
+    decimal by one. A text and a truth value
+    are no numbers."""
+    real = isinstance(x, (Real, Decimal))
+    if isinstance(x, bool) or not real:
+        raise TypeError(f"no number: {x!r}")
+    kinds = (Fraction, Decimal)
+    if exact and isinstance(x, kinds):
+        if x == x and abs(x) != math.inf:
+            return Fraction(x)
+    return float(x)
 
 
 def _fix(x):
@@ -218,6 +245,7 @@ def t_sf(t, dof):
     the tail is not monotonic: between two
     adjacent values of t it can rise by
     rounding."""
+    dof = _float(dof)
     if t == math.inf:
         return 0.0
     if dof > _MANY:
@@ -261,6 +289,20 @@ def _bisect(below, lo, hi):
     return (lo + hi) / 2
 
 
+def _capped(tail, dof):
+    """True if the upper tail at the ceiling
+    of 1e150 exceeds `tail` by 1e-12 of it or
+    less, the accuracy measured for a tail.
+    The quantile is then taken as 1e150, so
+    that the rounding of a probability does
+    not refuse a quantile below the ceiling.
+    Both searches ask here, in the same
+    quantity: the search from the middle
+    with one half less its probability."""
+    near = t_sf(_T_MAX, dof) / (1 + 1e-12)
+    return near <= tail
+
+
 def _centre(t, dof):
     """P(0 < T < t) of Student's t for t >= 0.
     Next to t = 0 it keeps its relative
@@ -282,7 +324,9 @@ def _z_mid(gap):
     return math.sqrt(2 * math.pi) * gap * z
 
 
-@lru_cache(maxsize=None)
+# typed: an answer that is kept for 1 is
+# not handed to True, which is refused.
+@lru_cache(maxsize=None, typed=True)
 def t_mid(gap, dof):
     """The t >= 0 with P(0 < T < t) = gap, for
     0 < gap < 0.5 and dof > 0: the quantile of
@@ -294,7 +338,10 @@ def t_mid(gap, dof):
     proportional to t, and the quantile is
     found by that proportion. Checked for
     dof of 0.001 and more; with fewer its
-    accuracy is not claimed."""
+    accuracy is not claimed. A quantile
+    beyond 1e150 is refused, and one at that
+    ceiling is taken as 1e150 by _capped()."""
+    gap, dof = _float(gap, True), _float(dof)
     if not 0 < gap < 0.5:
         raise ValueError("need 0 < gap < 0.5")
     if not dof > 0:
@@ -308,7 +355,13 @@ def t_mid(gap, dof):
 
     def below(t):
         return _centre(t, dof) < gap
-    return _bisect(below, lo, 2 * lo)
+    try:
+        return _bisect(below, lo, 2 * lo)
+    except ValueError:
+        tail = Fraction(1, 2) - Fraction(gap)
+        if not _capped(tail, dof):
+            raise
+    return _T_MAX
 
 
 def t_within(p, dof):
@@ -318,13 +371,14 @@ def t_within(p, dof):
     where t is proportional to p, the
     quantile is found for 2**52 p and
     divided by 2**52."""
+    p = _float(p, True)
     if p < 1e-300:
-        big = t_mid(p * 2.0 ** 51, dof)
+        big = t_mid(p * 2 ** 51, dof)
         return big / 2.0 ** 52
     return t_mid(p / 2, dof)
 
 
-@lru_cache(maxsize=None)
+@lru_cache(maxsize=None, typed=True)
 def t_isf(tail, dof):
     """Inverse upper tail of Student's t: the
     t >= 0 with P(T > t) = tail, for dof > 0
@@ -343,12 +397,9 @@ def t_isf(tail, dof):
     from 1/2, which is formed exactly, and
     beyond 1e25 degrees of freedom it is the
     normal quantile. A quantile beyond 1e150
-    is refused. If the tail at 1e150 exceeds
-    the tail asked for by 1e-12 of it or
-    less, the accuracy measured for a tail,
-    the quantile is taken as 1e150, so that
-    the rounding of a tail does not refuse a
-    quantile below it."""
+    is refused, and one at that ceiling is
+    taken as 1e150, see _capped()."""
+    tail, dof = _float(tail, True), _float(dof)
     if not _LEAST <= tail <= 0.5:
         raise ValueError("need 2**-1022"
                          " <= tail <= 0.5")
@@ -367,8 +418,7 @@ def t_isf(tail, dof):
     try:
         return _bisect(below, 0.0, 1.0)
     except ValueError:
-        near = t_sf(_T_MAX, dof) / (1 + 1e-12)
-        if near > tail:
+        if not _capped(tail, dof):
             raise
     return _T_MAX
 
@@ -381,6 +431,7 @@ def t_ppf(p, dof):
     of a small p. The upper half is found
     from 1 - p, which is formed exactly. The
     tails are those of t_isf()."""
+    p = _float(p, True)
     if not 0 < p < 1:
         raise ValueError("p must be in (0, 1)")
     if p < 0.5:

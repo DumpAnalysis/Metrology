@@ -1,13 +1,13 @@
 """Measurement results in GUM terms."""
 import math
-import statistics as st
 from dataclasses import dataclass
 from decimal import Decimal
 from fractions import Fraction
 from numbers import Real
 
 from .dist import t_cdf, t_isf, t_within
-from .stats import mean, native
+from .stats import _root, mean, native, natives
+from .stats import variance
 
 
 _ENDS = (math.inf, -math.inf)
@@ -166,11 +166,10 @@ def _dof(dof):
 
 
 def _level(p):
-    """A coverage probability: a decimal p as
-    the fraction that it is. A truth value
-    is none."""
-    if isinstance(p, bool):
-        raise TypeError("p is no number")
+    """A coverage probability as native()
+    gives it, and a decimal as the fraction
+    that it is. A truth value is none."""
+    p = native(p)
     if isinstance(p, Decimal):
         p = Fraction(p)
     if not 0 <= p < 1:
@@ -374,12 +373,21 @@ def type_a(xs, unit=""):
     """Type A evaluation: the mean and the
     experimental standard deviation of the
     mean of n independent indications. The
-    sum is exact and the mean is rounded
-    once; a whole mean of whole numbers
-    stays a whole number, see mean()."""
-    xs = [native(x) for x in xs]
+    sums are exact, whatever the types of
+    the indications, see variance(). The
+    mean is rounded once, and so is the root
+    of the variance of the mean. A whole
+    mean of ints stays an int, see mean().
+    Indications that differ by less than a
+    float can show have no uncertainty of
+    zero: they are refused."""
+    xs = natives(list(xs))
     n = len(xs)
-    u = st.stdev(xs) / math.sqrt(n)
+    var = variance(xs) / n
+    u = _root(var)
+    if var and not u:
+        raise ValueError(
+            "too fine for a float of this size")
     return Result(mean(xs), u, unit, n - 1)
 
 

@@ -2,7 +2,7 @@
 
 Code examples for the book *Metrology in Software Diagnostics, Observability,
 and Debugging: With Applications to Machine Learning and AI* by Dmitry Vostokov
-(OpenTask, ISBN 978-1-919135-15-1). Book Version 68, November 2026.
+(OpenTask, ISBN 978-1-919135-15-1). Book Version 69, November 2026.
 
 Repository: https://github.com/DumpAnalysis/Metrology
 
@@ -78,7 +78,7 @@ will print different numbers on your machine; that is what they are for.
 | `expected/` | The transcript of each example, as printed in the book. |
 | `data/` | The trace fixture of Chapter 16 (`app_trace.log`) and its seeded generator (`make_trace.py`); the measurement record of Chapter 22 (`measurement_record.json`), a blank template with the same fields (`record_template.json`), a description of the form, of the decision procedure and of what the checker examines (`RECORD_FORMAT.md`), and the program that writes both (`make_record.py`). |
 | `figures/` | `make_figures.py` draws the book's thirty-two figures from the same functions as the examples. Needs matplotlib and Pillow at the versions in `requirements.txt`; output goes to `figures/out/`. |
-| `tests/` | `test_swmetro.py`: unit tests of the package. `test_review.py`, `test_review2.py` to `test_review5.py`, `test_review7.py` to `test_review46.py` and `test_review48.py` to `test_review67.py`: regression tests, numbered by the version of the book whose review they followed; each checks the code against an independent fact (a closed form, a definition evaluated by brute force, a published table, a simulated coverage), not against saved output. `test_release.py`: the license text is the published one, and the record and this file name the repository and the release. |
+| `tests/` | `test_swmetro.py`: unit tests of the package. `test_review.py`, `test_review2.py` to `test_review5.py`, `test_review7.py` to `test_review46.py` and `test_review48.py` to `test_review68.py`: regression tests, numbered by the version of the book whose review they followed; each checks the code against an independent fact (a closed form, a definition evaluated by brute force, a published table, a simulated coverage), not against saved output. `test_release.py`: the license text is the published one, and the record and this file name the repository and the release. |
 | `tools/` | Two optional checks of the Student t quantile against high-precision arithmetic. They need mpmath. |
 | `run_all.py` | The replay program. |
 | `LICENSE` | PolyForm Strict License 1.0.0. |
@@ -156,25 +156,41 @@ A duration enters the examples through `known()` of `swmetro/stats.py`: a
 finite real number, held as `native()` gives it: an `int`, a `float`, a
 `Fraction` or a `Decimal` of Python's own. A NaN, an infinity and a number
 beyond the range of a float are refused as missing, and a Boolean flag, a
-text and `None` as no numbers.
+text and `None` as no numbers. Where an entry that is no duration has a
+meaning, the listing says so: `None` is a timeout in `ch10_censoring`, whose
+completions lie below the deadline of the client, and `None`, a NaN, an
+infinity and a bound such as `(">=", 1000)` keep their meanings in
+`ch23_mix`.
 
 `native()` is where a number enters the functions of the package that
 compute with it: a `Result`, a `Budget`, the Type A and Type B evaluations,
-the law of propagation and the summary of draws, a quantity value with its
-unit, the mean, the interpolated and the weighted quantile, the fitted line,
-the exact test for paired differences, and `known()`. A whole number of a
-fixed width, such as an integer of NumPy, becomes an `int` there, before any
-arithmetic: two readings of 100 in eight bits otherwise have the mean -28,
-because their sum wraps around. A float of another width becomes the float
-that is equal to it, or the fraction. A Boolean flag is refused, although
-Python counts `True` as 1: `Result(200, False, "ms")` is an error and not a
-result without uncertainty, and `as_count()` takes no flag for a count, so
-that `False` is not an observed count of zero. NumPy is not needed, and the
-tests that use its types are skipped where it is not installed.
-Where an entry that is no duration has a meaning, the listing says so:
-`None` is a timeout in `ch10_censoring`, whose completions lie below the
-deadline of the client, and `None`, a NaN, an infinity and a bound such as
-`(">=", 1000)` keep their meanings in `ch23_mix`.
+the law of propagation with its correlation coefficients, the two samplers
+and the summary of draws, a quantity value with its unit, the mean and the
+variance, the three quantiles and the weighted one, the Poisson bounds, the
+fitted line, the exact test for paired differences, and `known()`. A whole
+number of a fixed width, such as an integer of NumPy, becomes an `int`
+there, before any arithmetic: two readings of 100 in eight bits otherwise
+have the mean -28, because their sum wraps around. A `Fraction` that holds
+such numbers as its numerator and denominator is formed anew from ints. A
+float of another width becomes the float that is equal to it, or the
+fraction, and the draws of a sampler and the quotient of a rate bound are
+floats of 64 bits whatever came. A Boolean flag is refused, although Python
+counts `True` as 1: `Result(200, False, "ms")` is an error and not a result
+without uncertainty, and `as_count()` takes no flag for a count, so that
+`False` is not an observed count of zero. NumPy is not needed, and the tests
+that use its types are skipped where it is not installed.
+
+The rank helpers `quantile()`, `order_stat()` and `ecdf_quantile()` take a
+sorted list and look at every value of it once, through `natives()`, before
+a rank is formed: a flag among the durations would otherwise take a place
+and move the rank of the others. A stream that can be read once, a set and
+a table of names and values are refused there: they have no first value.
+Sums are exact for readings of several types: `mean()`, `variance()` and
+`type_a()` take a float beside a `Decimal`, which Python's `statistics`
+module leaves undefined. A reading that is not finite has no variance, and
+indications whose standard deviation of the mean rounds to zero are refused
+and not reported without uncertainty. A rate bound beyond the floats is
+refused as well: an infinity is no lower limit of a rate.
 
 A bound that an example prints is rounded to its safe side, an upper bound
 upward and a lower bound downward, by `upward()` and `downward()` of
@@ -238,7 +254,11 @@ be found; a result without uncertainty needs none. The quantile function
 `t_isf()` itself has that range: a tail from 2.2e-308 to one half, as a
 float, a `Fraction` or a `Decimal`, whose distance from one half is formed
 exactly. A quantile beyond 1e150 is refused, and one whose tail agrees with
-the tail at 1e150 to within the measured accuracy, 1e-12, is taken as 1e150.
+the tail at 1e150 to within the measured accuracy, 1e-12, is taken as 1e150,
+by one rule for the search from the tail and the search from the middle of
+the distribution. The functions of `swmetro/dist.py` compute with floats of
+64 bits and hold their degrees of freedom as one; a probability that is a
+`Fraction` or a `Decimal` is compared as the number that it is.
 `rect_interval()` returns
 exact fractions as well, the center less and plus the exact product of the
 level and the half-width. Nothing in it passes through a float, and no step
@@ -344,7 +364,7 @@ of the versions before it. Seeds alone do not specify a result: the stored
 transcripts, the trace fixture and the measurement record are part of the
 repository for that reason.
 
-These are the files for Version 68 of the book.
+These are the files for Version 69 of the book.
 
 ## License
 

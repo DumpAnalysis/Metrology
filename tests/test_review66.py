@@ -290,11 +290,15 @@ class TheMixContributionOfAMean(unittest.TestCase):
                          ["mean, 125 -> 125 ms or more: +0 ms or more",
                           "  open after: 1 of 4 durations",
                           "  class means first, via 100 ms or more:",
-                          "    within -25 or more, mix +25",
+                          "    within -25 or more, mix +25 if defined",
                           "  mix first, via 150 ms:",
                           "    within -25 or more, mix +25",
                           "  average of the two orders:",
-                          "    within -25 or more, mix +25"])
+                          "    within -25 or more, mix +25 if defined"])
+        # Until Version 68 the first order and the average read "mix +25", and this test expected that. It
+        # is +25 for every x that is a number, as the loop above finds. With the request never completed,
+        # x is infinite, the comparison (125 + x / 4) - (100 + x / 4) takes an infinity from an infinity, and
+        # the review of Version 68 asked for the mark "if defined" (tests/test_review68.py).
 
     def test_a_percentile_is_another_matter(self):
         # It depends on ranks. Until Version 67 an order whose way is a span was reported as not determined,

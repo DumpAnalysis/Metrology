@@ -23,12 +23,21 @@ def native(x):
     have the mean -28. It becomes an int
     before any arithmetic. A float of another
     width becomes the float that is equal to
-    it, or else the fraction that it is."""
+    it, or else the fraction that it is. A
+    Fraction can hold such whole numbers as
+    its two parts, and it is then formed anew
+    from ints."""
     real = isinstance(x, (Real, Decimal))
     if isinstance(x, bool) or not real:
         raise TypeError(f"no number: {x!r}")
-    own = isinstance(x, (Fraction, Decimal))
-    if own or type(x) in (int, float):
+    if isinstance(x, Fraction):
+        n, d = x.numerator, x.denominator
+        if type(n) is type(d) is int:
+            return x
+        return Fraction(int(n), int(d))
+    if isinstance(x, Decimal):
+        return x
+    if type(x) in (int, float):
         return x
     if isinstance(x, Integral):
         return int(x)
@@ -49,6 +58,30 @@ def native(x):
     return y if y == f else f
 
 
+def natives(xs):
+    """The values as a list, each as native()
+    gives it. Every value is looked at, once,
+    before any of them takes a place in a rank
+    or a sum: a flag among nineteen durations
+    would stand there as a duration of 0 or 1
+    and move the rank of the others. A list of
+    ints, floats and decimals alone is handed
+    back as it is. What has no length or no
+    places is refused. A stream can be read
+    once, and whoever takes one reads it into
+    a list. A set has no order, and a table of
+    names and values has no first value."""
+    need = "__len__", "__getitem__"
+    rows = all(hasattr(xs, a) for a in need)
+    if not rows or hasattr(xs, "keys"):
+        raise TypeError("need a list of values")
+    own = {int, float, Decimal}
+    plain = isinstance(xs, list)
+    if plain and set(map(type, xs)) <= own:
+        return xs
+    return [native(x) for x in xs]
+
+
 def exact_q(q):
     """A probability as an exact fraction. A
     float is read as the decimal number that
@@ -57,11 +90,13 @@ def exact_q(q):
     to it. A Fraction, a Decimal, an int or a
     string is taken as it stands; pass one of
     those when another reading is meant. A
-    truth value is no probability."""
-    if isinstance(q, bool):
-        raise TypeError("q is no number")
+    truth value is no probability, and what
+    is no string is taken as native() gives
+    it."""
+    if not isinstance(q, str):
+        q = native(q)
     if isinstance(q, float):
-        q = repr(float(q))
+        q = repr(q)
     f = Fraction(q)
     if not 0 <= f <= 1:
         raise ValueError("q must be in [0, 1]")
@@ -173,11 +208,11 @@ def quantile(xs, q, exact=False):
     2019/20; the float 100.95 lies above that,
     and compared with a limit of 2019/20 it would
     exceed a limit that the percentile meets."""
+    xs = natives(xs)
     pos = exact_q(q) * (len(xs) - 1)
     i = _floor(pos)
     j = min(i + 1, len(xs) - 1)
-    a, b = native(xs[i]), native(xs[j])
-    w = pos - i
+    w, a, b = pos - i, xs[i], xs[j]
     if not w or b == a:
         return a
     f = Fraction(a)
@@ -189,12 +224,14 @@ def lower_rank(q, n):
     """Index, counted from 0, of the lower
     order statistic of n values, which is
     floor(q * (n - 1)) in exact arithmetic."""
-    return _floor(exact_q(q) * (n - 1))
+    return _floor(exact_q(q) * (as_count(n) - 1))
 
 
 def order_stat(xs, q):
     """Lower order statistic of sorted xs: an
-    observed value, with no interpolation."""
+    observed value, with no interpolation,
+    and every value as natives() gives it."""
+    xs = natives(xs)
     return xs[lower_rank(q, len(xs))]
 
 
@@ -204,8 +241,7 @@ def ecdf_rank(q, n):
     convention: the smallest k with k / n >= q,
     found in exact arithmetic from the reading of
     q that exact_q gives. For q = 0 it is 1."""
-    if n < 1:
-        raise ValueError("n must be positive")
+    n = as_count(n, least=1)
     k = -_floor(-exact_q(q) * n)
     return max(k, 1)
 
@@ -217,7 +253,12 @@ def ecdf_quantile(xs, q):
     the quantile that cumulative counts determine,
     and for q > 0 "the q-quantile is at most T"
     means exactly "a share q of the values is at
-    most T". For q = 0 it is the least value."""
+    most T". For q = 0 it is the least value.
+    Every value is taken as natives() gives it: a
+    flag in the place of a duration that is
+    missing would otherwise count as a request
+    within the limit."""
+    xs = natives(xs)
     return xs[ecdf_rank(q, len(xs)) - 1]
 
 
@@ -366,6 +407,7 @@ def quantile_interval(xs, q, p=0.95):
     is None where the sample is too small
     to bound the quantile on that side. See
     quantile_ranks()."""
+    xs = natives(xs)
     lo, hi, _ = quantile_ranks(len(xs), q, p)
     return (xs[lo - 1] if lo else None,
             xs[hi - 1] if hi else None)
@@ -396,6 +438,7 @@ def wilson(k, n, p=0.95):
         raise ValueError("no trials")
     if k > n:
         raise ValueError("need 0 <= k <= n")
+    p = native(p)
     if not 0 < p < 1:
         raise ValueError("need 0 < p < 1")
     z = _z(p)
@@ -409,6 +452,36 @@ def wilson(k, n, p=0.95):
     return low, high
 
 
+def _span(exposure, level):
+    """An exposure and a level as native()
+    gives them: a finite time above zero,
+    and a probability between 0 and 1."""
+    exposure = native(exposure)
+    level = native(level)
+    if not 0 < exposure < math.inf:
+        raise ValueError("no exposure")
+    if not 0 < level < 1:
+        raise ValueError("need 0 < level < 1")
+    return exposure, level
+
+
+def _rate(count, exposure):
+    """An expected count over an exposure:
+    one division of the two numbers that
+    they are, rounded once. Divided by a
+    float of sixteen bits, the quotient is
+    rounded to sixteen bits, and an upper
+    bound can then lie below what it bounds
+    by more than its printed digits allow.
+    A rate beyond the floats is refused:
+    inf is no lower limit of a rate."""
+    rate = Fraction(count) / Fraction(exposure)
+    try:
+        return float(rate)
+    except OverflowError:
+        raise ValueError("no rate in a float")
+
+
 def quiet_bound(exposure, level=0.95):
     """One-sided upper confidence bound for
     the rate of a homogeneous Poisson process
@@ -418,11 +491,8 @@ def quiet_bound(exposure, level=0.95):
     is the time in which an event would have
     been counted, or that time multiplied by
     the probability that an event is kept."""
-    if not native(exposure) > 0:
-        raise ValueError("no exposure")
-    if not 0 < level < 1:
-        raise ValueError("need 0 < level < 1")
-    return -math.log1p(-level) / exposure
+    exposure, level = _span(exposure, level)
+    return _rate(-math.log1p(-level), exposure)
 
 
 def poisson_tails(n, mean):
@@ -434,7 +504,9 @@ def poisson_tails(n, mean):
     outward from the largest one by their
     ratios and divided by their sum, so that
     a large mean does not underflow. The
-    mean is finite and not negative."""
+    mean is finite and not negative, and is
+    held as a float."""
+    mean = float(native(mean))
     if not 0 <= mean < math.inf:
         raise ValueError("need a mean >= 0")
     if n < 0:
@@ -500,17 +572,14 @@ def rate_upper(n, exposure, level=0.95):
     with probability `level`: 1 - level
     would be rounded there."""
     n = as_count(n)
-    if not native(exposure) > 0:
-        raise ValueError("no exposure")
-    if not 0 < level < 1:
-        raise ValueError("need 0 < level < 1")
+    exposure, level = _span(exposure, level)
     if not n:
         return quiet_bound(exposure, level)
     if level < 0.5:
         top = _mean_at(n, level, True)
     else:
         top = _mean_at(n, 1 - level)
-    return top / exposure
+    return _rate(top, exposure)
 
 
 def rate_limits(n, exposure, level=0.95):
@@ -523,16 +592,14 @@ def rate_limits(n, exposure, level=0.95):
     the lower limit is 0. Each limit is
     found from its own tail."""
     n = as_count(n)
-    if not native(exposure) > 0:
-        raise ValueError("no exposure")
-    if not 0 < level < 1:
-        raise ValueError("need 0 < level < 1")
+    exposure, level = _span(exposure, level)
     a = (1 - level) / 2
     low = 0.0
     if n:
         low = _mean_at(n - 1, a, True)
     high = _mean_at(n, a)
-    return low / exposure, high / exposure
+    return (_rate(low, exposure),
+            _rate(high, exposure))
 
 
 def bootstrap(xs, stat, n_boot=1000, seed=1):
@@ -540,7 +607,7 @@ def bootstrap(xs, stat, n_boot=1000, seed=1):
     rng = random.Random(seed)
     n = len(xs)
     reps = [stat(rng.choices(xs, k=n))
-            for _ in range(n_boot)]
+            for _ in range(as_count(n_boot))]
     reps.sort()
     return reps
 
@@ -552,9 +619,10 @@ def block_bootstrap(xs, stat, block,
     dependence within a block is kept."""
     rng = random.Random(seed)
     n = len(xs)
+    block = as_count(block, "block", 1)
     pieces = -(-n // block)
     reps = []
-    for _ in range(n_boot):
+    for _ in range(as_count(n_boot)):
         out = []
         for _ in range(pieces):
             i = rng.randrange(n - block + 1)
@@ -621,16 +689,44 @@ def _kept(f, readings):
     return int(f) if f.denominator == 1 else f
 
 
+def variance(xs):
+    """Experimental variance of the readings:
+    the sum of their squared distances from
+    the mean over n - 1, as the fraction
+    that it is. The readings are taken as
+    natives() gives them and summed as
+    fractions, so that they can be of
+    several types. Python leaves a float
+    beside a decimal undefined in its
+    statistics, and stops at it. There are
+    two readings at least, and all of them
+    are finite."""
+    xs = natives(list(xs))
+    try:
+        fs = [Fraction(x) for x in xs]
+    except (OverflowError, ValueError):
+        raise ValueError("no finite readings")
+    return st.variance(fs)
+
+
 def mean(xs):
     """Mean of the readings, each as native()
-    gives it: an exact sum, rounded once. A
-    whole mean of whole numbers stays whole,
-    and see _kept()."""
-    xs = [native(x) for x in xs]
-    m = st.mean(xs)
-    if isinstance(m, int) or all(map(_plain, xs)):
-        return m
-    f = sum(map(Fraction, xs)) / len(xs)
+    gives it, of one type or of several: an
+    exact sum, rounded once. A whole mean of
+    ints stays an int, and see _kept(). With
+    a reading that is no finite number the
+    mean is the sum of the floats over their
+    number."""
+    xs = natives(list(xs))
+    try:
+        f = st.mean([Fraction(x) for x in xs])
+    except (OverflowError, ValueError):
+        if not xs:
+            raise
+        return sum(map(float, xs)) / len(xs)
+    if set(map(type, xs)) == {int}:
+        if f.denominator == 1:
+            return int(f)
     return _kept(f, xs)
 
 

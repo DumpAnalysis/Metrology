@@ -220,18 +220,25 @@ class ADurationThatWasLost(unittest.TestCase):
         # gave up the first order. From Version 67 a limit is rounded to its safe side, to the hundredth, and
         # each part of the change of a mean is a sum over the classes (tests/test_review66.py).
         self.assertLess(least, 92)
+        # Until Version 68 the two lines with "if defined" ended without those words. The change of the mix in
+        # the first order is the mean of the second period at its own mix less its mean at the mix of the
+        # first. If the lost request never completed, both are infinite, and the review of Version 68 asked for
+        # the same mark that a percentile has (tests/test_review68.py).
         self.assertEqual(text, ["mean, 83 -> 91.81 ms or more: +8.48 ms or more",
                                 "  open after: 1 of 22 durations",
                                 "  class means first, via 83.33 ms or more:",
-                                "    within +0 or more, mix +8.48 or more",
+                                "    within +0 or more, mix +8.48 or more if defined",
                                 "  mix first, via 95 ms:",
                                 "    within -3.64 or more, mix +12",
                                 "  average of the two orders:",
-                                "    within -1.82 or more, mix +10.3 or more"])
+                                "    within -1.82 or more, mix +10.3 or more if defined"])
         # A request stored as infinity before: the statistic of that period is infinite at any mix.
         text = printed(mix.components, {"web": [100.0] * 10 + [math.inf], "api": [50.0] * 5},
                        {"web": [100.0] * 19, "api": [60.0] * 2})
-        self.assertIn("  mix first: not determined,\n    a duration before is infinite\n", text)
+        # Until Version 68 this order read "not determined, a duration before is infinite". Since Version 69
+        # the two parts are printed where one of them survives: the way is infinite, the change within the
+        # classes is minus infinity, and the change of the mix takes an infinity from an infinity.
+        self.assertIn("  mix first, via inf ms:\n    within -inf, mix not defined\n", text)
         self.assertNotIn("nan", text)
 
     def test_a_class_without_requests_keeps_its_line(self):
