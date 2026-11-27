@@ -14,4 +14,4 @@ bounds [50, 100, 200, 250, 500]
   p95 of the record in (100, 200] ms: met
 interpolated in the wide bucket: 241 ms
 if rectangular there (assumed): P = 0.67
-share <= 200 ms: 0.978, 95 % [0.970, 0.983]
+share <= 200 ms: 0.978, 95 % [0.970, 0.984]

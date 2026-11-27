@@ -11,7 +11,8 @@ from swmetro.core import fixed
 from swmetro.dist import phi, z_ppf
 from swmetro.stats import as_count, bootstrap
 from swmetro.stats import downward, ecdf_quantile
-from swmetro.stats import known, quantile_interval
+from swmetro.stats import enclosed, known, native
+from swmetro.stats import quantile_interval
 from swmetro.stats import quiet_bound, rate_limits
 from swmetro.stats import run_length, upward
 
@@ -127,19 +128,26 @@ def arrival(n, seconds=WINDOW):
     upper bound is stated instead. With so
     few that the symmetric interval of the
     estimate would reach below zero, the
-    exact limits are stated instead."""
+    exact limits are stated instead, the
+    lower one rounded downward and the upper
+    one upward. The window is a finite time
+    above zero, as native() gives it, for
+    every count."""
     n = as_count(n)
-    if not seconds > 0:
+    seconds = native(seconds)
+    if not 0 < seconds < math.inf:
         raise ValueError("no exposure")
     if n == 0:
         top = upward(quiet_bound(seconds), 5)
         return f"at most {top} req/s at 95 %"
-    u = math.sqrt(n) / seconds
-    rate = Result(n / seconds, u, "req/s")
+    per = Fraction(seconds)
+    u = float(Fraction(math.sqrt(n)) / per)
+    rate = Result(n / per, u, "req/s")
     if rate.interval()[0] > 0:
         return str(rate)
     lo, hi = rate_limits(n, seconds)
-    return f"{lo:.5f} to {hi:.5f} req/s at 95 %"
+    lo, hi = enclosed(lo, hi, 5)
+    return f"{lo} to {hi} req/s at 95 %"
 
 
 def canary(config, n, rng):
@@ -368,13 +376,12 @@ def main():
     limit = 2 * Z * d.u
     power = phi(5 / d.u - Z)
     upper = upper_bound(d)
-    lo, hi = d.interval()
+    lo, hi = enclosed(*d.interval(), 1)
     print(f"detection limit {limit:.1f} ms")
     print(f"power at 5 ms: {power:.2f}")
     print("upper bound, 95 %:"
           f" {upward(upper, 1)} ms")
-    print("interval, 95 %:"
-          f" [{fixed(lo, 1)}, {fixed(hi, 1)}] ms")
+    print(f"interval, 95 %: [{lo}, {hi}] ms")
     margins(upper)
     ranked(before, after)
     short_trace()

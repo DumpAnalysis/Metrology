@@ -268,9 +268,13 @@ class OneLabelInDoubt(unittest.TestCase):
         rows = []
         for b1, b2 in ((23, 12), (13, 22), (22, 13), (14, 21)):
             ps = probabilities(KNOWN, [(25, 23, b1), (25, 7, b2)])[1]
-            rows.append(f"  A 23, 7; B {b1}, {b2}: {float(min(ps)):.6f} to {float(max(ps)):.6f}")
+            # Until Version 69 both ends of a range were printed to the nearest digit. Since Version 70 the least
+            # probability is rounded downward and the greatest upward, so that the printed range holds them all
+            # (tests/test_review69.py). The last two rows read 0.043828 to 0.050229 and 0.049510 to 0.053854.
+            low, top = math.floor(min(ps) * 10 ** 6) / 10 ** 6, math.ceil(max(ps) * 10 ** 6) / 10 ** 6
+            rows.append(f"  A 23, 7; B {b1}, {b2}: {low:.6f} to {top:.6f}")
         self.assertEqual(lines[38:], ["the 50 in two batches of 25:"] + rows)
-        self.assertEqual(rows[2:], ["  A 23, 7; B 22, 13: 0.043828 to 0.050229", "  A 23, 7; B 14, 21: 0.049510 to 0.053854"])
+        self.assertEqual(rows[2:], ["  A 23, 7; B 22, 13: 0.043828 to 0.050230", "  A 23, 7; B 14, 21: 0.049509 to 0.053854"])
         self.assertEqual(printed(accuracy.main), text)
 
 
@@ -556,18 +560,22 @@ class AMeanAndAnUpperLimit(unittest.TestCase):
 
     def test_the_transcript(self):
         lines = expected("ch23_mix").splitlines()
-        self.assertEqual(len(lines), 122)                    # 84 in Version 49, 96 in 50, 100 in 51, 103 until 57, 108 until 65
+        self.assertEqual(len(lines), 126)                    # 84 in Version 49, 96 in 50, 100 in 51, 103 until 57, 108 until 65, 122 until 69
         at = lines.index("  within 200 ms: 89.1 % to 99.1 %")
         rows = ["  p95 at most 200 ms: unresolved", "  with the slow mean of 450 ms and"]
         for cap, name in ((None, "no other limit"), (800, "none above 800 ms"), (810, "none above 810 ms")):
             k = most_by_trial(900, 450, 200, cap)[0]
             top = self.share(k)
-            rows += [f"  {name}:", f"    to {100 * float(top):.2f} %, {mix.verdict(self.FAST, top)}"]
+            # Until Version 69 the share was printed to the nearest hundredth: 94.93 % for 1424/15 %, which is
+            # 94.9333... and which 525 requests of 200 ms and 375 of 800 ms attain. Since Version 70 the most
+            # that can be within the limit is rounded upward (tests/test_review69.py).
+            up = math.ceil(100 * top * 100) / 100
+            rows += [f"  {name}:", f"    to {up:.2f} %, {mix.verdict(self.FAST, top)}"]
         rows.append("  98 % known within, 2 % missing: met")
         # Version 50 has four lines on one recovered duration before the last of these.
         self.assertEqual(lines[at + 1:at + 9] + lines[at + 20:at + 21], rows)      # four more lines in 51 and three in 52
         self.assertEqual(rows[3], "    to 99.09 %, unresolved")
-        self.assertEqual(rows[5], "    to 94.93 %, missed")
+        self.assertEqual(rows[5], "    to 94.94 %, missed")
         self.assertEqual(rows[7], "    to 95.00 %, unresolved")
 
 

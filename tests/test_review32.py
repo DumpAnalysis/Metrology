@@ -165,7 +165,12 @@ class TheRanksOfAQuantileInterval(unittest.TestCase):
         self.assertEqual(stats.quantile_interval(xs, 0.9), (xs[347], xs[371]))
         self.assertEqual(stats.quantile_interval(xs, 0.9), version_32(xs, 0.9))            # the published interval stands
         text = expected("ch02_targets")
-        self.assertEqual(text.splitlines()[2:4], ["p90 of the process, 95 % [158.0, 174.4]",
+        # Until Version 69 the ends of an interval were printed to the nearest digit. Since Version 70 the
+        # lower end is rounded downward and the upper one upward, so that the printed interval holds the
+        # computed one (tests/test_review69.py). The line read [158.0, 174.4]: the two order statistics are 157.9... and 174.4...
+        self.assertTrue(Fraction("157.9") < Fraction(xs[347]) < 158)
+        self.assertTrue(Fraction("174.4") < Fraction(xs[371]) < Fraction("174.5"))
+        self.assertEqual(text.splitlines()[2:4], ["p90 of the process, 95 % [157.9, 174.5]",
                                                   "  ranks 348 and 372, coverage 95.48 %"])
         self.assertEqual((len(text.splitlines()), printed(targets.main)), (7, text))             # 6 lines in Version 32
         # The text: fewer than 36 values give the p90 no upper end at this level, since 0.9 ** 35 is above 2.5 %.

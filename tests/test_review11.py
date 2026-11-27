@@ -388,8 +388,11 @@ class Speedup(unittest.TestCase):
     def test_the_transcript(self):
         text = expected("ch05_propagation")
         for line in ("MC, independent normal, 200000 draws:", "  sample mean 1.2862  sample sd 0.0348",
-                     "  95 % of draws  [1.220, 1.356]", "exact, independent lognormal:",
-                     "  mean 1.2862  sd 0.0347", "  central 95 %  [1.220, 1.355]", "r = 0.0  S = 1.2855  u_c = 0.0347"):
+                     "  95 % of draws  [1.219, 1.357]", "exact, independent lognormal:",
+                     "  mean 1.2862  sd 0.0347", "  central 95 %  [1.219, 1.356]", "r = 0.0  S = 1.2855  u_c = 0.0347"):
+            # Until Version 69 the ends of an interval were printed to the nearest digit. Since Version 70 the
+            # lower end is rounded downward and the upper one upward, so that the printed interval holds the
+            # computed one (tests/test_review69.py). The two read [1.220, 1.356] and [1.220, 1.355].
             self.assertIn(line + "\n", text)
 
 

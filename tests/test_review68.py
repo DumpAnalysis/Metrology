@@ -524,8 +524,9 @@ class EveryValueBeforeARank(unittest.TestCase):
 
     def test_the_docstrings_say_what_is_checked(self):
         self.assertIn("Every value is looked at, once", " ".join(stats.natives.__doc__.split()))
-        self.assertIn("natives()", stats.ecdf_quantile.__doc__)
-        self.assertIn("natives()", stats.order_stat.__doc__)
+        # Since Version 70 the rank helpers name ordered(), which is natives() and the refusal of a NaN.
+        self.assertIn("ordered()", stats.ecdf_quantile.__doc__)
+        self.assertIn("ordered()", stats.order_stat.__doc__)
 
 
 class ABoundThatIsPrinted(unittest.TestCase):

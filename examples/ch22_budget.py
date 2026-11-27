@@ -6,7 +6,8 @@ from fractions import Fraction
 
 from examples import ch09_histogram as h9
 from swmetro import Budget, Result, u_rect
-from swmetro.stats import bootstrap, known, wilson
+from swmetro.stats import bootstrap, enclosed
+from swmetro.stats import known, wilson
 from swmetro.stats import ecdf_quantile, ecdf_rank
 
 LIMIT = 200.0  # objective: p95 <= 200 ms
@@ -124,10 +125,10 @@ def main():
     print(f"if rectangular there (assumed): "
           f"P = {share:.2f}")
     k = sum(x <= LIMIT for x in xs)
-    a, b = wilson(k, len(xs))
+    a, b = enclosed(*wilson(k, len(xs)), 3)
     frac = k / len(xs)
     print(f"share <= {LIMIT:.0f} ms: {frac:.3f},"
-          f" 95 % [{a:.3f}, {b:.3f}]")
+          f" 95 % [{a}, {b}]")
 
 
 if __name__ == "__main__":

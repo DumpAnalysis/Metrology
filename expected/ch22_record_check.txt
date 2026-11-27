@@ -40,12 +40,12 @@ rounded, estimate 194.6
   status: unresolved
     rounding decides: wants working values
   stored outcome, stale: accept
-  estimate + band: 199.87 to 200.11
+  estimate + band: 199.86 to 200.12
 rounded, estimate 194.8
   decision inputs missing: 0
   status: undecided
   stored outcome, stale: accept
-  estimate + band: 200.07 to 200.31
+  estimate + band: 200.06 to 200.32
 working values, estimate 194.6
   decision inputs missing: 0
   status: accept

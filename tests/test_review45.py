@@ -545,8 +545,12 @@ class ProbabilitiesBeyond4300Digits(unittest.TestCase):
     def test_the_probabilities_of_the_book_are_printed_as_they_were(self):
         lines = expected("ch17_accuracy").splitlines()
         self.assertEqual(lines[32:34], ["23 items to B alone, none to A alone:", "  p = 1.19e-07, two-sided 2.38e-07"])
-        self.assertEqual(lines[25:28], ["  b = 1758: 2.91e-11 to 0.124738", "  b = 1767: 5.68e-14 to 0.051495",
-                                        "  b = 1768: 2.84e-14 to 0.046195"])
+        # Until Version 69 both ends of a range were printed to the nearest digit. Since Version 70 the least
+        # probability is rounded downward and the greatest upward, so that the printed range holds them all
+        # (tests/test_review69.py). The upper ends of two rows read 0.124738 and 0.046195: the greatest
+        # probabilities are 0.1247383875... and 0.0461954783...
+        self.assertEqual(lines[25:28], ["  b = 1758: 2.91e-11 to 0.124739", "  b = 1767: 5.68e-14 to 0.051495",
+                                        "  b = 1768: 2.84e-14 to 0.046196"])
 
 
 class TheTwentySeventhFigure(unittest.TestCase):

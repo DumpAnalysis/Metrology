@@ -68,7 +68,7 @@ start: 2 of 10 s. A silence of 30 s:
     at most 0.14979 msg/s at 95 %
 one message in 30 s: 0.033(33) msg/s
   normal, 95 %: -0.03200 to 0.09867
-  exact, 95 %: 0.00084 to 0.18572
+  exact, 95 %: 0.00084 to 0.18573
   at most 0.15813 msg/s at 95 %
 one message in 30 s, from pairs
   2.346 s apart:

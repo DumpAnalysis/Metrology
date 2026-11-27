@@ -50,7 +50,7 @@ class, 10 % of the mix of before:
   no other limit:
     to 99.09 %, unresolved
   none above 800 ms:
-    to 94.93 %, missed
+    to 94.94 %, missed
   none above 810 ms:
     to 95.00 %, unresolved
   none above 810 ms, one recovered
@@ -110,8 +110,12 @@ p95, 100 -> 90 ms: -10 ms
 period, one duration lost after:
 mean, 100 -> 95 ms or more: -5 ms or more
   open after: 1 of 20 durations
-  the mix is the same in both periods:
+  class means first, via 95 ms or more:
+    within -5 or more, mix +0 if defined
+  mix first, via 100 ms:
     within -5 or more, mix +0
+  average of the two orders:
+    within -5 or more, mix +0 if defined
 p95, 100 -> 100 ms: +0 ms
   open after: 1 of 20 durations
   class distributions first, via 100 ms:

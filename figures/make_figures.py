@@ -43,7 +43,8 @@ from examples import ch22_record_check as c22  # noqa: E402
 from examples import ch23_mix as c23  # noqa: E402
 from swmetro.dist import phi  # noqa: E402
 from swmetro.record import guard  # noqa: E402
-from swmetro.stats import ecdf_quantile, quantile, wilson  # noqa: E402
+from swmetro.stats import downward, ecdf_quantile, quantile  # noqa: E402
+from swmetro.stats import upward, wilson  # noqa: E402
 
 OUT = Path(__file__).resolve().parent / "out"
 WIDTH = 224 / 72  # inches: the drawing, not the text
@@ -1010,20 +1011,26 @@ def psi_null():
 def guard_values():
     """The estimate plus its guard band for the record of Chapter 22 with an
     estimate of 194.6 ms: one number from the working values, a range from
-    the same record rounded to two significant digits."""
+    the same record rounded to two significant digits. The marks stand where
+    the values were computed. The two ends of the range are labeled with
+    bounds, the lower rounded downward and the upper upward, as Listing 22.4
+    prints them; the single value is labeled to the nearest hundredth."""
     rec = c22.load("measurement_record.json")
     change = {("result", "value"): 194.6}
     working = float(guard(c22.altered(rec, change))[0][0])
-    lo, hi = map(float, guard(c22.altered(c22.displayed(rec), change))[0])
+    ends = guard(c22.altered(c22.displayed(rec), change))[0]
+    labels = downward(ends[0], 2), upward(ends[1], 2)
+    lo, hi = map(float, ends)
     limit = float(rec["decision"]["limit"])
     fig, ax = plt.subplots(figsize=(WIDTH, 1.25))
     ax.axvline(limit, color=BLACK, lw=0.4, ls="--")
     ax.text(limit + 0.006, 1.62, f"limit, {limit:.0f} ms", va="center")
     ax.plot([lo, hi], [0, 0], color=BLACK, lw=1.2, marker="|", ms=7, mew=0.9)
     ax.plot([working], [1], marker="o", ms=3.6, color=BLACK)
-    for x, y, ha in ((working, 1, "center"), (lo, 0, "center"),
-                     (hi, 0, "center")):
-        ax.text(x, y + 0.3, f"{x:.2f}", ha=ha, va="bottom")
+    marks = ((working, 1, f"\u2248 {working:.2f}"), (lo, 0, labels[0]),
+             (hi, 0, labels[1]))
+    for x, y, label in marks:
+        ax.text(x, y + 0.3, label, ha="center", va="bottom")
     ax.set_yticks([0, 1])
     ax.set_yticklabels(["rounded\nrecord", "working\nvalues"])
     ax.set_ylim(-0.55, 1.95)

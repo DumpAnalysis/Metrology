@@ -242,8 +242,11 @@ class ExactRate(unittest.TestCase):
 
     def test_the_transcript(self):
         text = expected("ch05_propagation")
-        for line in ("MC     R = 530  u = 131", "MC 95 %  [362, 806]",
-                     "exact  R = 529.56  u = 131.09", "exact 95 %  [362.32, 806.45]"):
+        # Until Version 69 the ends of an interval were printed to the nearest digit. Since Version 70 the
+        # lower end is rounded downward and the upper one upward, so that the printed interval holds the
+        # computed one (tests/test_review69.py). The lines read [362, 806] and [362.32, 806.45].
+        for line in ("MC     R = 530  u = 131", "MC 95 %  [362, 807]",
+                     "exact  R = 529.56  u = 131.09", "exact 95 %  [362.31, 806.46]"):
             self.assertIn(line + "\n", text)
 
 

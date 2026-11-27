@@ -4,7 +4,7 @@ capture."""
 from fractions import Fraction
 
 from swmetro.stats import as_count, ecdf_rank
-from swmetro.stats import exact_q
+from swmetro.stats import enclosed, exact_q
 
 
 def share_bounds(total, captured, failures):
@@ -90,9 +90,8 @@ def main():
     low, high = share_bounds(1000, 960, 20)
     print("1000 requests, 960 outcomes captured,")
     print("20 of them failures")
-    lo, hi = float(100 * low), float(100 * high)
-    print(f"failure share: {lo:.0f} %"
-          f" to {hi:.0f} %")
+    lo, hi = enclosed(100 * low, 100 * high, 0)
+    print(f"failure share: {lo} % to {hi} %")
     for limit in (0.01, 0.03, 0.07):
         text = verdict(low, high, limit)
         pc = 100 * limit

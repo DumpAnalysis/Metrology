@@ -167,7 +167,12 @@ def rect(lo, hi):
     in eight bits 100 less -100 is -56. No
     draw lies outside the two limits: a limit
     that is no float is taken as the float
-    next to it on the inside."""
+    next to it on the inside. Limits whose
+    width no float holds, such as -1e308
+    and 1e308, are not subtracted: a draw
+    is then (1 - u) lo + u hi for a u from
+    0 to 1, where Python's own formula
+    would return an infinity."""
     lo, hi = native(lo), native(hi)
     ends = _finite(lo, hi)
     if not ends or ends[0] > ends[1]:
@@ -181,7 +186,13 @@ def rect(lo, hi):
         a = math.nextafter(a, math.inf)
     if b > top:
         b = math.nextafter(b, -math.inf)
-    return lambda rng: rng.uniform(a, b)
+    if b - a < math.inf:
+        return lambda rng: rng.uniform(a, b)
+
+    def wide(rng):
+        u = rng.random()
+        return (1 - u) * a + u * b
+    return wide
 
 
 def monte_carlo(f, samplers, n=100_000, seed=1):

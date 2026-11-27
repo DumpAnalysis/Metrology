@@ -171,13 +171,25 @@ class ALimitThatIsPrinted(unittest.TestCase):
         self.assertEqual(printed(mix.components, self.A, self.B).splitlines(),
                          ["mean, 200 -> 199.95 ms or more: -0.05 ms or more",
                           "  open after: 1 of 20 durations",
-                          "  the mix is the same in both periods:",
-                          "    within -0.05 or more, mix +0"])
+                          "  class means first, via 199.95 ms or more:",
+                          "    within -0.05 or more, mix +0 if defined",
+                          "  mix first, via 200 ms:",
+                          "    within -0.05 or more, mix +0",
+                          "  average of the two orders:",
+                          "    within -0.05 or more, mix +0 if defined"])
+        # Until Version 69 a change with the same mix in both periods read "the mix is the same in both periods:"
+        # and "within ..., mix +0". Since Version 70 the two orders are printed for it as for any other: in an
+        # order the change of the mix is a mean of one period less itself, and where that mean can be infinite the
+        # difference takes an infinity from an infinity (tests/test_review69.py).
         self.assertEqual(printed(mix.components, self.B, self.A).splitlines(),
                          ["mean, 199.95 or more -> 200 ms: +0.05 ms or less",
                           "  open before: 1 of 20 durations",
-                          "  the mix is the same in both periods:",
-                          "    within +0.05 or less, mix +0"])
+                          "  class means first, via 200 ms:",
+                          "    within +0.05 or less, mix +0",
+                          "  mix first, via 199.95 ms or more:",
+                          "    within +0.05 or less, mix +0 if defined",
+                          "  average of the two orders:",
+                          "    within +0.05 or less, mix +0 if defined"])
 
     def test_no_printed_limit_shuts_out_what_the_record_allows(self):
         rng = random.Random(6601)
@@ -263,8 +275,16 @@ class ALimitThatIsPrinted(unittest.TestCase):
         lost = {"web": [math.inf]}
         self.assertEqual(printed(mix.components, lost, lost).splitlines(),
                          ["mean, inf -> inf ms: not defined",
-                          "  the mix is the same in both periods:",
-                          "    within not defined, mix +0"])
+                          "  class means first, via inf ms:",
+                          "    within not defined, mix not defined",
+                          "  mix first, via inf ms:",
+                          "    within not defined, mix not defined",
+                          "  average of the two orders:",
+                          "    within not defined, mix not defined"])
+        # Until Version 69 a change with the same mix in both periods read "the mix is the same in both periods:"
+        # and "within ..., mix +0". Since Version 70 the two orders are printed for it as for any other: in an
+        # order the change of the mix is a mean of one period less itself, and where that mean can be infinite the
+        # difference takes an infinity from an infinity (tests/test_review69.py).
         # A change that can be anything is another matter: an open duration in each period.
         text = printed(mix.components, {"web": [100, None]}, {"web": [100, None]}).splitlines()
         self.assertEqual(text[0], "mean, 50 or more -> 50 ms or more: no limit")
@@ -363,7 +383,7 @@ class TheMixContributionOfAMean(unittest.TestCase):
     def test_the_transcript_is_what_it_was(self):
         text = (ROOT / "expected" / "ch23_mix.txt").read_text(encoding="utf-8")
         self.assertEqual(printed(mix.main), text)
-        self.assertEqual(len(text.splitlines()), 122)
+        self.assertEqual(len(text.splitlines()), 126)          # 122 until Version 69
         self.assertIn("  mix first: not determined,\n    no bulk requests before\n", text)
 
 

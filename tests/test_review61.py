@@ -289,7 +289,7 @@ class EachStreamIsOpenedOnce(unittest.TestCase):
         self.assertIs(held["a"], again)                                        # a list is taken as it is
         pairs = mix.weighted({"a": again, "b": again})
         self.assertEqual(sum(w for _, w in pairs), 4)
-        self.assertEqual(len(expected("ch23_mix").splitlines()), 122)          # Transcript 23.2; 108 lines until Version 65
+        self.assertEqual(len(expected("ch23_mix").splitlines()), 126)          # Transcript 23.2; 108 lines until Version 65, 122 until 69
 
 
 class PeriodsThatCanBeReadOnce(unittest.TestCase):

@@ -30,10 +30,16 @@ def _float(x, exact=False):
     is: Python compares a fraction with a
     float exactly, and does not divide a
     decimal by one. A text and a truth value
-    are no numbers."""
+    are no numbers. A Fraction is formed
+    anew from ints: its two parts can be of
+    a fixed width, and they are then no key
+    under which an answer can be kept."""
     real = isinstance(x, (Real, Decimal))
     if isinstance(x, bool) or not real:
         raise TypeError(f"no number: {x!r}")
+    if isinstance(x, Fraction):
+        n, d = x.numerator, x.denominator
+        x = Fraction(int(n), int(d))
     kinds = (Fraction, Decimal)
     if exact and isinstance(x, kinds):
         if x == x and abs(x) != math.inf:
@@ -324,9 +330,6 @@ def _z_mid(gap):
     return math.sqrt(2 * math.pi) * gap * z
 
 
-# typed: an answer that is kept for 1 is
-# not handed to True, which is refused.
-@lru_cache(maxsize=None, typed=True)
 def t_mid(gap, dof):
     """The t >= 0 with P(0 < T < t) = gap, for
     0 < gap < 0.5 and dof > 0: the quantile of
@@ -340,8 +343,19 @@ def t_mid(gap, dof):
     dof of 0.001 and more; with fewer its
     accuracy is not claimed. A quantile
     beyond 1e150 is refused, and one at that
-    ceiling is taken as 1e150 by _capped()."""
+    ceiling is taken as 1e150 by _capped().
+    The two arguments are taken as _float()
+    gives them before an answer is kept or
+    looked up: True is no key for the answer
+    of 1."""
     gap, dof = _float(gap, True), _float(dof)
+    return _t_mid(gap, dof)
+
+
+@lru_cache(maxsize=None)
+def _t_mid(gap, dof):
+    """t_mid() for numbers of Python's own,
+    with its answers kept."""
     if not 0 < gap < 0.5:
         raise ValueError("need 0 < gap < 0.5")
     if not dof > 0:
@@ -378,7 +392,6 @@ def t_within(p, dof):
     return t_mid(p / 2, dof)
 
 
-@lru_cache(maxsize=None, typed=True)
 def t_isf(tail, dof):
     """Inverse upper tail of Student's t: the
     t >= 0 with P(T > t) = tail, for dof > 0
@@ -400,6 +413,13 @@ def t_isf(tail, dof):
     is refused, and one at that ceiling is
     taken as 1e150, see _capped()."""
     tail, dof = _float(tail, True), _float(dof)
+    return _t_isf(tail, dof)
+
+
+@lru_cache(maxsize=None)
+def _t_isf(tail, dof):
+    """t_isf() for numbers of Python's own,
+    with its answers kept."""
     if not _LEAST <= tail <= 0.5:
         raise ValueError("need 2**-1022"
                          " <= tail <= 0.5")

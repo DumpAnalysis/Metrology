@@ -5,7 +5,8 @@ import random
 from decimal import Decimal
 from fractions import Fraction
 
-from swmetro.stats import paired_exact, wilson
+from swmetro.stats import enclosed, paired_exact
+from swmetro.stats import wilson
 
 
 def interval_widths():
@@ -15,8 +16,9 @@ def interval_widths():
     for n in (500, 2000, 10_000):
         lo, hi = wilson(round(0.87 * n), n)
         half = f"half-width {50 * (hi - lo):.1f}"
-        print(f"n = {n:>5}: [{100 * lo:.1f}, "
-              f"{100 * hi:.1f}] %, {half} points")
+        lo, hi = enclosed(100 * lo, 100 * hi, 1)
+        print(f"n = {n:>5}: [{lo}, {hi}] %,"
+              f" {half} points")
 
 
 def two_models(n, rng):
@@ -51,19 +53,31 @@ def two_sided(only_a, only_b):
     return one, min(Fraction(1), 2 * two)
 
 
-def shown(p):
+def shown(p, side=round):
     """A probability to print, rounded from
     the fraction itself: six decimals, or
-    three digits where those would show fewer."""
+    three digits where those would show fewer.
+    The least of the probabilities that a
+    record allows is rounded downward, with
+    math.floor as `side`, and the greatest
+    upward, with math.ceil."""
     if p >= Fraction(1, 10000) or not p:
-        n = round(p * 10 ** 6)
+        n = side(p * 10 ** 6)
         return f"{n // 10 ** 6}.{n % 10 ** 6:06d}"
     q = p.denominator // p.numerator
     k = Decimal(q).adjusted() + 1  # digits of q
-    n = round(p * 10 ** (k + 2))
+    n = side(p * 10 ** (k + 2))
     if n == 1000:
         n, k = 100, k - 1
     return f"{n // 100}.{n % 100:02d}e-{k:02d}"
+
+
+def ends(low, top):
+    """The range of the probabilities that a
+    record allows, printed so that it holds
+    them all."""
+    low = shown(low, math.floor)
+    return f"{low} to {shown(top, math.ceil)}"
 
 
 def limits(a, b, n):
@@ -178,8 +192,7 @@ def main():
         print(head)
         for b in bs:
             lo, hi = limits(1722, b, 2000)
-            print(f"  b = {b}: {shown(lo)}"
-                  f" to {shown(hi)}")
+            print(f"  b = {b}: {ends(lo, hi)}")
     one, two = two_sided(0, 23)
     print("23 items to B alone, none to A alone:")
     print(f"  p = {shown(one)}, two-sided "
@@ -190,8 +203,8 @@ def main():
                       ("10 for A alone:", 10, 0)):
         known = (1560, 132 + a, 163, 95 + w)
         ps = partly(known, 1722, 1758, 2000)
-        print(f"  {tag:<18}{shown(ps[0])}"
-              f" to {shown(ps[-1])}")
+        print(f"  {tag:<18}"
+              + ends(ps[0], ps[-1]))
     known = (1560, 132, 163, 95)
     print("the 50 in two batches of 25:")
     for b1, b2 in ((23, 12), (13, 22),
@@ -199,7 +212,7 @@ def main():
         parts = [(25, 23, b1), (25, 7, b2)]
         p = partly(known, 1722, 1758, 2000, parts)
         print(f"  A 23, 7; B {b1}, {b2}: "
-              f"{shown(p[0])} to {shown(p[-1])}")
+              + ends(p[0], p[-1]))
 
 
 if __name__ == "__main__":

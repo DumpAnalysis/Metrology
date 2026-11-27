@@ -193,12 +193,13 @@ def every_probability(right_a, right_b, n):
     return [tails(right_a - both, right_b - both)[1] for both in range(max(0, right_a + right_b - n), min(right_a, right_b) + 1)]
 
 
-def in_decimals(p):
+def in_decimals(p, rounding=decimal.ROUND_HALF_EVEN):
     """A fraction as Transcript 17.1 prints a probability, by decimal arithmetic with 6000 digits: six decimals
-    from 0.0001, and three digits with a power of ten below that."""
+    from 0.0001, and three digits with a power of ten below that. Since Version 70 the least probability of a
+    range is rounded downward and the greatest upward, which the second argument names."""
     with decimal.localcontext() as context:
         context.prec = 6000
-        context.rounding = decimal.ROUND_HALF_EVEN
+        context.rounding = rounding
         value = Decimal(p.numerator) / Decimal(p.denominator)
         if p == 0 or p >= Fraction(1, 10_000):
             return str(value.quantize(Decimal("0.000001")))
@@ -269,10 +270,14 @@ class ExactProbabilitiesForMatchedPairs(unittest.TestCase):
         rows = []
         for right_b in (1722, 1676, 1672):
             ps = every_probability(1722, right_b, 2000)
-            rows.append(f"  b = {right_b}: {in_decimals(min(ps))} to {in_decimals(max(ps))}")
+            # Until Version 69 both ends of a range were printed to the nearest digit. Since Version 70 the least
+            # probability is rounded downward and the greatest upward, so that the printed range holds them all
+            # (tests/test_review69.py). Two rows read 2.84e-14 to 0.066555 and 1.78e-15 to 0.046448.
+            low = in_decimals(min(ps), decimal.ROUND_FLOOR)
+            rows.append(f"  b = {right_b}: {low} to {in_decimals(max(ps), decimal.ROUND_CEILING)}")
         self.assertEqual(lines[28:32], ["and with B level or behind:"] + rows)
-        self.assertEqual(rows, ["  b = 1722: 1.000000 to 1.000000", "  b = 1676: 2.84e-14 to 0.066555",
-                                "  b = 1672: 1.78e-15 to 0.046448"])
+        self.assertEqual(rows, ["  b = 1722: 1.000000 to 1.000000", "  b = 1676: 2.84e-14 to 0.066556",
+                                "  b = 1672: 1.77e-15 to 0.046448"])
         one, two = tails(0, 23)
         self.assertEqual(lines[32:34], ["23 items to B alone, none to A alone:",
                                       f"  p = {in_decimals(one)}, two-sided {in_decimals(two)}"])

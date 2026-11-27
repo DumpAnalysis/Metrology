@@ -2,7 +2,7 @@
 import math
 import random
 import statistics as st
-from decimal import Decimal
+from decimal import Decimal, localcontext
 from fractions import Fraction
 from numbers import Integral, Real
 
@@ -80,6 +80,26 @@ def natives(xs):
     if plain and set(map(type, xs)) <= own:
         return xs
     return [native(x) for x in xs]
+
+
+def _nan(x):
+    if isinstance(x, Decimal):
+        return x.is_nan()
+    return x != x
+
+
+def ordered(xs):
+    """natives() for values that take ranks. A
+    NaN has no rank. Sorted with the others it
+    stays where it stood, and the same rows in
+    another order then give another percentile.
+    It is refused wherever it stands in the
+    list, also where no rank would select it.
+    An infinity is a value like any other."""
+    xs = natives(xs)
+    if any(map(_nan, xs)):
+        raise ValueError("a NaN has no rank")
+    return xs
 
 
 def exact_q(q):
@@ -166,26 +186,57 @@ def _placed(n, places):
     return f"{sign}{whole}.{part:0{places}d}"
 
 
-def upward(x, places):
+def _toward(x, places, limit, sign):
+    """x as text, rounded toward +inf for a
+    sign of 1 and toward -inf for -1, in exact
+    arithmetic. With a limit that x does not
+    reach on that side, places are added until
+    the text does not reach it either."""
+    places = as_count(places, "number of places")
+    x = sign * Fraction(native(x))
+    if limit is not None:
+        limit = sign * Fraction(native(limit))
+    while True:
+        scale = 10 ** places
+        n = math.ceil(x * scale)
+        if limit is None or not x < limit:
+            break
+        if n < limit * scale:
+            break
+        places += 1
+    return _placed(sign * n, places)
+
+
+def upward(x, places, below=None):
     """x as text with `places` decimals, rounded
     toward +inf in exact arithmetic. An upper
     bound that is printed has to stay one, and
     rounded to the nearest it can lie below the
     bound that was computed. A float is the
     binary number that it is, and `places` is a
-    whole number not below 0."""
-    places = as_count(places, "number of places")
-    x = Fraction(native(x))
-    n = math.ceil(x * 10 ** places)
-    return _placed(n, places)
+    whole number not below 0. With `below`, a
+    limit above x, the text stays below it
+    too, with more places where that needs
+    them: 94.9934 % under an objective of 95 %
+    is 94.994 % and not 95.00 %."""
+    return _toward(x, places, below, 1)
 
 
-def downward(x, places):
-    """The same toward -inf, for a lower bound."""
-    places = as_count(places, "number of places")
-    x = Fraction(native(x))
-    n = math.floor(x * 10 ** places)
-    return _placed(n, places)
+def downward(x, places, above=None):
+    """The same toward -inf, for a lower bound,
+    and with `above` a limit below x."""
+    return _toward(x, places, above, -1)
+
+
+def enclosed(low, top, places, limit=None):
+    """The two ends of an interval as text, the
+    lower one rounded downward and the upper
+    one upward: the interval that is printed
+    holds the one that was computed. An end
+    that lies on one side of a `limit` is
+    printed on that side, see upward()."""
+    return (downward(low, places, limit),
+            upward(top, places, limit))
 
 
 def _floor(f):
@@ -208,7 +259,7 @@ def quantile(xs, q, exact=False):
     2019/20; the float 100.95 lies above that,
     and compared with a limit of 2019/20 it would
     exceed a limit that the percentile meets."""
-    xs = natives(xs)
+    xs = ordered(xs)
     pos = exact_q(q) * (len(xs) - 1)
     i = _floor(pos)
     j = min(i + 1, len(xs) - 1)
@@ -230,8 +281,8 @@ def lower_rank(q, n):
 def order_stat(xs, q):
     """Lower order statistic of sorted xs: an
     observed value, with no interpolation,
-    and every value as natives() gives it."""
-    xs = natives(xs)
+    and every value as ordered() gives it."""
+    xs = ordered(xs)
     return xs[lower_rank(q, len(xs))]
 
 
@@ -254,11 +305,13 @@ def ecdf_quantile(xs, q):
     and for q > 0 "the q-quantile is at most T"
     means exactly "a share q of the values is at
     most T". For q = 0 it is the least value.
-    Every value is taken as natives() gives it: a
+    Every value is taken as ordered() gives it: a
     flag in the place of a duration that is
     missing would otherwise count as a request
-    within the limit."""
-    xs = natives(xs)
+    within the limit, and a NaN in its place
+    would leave the percentile to the order of
+    the rows."""
+    xs = ordered(xs)
     return xs[ecdf_rank(q, len(xs)) - 1]
 
 
@@ -407,7 +460,7 @@ def quantile_interval(xs, q, p=0.95):
     is None where the sample is too small
     to bound the quantile on that side. See
     quantile_ranks()."""
-    xs = natives(xs)
+    xs = ordered(xs)
     lo, hi, _ = quantile_ranks(len(xs), q, p)
     return (xs[lo - 1] if lo else None,
             xs[hi - 1] if hi else None)
@@ -465,21 +518,60 @@ def _span(exposure, level):
     return exposure, level
 
 
-def _rate(count, exposure):
+_FINE = Decimal("1e-45")
+_SLACK = Fraction(1, 10 ** 12)
+
+
+def _rate(count, exposure, up):
     """An expected count over an exposure:
     one division of the two numbers that
-    they are, rounded once. Divided by a
-    float of sixteen bits, the quotient is
-    rounded to sixteen bits, and an upper
-    bound can then lie below what it bounds
-    by more than its printed digits allow.
-    A rate beyond the floats is refused:
-    inf is no lower limit of a rate."""
+    they are, rounded once, to the float on
+    the side that `up` names. An upper bound
+    rounded to the nearest float can lie
+    below what it bounds, and no printing can
+    then recover it. A positive upper bound
+    below every float is the least float
+    above zero, and a lower limit there is
+    zero. A rate beyond the floats is
+    refused: inf is no lower limit of one."""
     rate = Fraction(count) / Fraction(exposure)
     try:
-        return float(rate)
+        f = float(rate)
     except OverflowError:
         raise ValueError("no rate in a float")
+    if up and f < rate:
+        return math.nextafter(f, math.inf)
+    if not up and f > rate:
+        return math.nextafter(f, -math.inf)
+    return f
+
+
+def _silence(level):
+    """-ln(1 - level), the expected count at
+    which no event has the probability
+    1 - level: to forty digits, and not
+    below it. Under one half it is the sum
+    of level^k / k in decimals. From one
+    half on it is the logarithm of the
+    complement, which is formed exactly
+    first: as a float, 1 - 1e-20 is 1."""
+    x = Fraction(level)
+    with localcontext() as ctx:
+        ctx.prec = 60
+        if 2 * x < 1:
+            d = Decimal(x.numerator)
+            d /= x.denominator
+            term, total, k = d, d, 1
+            while term > total * _FINE:
+                k += 1
+                term *= d
+                total += term / k
+        else:
+            rest = 1 - x
+            d = Decimal(rest.numerator)
+            total = -(d / rest.denominator).ln()
+        total *= 1 + 10 * _FINE
+        return Fraction(total)
 
 
 def quiet_bound(exposure, level=0.95):
@@ -490,9 +582,14 @@ def quiet_bound(exposure, level=0.95):
     has probability 1 - level. The exposure
     is the time in which an event would have
     been counted, or that time multiplied by
-    the probability that an event is kept."""
+    the probability that an event is kept.
+    The bound is formed to forty digits from
+    the numbers that the exposure and the
+    level are, and the float that is
+    returned is not below it: the nearest
+    float on that side."""
     exposure, level = _span(exposure, level)
-    return _rate(-math.log1p(-level), exposure)
+    return _rate(_silence(level), exposure, True)
 
 
 def poisson_tails(n, mean):
@@ -534,13 +631,21 @@ def poisson_at_most(n, mean):
     return poisson_tails(n, mean)[0]
 
 
-def _mean_at(n, tail, above=False):
+def _mean_at(n, tail, above=False, up=None):
     """The expected value at which a count of
     at most n has the probability `tail`,
     or, with `above`, a count above n. The
     interval is halved until its ends are
     neighboring floats, however near zero
-    the value lies."""
+    the value lies. With `up` the upper end
+    of that interval is returned, moved
+    upward by 1e-12 of itself, and with
+    `up` false the lower end, moved
+    downward: the tails are sums of floats,
+    which place the value to about 1e-15 of
+    itself, and a limit must not fall on the
+    inner side of the value. Either is a
+    Fraction."""
     def small(mean):
         low, high = poisson_tails(n, mean)
         if above:
@@ -552,11 +657,16 @@ def _mean_at(n, tail, above=False):
     while True:
         mid = (lo + hi) / 2
         if mid in (lo, hi):
-            return mid
+            break
         if small(mid):
             lo = mid
         else:
             hi = mid
+    if up is None:
+        return mid
+    if up:
+        return Fraction(hi) * (1 + _SLACK)
+    return Fraction(lo) * (1 - _SLACK)
 
 
 def rate_upper(n, exposure, level=0.95):
@@ -570,16 +680,18 @@ def rate_upper(n, exposure, level=0.95):
     a level of one half the rate is found
     from the other tail, a count above n
     with probability `level`: 1 - level
-    would be rounded there."""
+    would be rounded there. The float that
+    is returned is not below the bound of
+    the model, see _mean_at() and _rate()."""
     n = as_count(n)
     exposure, level = _span(exposure, level)
     if not n:
         return quiet_bound(exposure, level)
     if level < 0.5:
-        top = _mean_at(n, level, True)
+        top = _mean_at(n, level, True, True)
     else:
-        top = _mean_at(n, 1 - level)
-    return _rate(top, exposure)
+        top = _mean_at(n, 1 - level, up=True)
+    return _rate(top, exposure, True)
 
 
 def rate_limits(n, exposure, level=0.95):
@@ -590,16 +702,20 @@ def rate_limits(n, exposure, level=0.95):
     the upper one a count this low, has
     probability (1 - level) / 2. For n = 0
     the lower limit is 0. Each limit is
-    found from its own tail."""
+    found from its own tail, and each is
+    returned on its outer side: the lower
+    one is not above the limit of the model
+    and the upper one not below it, see
+    _mean_at() and _rate()."""
     n = as_count(n)
     exposure, level = _span(exposure, level)
     a = (1 - level) / 2
-    low = 0.0
+    low = 0
     if n:
-        low = _mean_at(n - 1, a, True)
-    high = _mean_at(n, a)
-    return (_rate(low, exposure),
-            _rate(high, exposure))
+        low = _mean_at(n - 1, a, True, False)
+    high = _mean_at(n, a, up=True)
+    return (_rate(low, exposure, False),
+            _rate(high, exposure, True))
 
 
 def bootstrap(xs, stat, n_boot=1000, seed=1):

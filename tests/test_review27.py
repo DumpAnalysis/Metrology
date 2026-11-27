@@ -108,7 +108,10 @@ class HalfASecondKeepsHalfANanosecond(unittest.TestCase):
         self.assertEqual(len(text.splitlines()), 40)         # 24 in Version 27, 33 until Version 39
         # The lines of the chapter that the review reproduced are what they were.
         self.assertTrue(text.startswith("r = 0.0  S = 1.2855  u_c = 0.0347\nr = 0.6  S = 1.2855  u_c = 0.0236\n"))
-        self.assertTrue(text.endswith("exact  R = 529.56  u = 131.09\nexact 95 %  [362.32, 806.45]\n"))
+        # Until Version 69 the ends of an interval were printed to the nearest digit. Since Version 70 the
+        # lower end is rounded downward and the upper one upward, so that the printed interval holds the
+        # computed one (tests/test_review69.py). The last line read [362.32, 806.45].
+        self.assertTrue(text.endswith("exact  R = 529.56  u = 131.09\nexact 95 %  [362.31, 806.46]\n"))
 
 
 def version_27_quantile(xs, q):
@@ -367,8 +370,11 @@ class TheRanksOfAMonteCarloInterval(unittest.TestCase):
         self.assertEqual(propagate.summarize(range(1, 200_001))[2:], (5000, 195_000))
         self.assertEqual(version_27_ranks(200_000, 0.95), (5001, 195_000))            # one draw further in at the lower end
         text = expected("ch05_propagation")
-        self.assertIn("  95 % of draws  [1.220, 1.356]\n", text)
-        self.assertIn("MC 95 %  [362, 806]\n", text)
+        # Until Version 69 the ends of an interval were printed to the nearest digit. Since Version 70 the
+        # lower end is rounded downward and the upper one upward, so that the printed interval holds the
+        # computed one (tests/test_review69.py). The two read [1.220, 1.356] and [362, 806].
+        self.assertIn("  95 % of draws  [1.219, 1.357]\n", text)
+        self.assertIn("MC 95 %  [362, 807]\n", text)
 
 
 def largest_gap_at_least(n, share):

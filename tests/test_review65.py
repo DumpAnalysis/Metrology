@@ -149,10 +149,18 @@ class ADurationThatWasLost(unittest.TestCase):
             self.assertEqual(nineteenth([100] * 19 + [x]), 100)
         for last in (None, float("nan"), Decimal("NaN")):
             text = printed(mix.components, self.BEFORE, self.after(last))
+            # Until Version 69 a change with the same mix in both periods read "the mix is the same in both periods:"
+            # and "within ..., mix +0". Since Version 70 the two orders are printed for it as for any other: in an
+            # order the change of the mix is a mean of one period less itself, and where that mean can be infinite the
+            # difference takes an infinity from an infinity (tests/test_review69.py).
             self.assertEqual(text.splitlines(), ["mean, 100 -> 95 ms or more: -5 ms or more",
                                                  "  open after: 1 of 20 durations",
-                                                 "  the mix is the same in both periods:",
-                                                 "    within -5 or more, mix +0"])
+                                                 "  class means first, via 95 ms or more:",
+                                                 "    within -5 or more, mix +0 if defined",
+                                                 "  mix first, via 100 ms:",
+                                                 "    within -5 or more, mix +0",
+                                                 "  average of the two orders:",
+                                                 "    within -5 or more, mix +0 if defined"])
             text = printed(mix.components, self.BEFORE, self.after(last), mix.p95, "p95", "distributions")
             self.assertEqual(text.splitlines()[0], "p95, 100 -> 100 ms: +0 ms")
             self.assertEqual(text.count("within +0, mix +0"), 3)
@@ -177,9 +185,17 @@ class ADurationThatWasLost(unittest.TestCase):
     def test_a_request_that_never_ended(self):
         # Stored as infinity it is a duration, and no open one: the mean is infinite, and the mix is the same.
         text = printed(mix.components, self.BEFORE, self.after(math.inf))
+        # Until Version 69 a change with the same mix in both periods read "the mix is the same in both periods:"
+        # and "within ..., mix +0". Since Version 70 the two orders are printed for it as for any other: in an
+        # order the change of the mix is a mean of one period less itself, and where that mean can be infinite the
+        # difference takes an infinity from an infinity (tests/test_review69.py).
         self.assertEqual(text.splitlines(), ["mean, 100 -> inf ms: +inf ms",
-                                             "  the mix is the same in both periods:",
-                                             "    within +inf, mix +0"])
+                                             "  class means first, via inf ms:",
+                                             "    within +inf, mix not defined",
+                                             "  mix first, via 100 ms:",
+                                             "    within +inf, mix +0",
+                                             "  average of the two orders:",
+                                             "    within +inf, mix not defined"])
         text = printed(mix.components, self.BEFORE, self.after(math.inf), mix.p95, "p95", "distributions")
         self.assertEqual(text.splitlines()[0], "p95, 100 -> 100 ms: +0 ms")
 
@@ -248,14 +264,15 @@ class ADurationThatWasLost(unittest.TestCase):
     def test_the_transcript(self):
         text = (ROOT / "expected" / "ch23_mix.txt").read_text(encoding="utf-8")
         self.assertEqual(printed(mix.main), text)
-        last = text.splitlines()[-14:]
+        # The last fourteen lines until Version 69, and eighteen since: the mean prints its two orders.
+        last = text.splitlines()[-18:]
         self.assertEqual(last[:6], ["20 web requests of 100 ms in each",
                                     "period, one duration lost after:",
                                     "mean, 100 -> 95 ms or more: -5 ms or more",
                                     "  open after: 1 of 20 durations",
-                                    "  the mix is the same in both periods:",
-                                    "    within -5 or more, mix +0"])
-        self.assertEqual(last[6], "p95, 100 -> 100 ms: +0 ms")
+                                    "  class means first, via 95 ms or more:",
+                                    "    within -5 or more, mix +0 if defined"])
+        self.assertEqual(last[10], "p95, 100 -> 100 ms: +0 ms")
         self.assertLessEqual(max(map(len, text.splitlines())), 50)
 
 

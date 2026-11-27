@@ -417,7 +417,10 @@ class AFlagIsNoNumber(unittest.TestCase):
         for _ in range(60):
             m = (lo + hi) / 2
             lo, hi = (m, hi) if math.exp(-m) * (1 + m) > 0.05 else (lo, m)
-        self.assertAlmostEqual(stats.rate_upper(1, 30) * 30, lo, places=12)
+        # Since Version 70 an upper bound is moved upward by 1e-12 of itself, so that it is not below the bound
+        # of the model (tests/test_review69.py): 12 places until then.
+        self.assertAlmostEqual(stats.rate_upper(1, 30) * 30, lo, places=10)
+        self.assertGreaterEqual(stats.rate_upper(1, 30) * 30, lo)
         for flag in FLAGS:
             self.assertEqual(refusal(stats.rate_upper, flag, 30), "ValueError: need a whole n >= 0")
             self.assertEqual(kind(stats.rate_limits, flag, 30), "ValueError")
@@ -513,7 +516,12 @@ class AKnownInfinityAndAnOpenDuration(unittest.TestCase):
                 lines = printed(mix.components, {"web": [before]}, {"web": [after]}, *args).splitlines()
                 self.assertTrue(lines[0].startswith(f"{name}, "), lines[0])
                 self.assertEqual(lines[0].split(": ")[1], want, (before, after, name))  # Version 67: no limit
-                self.assertEqual(lines[-1], "    within " + want.replace(" ms", "") + ", mix +0")
+                # Until Version 69: "within ..., mix +0" for all four. With one request in each period the mix
+                # is the same, and the change of the mix in an order is a statistic of one period less itself:
+                # an infinity from an infinity where a duration is infinite for certain, and zero if defined
+                # where it is open in both orders (tests/test_review69.py).
+                mixed = "+0 if defined" if (before, after) == (None, None) else "not defined"
+                self.assertEqual(lines[-1], "    within " + want.replace(" ms", "") + ", mix " + mixed)
                 self.assertTrue(all(len(line) <= 50 for line in lines), lines)
 
     def test_the_spans(self):
@@ -547,7 +555,12 @@ class AKnownInfinityAndAnOpenDuration(unittest.TestCase):
     def test_the_change_that_was_right_stays(self):
         lines = printed(mix.components, {"web": [100] * 20}, {"web": [100] * 19 + [None]}).splitlines()
         self.assertEqual(lines[0], "mean, 100 -> 95 ms or more: -5 ms or more")
-        self.assertEqual(lines[-1], "    within -5 or more, mix +0")
+        # Until Version 69 the last line read "within -5 or more, mix +0", after "the mix is the same in both
+        # periods". Since Version 70 the two orders are printed for the same mix as for any other: in the first
+        # the change of the mix is the mean after less itself, and if the lost request never completed that
+        # takes an infinity from an infinity (tests/test_review69.py). The order "mix first" keeps its zero.
+        self.assertEqual(lines[-1], "    within -5 or more, mix +0 if defined")
+        self.assertEqual(lines[4:6], ["  mix first, via 100 ms:", "    within -5 or more, mix +0"])
         lines = printed(mix.components, {"web": [INF]}, {"web": [100]}).splitlines()
         self.assertEqual(lines[0], "mean, inf -> 100 ms: -inf ms")            # always defined: no mark
 

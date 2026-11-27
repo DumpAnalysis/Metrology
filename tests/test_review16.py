@@ -222,21 +222,31 @@ class FirstPositiveCount(unittest.TestCase):
         self.assertEqual(tuple(f"{x:.5f}" for x in rate_limits(1, 30)), ("0.00084", "0.18572"))
         self.assertEqual(f"{rate_upper(1, 30):.5f}", "0.15813")
         text = expected("ch16_silence")
+        # Until Version 69 the ends of an interval were printed to the nearest digit. Since Version 70 the
+        # lower end is rounded downward and the upper one upward, so that the printed interval holds the
+        # computed one (tests/test_review69.py). The exact interval read 0.00084 to 0.18572: its upper limit is 0.185721...
         for line in ("one message in 30 s: 0.033(33) msg/s", "  normal, 95 %: -0.03200 to 0.09867",
-                     "  exact, 95 %: 0.00084 to 0.18572", "  at most 0.15813 msg/s at 95 %"):
+                     "  exact, 95 %: 0.00084 to 0.18573", "  at most 0.15813 msg/s at 95 %"):
             self.assertIn(line + "\n", text)
 
     def test_closed_forms_for_counts_of_0_1_and_2(self):
         # n = 0: exp(-m) is the whole tail. n = 1: exp(-m)(1 + m). n = 2: exp(-m)(1 + m + m^2 / 2).
         self.assertEqual(rate_limits(0, 30)[0], 0.0)
-        self.assertAlmostEqual(rate_limits(0, 30)[1], -math.log(0.025) / 30, places=13)
+        # Since Version 70 an upper limit is moved upward by 1e-12 of itself, so that it is not below the limit
+        # of the model (tests/test_review69.py): 13 places until then.
+        self.assertAlmostEqual(rate_limits(0, 30)[1], -math.log(0.025) / 30, places=12)
+        self.assertGreaterEqual(rate_limits(0, 30)[1], -math.log(0.025) / 30)
         self.assertAlmostEqual(rate_upper(0, 30), quiet_bound(30), places=14)
         self.assertAlmostEqual(rate_limits(1, 30)[0], -math.log(0.975) / 30, places=14)
+        # 12 places since Version 70, for the same reason: at a limit on its outer side the tail is 1e-13 below
+        # its nominal value, and never above it.
         for tail, m in ((0.025, 30 * rate_limits(1, 30)[1]), (0.05, 30 * rate_upper(1, 30))):
-            self.assertAlmostEqual(math.exp(-m) * (1 + m), tail, places=13)
+            self.assertAlmostEqual(math.exp(-m) * (1 + m), tail, places=12)
+            self.assertLessEqual(math.exp(-m) * (1 + m), tail)
         low, high = (7 * x for x in rate_limits(2, 7))
-        self.assertAlmostEqual(1 - math.exp(-low) * (1 + low), 0.025, places=13)
-        self.assertAlmostEqual(math.exp(-high) * (1 + high + high * high / 2), 0.025, places=13)
+        self.assertAlmostEqual(1 - math.exp(-low) * (1 + low), 0.025, places=12)
+        self.assertAlmostEqual(math.exp(-high) * (1 + high + high * high / 2), 0.025, places=12)
+        self.assertLessEqual(math.exp(-high) * (1 + high + high * high / 2), 0.025)
         # The exposure only scales the limits.
         self.assertAlmostEqual(rate_limits(2, 7)[1] * 7, rate_limits(2, 1)[1], places=12)
 
@@ -345,8 +355,11 @@ class ReversedJudge(unittest.TestCase):
 
     def test_the_transcript(self):
         text = expected("ch20_judge")
+        # Until Version 69 the ends of an interval were printed to the nearest digit. Since Version 70 the
+        # lower end is rounded downward and the upper one upward, so that the printed interval holds the
+        # computed one (tests/test_review69.py). The interval read 0.463 to 0.729.
         for line in ("sens 0.10, spec 0.15: reversed judge", "  verdicts exchanged, 60 of 100:", "  corrected +0.6000,",
-                     "  95 % interval 0.463 to 0.729"):
+                     "  95 % interval 0.462 to 0.729"):
             self.assertIn(line + "\n", text)
 
 

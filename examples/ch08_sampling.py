@@ -5,8 +5,9 @@ import random
 import statistics as st
 
 from swmetro.dist import z_ppf
-from swmetro.stats import as_count, exact_q
-from swmetro.stats import run_length, wilson
+from swmetro.stats import as_count, enclosed
+from swmetro.stats import exact_q, run_length
+from swmetro.stats import wilson
 
 UNEVEN = [180] + [5] * 34  # on 35 traces
 
@@ -146,8 +147,9 @@ def profiler():
         k = profile(0.07, n, rng)
         share = 100 * k / n
         lo, hi = (100 * v for v in wilson(k, n))
+        lo, hi = enclosed(lo, hi, 2)
         print(f"n = {n:>6}: {share:5.2f} %  "
-              f"[{lo:5.2f}, {hi:5.2f}]")
+              f"[{lo:>5}, {hi:>5}]")
     need = samples_needed(0.07, 0.08)
     print(f"to tell 7 % from 8 %: n = {need}")
 

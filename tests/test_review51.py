@@ -224,7 +224,7 @@ class OneReadingOrTheLongest(unittest.TestCase):
 
     def test_the_transcript(self):
         lines = expected("ch23_mix").splitlines()
-        self.assertEqual(len(lines), 122)                                        # 103 until Version 57, 108 until 65
+        self.assertEqual(len(lines), 126)                                        # 103 until Version 57, 108 until 65, 122 until 69
         at = lines.index("  720 ms, of one request or of all")
         rows = [f"    one: to {100 * float(share(counts([720], 450)[-1])):.2f} %, unresolved",
                 f"    the longest: to {100 * float(share(counts([720], 450, cap=720)[-1])):.2f} %, missed"]

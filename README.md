@@ -2,7 +2,7 @@
 
 Code examples for the book *Metrology in Software Diagnostics, Observability,
 and Debugging: With Applications to Machine Learning and AI* by Dmitry Vostokov
-(OpenTask, ISBN 978-1-919135-15-1). Book Version 69, November 2026.
+(OpenTask, ISBN 978-1-919135-15-1). Book Version 70, November 2026.
 
 Repository: https://github.com/DumpAnalysis/Metrology
 
@@ -78,7 +78,7 @@ will print different numbers on your machine; that is what they are for.
 | `expected/` | The transcript of each example, as printed in the book. |
 | `data/` | The trace fixture of Chapter 16 (`app_trace.log`) and its seeded generator (`make_trace.py`); the measurement record of Chapter 22 (`measurement_record.json`), a blank template with the same fields (`record_template.json`), a description of the form, of the decision procedure and of what the checker examines (`RECORD_FORMAT.md`), and the program that writes both (`make_record.py`). |
 | `figures/` | `make_figures.py` draws the book's thirty-two figures from the same functions as the examples. Needs matplotlib and Pillow at the versions in `requirements.txt`; output goes to `figures/out/`. |
-| `tests/` | `test_swmetro.py`: unit tests of the package. `test_review.py`, `test_review2.py` to `test_review5.py`, `test_review7.py` to `test_review46.py` and `test_review48.py` to `test_review68.py`: regression tests, numbered by the version of the book whose review they followed; each checks the code against an independent fact (a closed form, a definition evaluated by brute force, a published table, a simulated coverage), not against saved output. `test_release.py`: the license text is the published one, and the record and this file name the repository and the release. |
+| `tests/` | `test_swmetro.py`: unit tests of the package. `test_review.py`, `test_review2.py` to `test_review5.py`, `test_review7.py` to `test_review46.py` and `test_review48.py` to `test_review69.py`: regression tests, numbered by the version of the book whose review they followed; each checks the code against an independent fact (a closed form, a definition evaluated by brute force, a published table, a simulated coverage), not against saved output. `test_release.py`: the license text is the published one, and the record and this file name the repository and the release. |
 | `tools/` | Two optional checks of the Student t quantile against high-precision arithmetic. They need mpmath. |
 | `run_all.py` | The replay program. |
 | `LICENSE` | PolyForm Strict License 1.0.0. |
@@ -174,17 +174,23 @@ have the mean -28, because their sum wraps around. A `Fraction` that holds
 such numbers as its numerator and denominator is formed anew from ints. A
 float of another width becomes the float that is equal to it, or the
 fraction, and the draws of a sampler and the quotient of a rate bound are
-floats of 64 bits whatever came. A Boolean flag is refused, although Python
+floats of 64 bits whatever came. Where the two limits of the rectangular
+sampler lie so far apart that their width is no float, as -1e308 and 1e308
+do, a draw is `(1 - u) lo + u hi` and stays between them. A Boolean flag is
+refused, although Python
 counts `True` as 1: `Result(200, False, "ms")` is an error and not a result
 without uncertainty, and `as_count()` takes no flag for a count, so that
 `False` is not an observed count of zero. NumPy is not needed, and the tests
 that use its types are skipped where it is not installed.
 
 The rank helpers `quantile()`, `order_stat()` and `ecdf_quantile()` take a
-sorted list and look at every value of it once, through `natives()`, before
+sorted list and look at every value of it once, through `ordered()`, before
 a rank is formed: a flag among the durations would otherwise take a place
-and move the rank of the others. A stream that can be read once, a set and
-a table of names and values are refused there: they have no first value.
+and move the rank of the others, and a NaN, which a sort leaves where it
+stood, would give the same rows another percentile in another order. A NaN
+is refused wherever it stands, and an infinity is a value like any other. A
+stream that can be read once, a set and a table of names and values are
+refused there too: they have no first value.
 Sums are exact for readings of several types: `mean()`, `variance()` and
 `type_a()` take a float beside a `Decimal`, which Python's `statistics`
 module leaves undefined. A reading that is not finite has no variance, and
@@ -192,10 +198,29 @@ indications whose standard deviation of the mean rounds to zero are refused
 and not reported without uncertainty. A rate bound beyond the floats is
 refused as well: an infinity is no lower limit of a rate.
 
-A bound that an example prints is rounded to its safe side, an upper bound
-upward and a lower bound downward, by `upward()` and `downward()` of
-`swmetro/stats.py`, in exact arithmetic. The limits of a span in `ch23_mix`
-are printed so, to the hundredth of a millisecond: rounded to the nearest, a
+One convention holds for what the examples print. A value is rounded to the
+nearest digit shown. A bound, and each end of an interval or of a range, is
+rounded to its outer side, an upper one upward and a lower one downward, by
+`upward()`, `downward()` and `enclosed()` of `swmetro/stats.py`, in exact
+arithmetic, so that what is printed holds what was computed. Near a limit
+that the bound does not reach, places are added until the printed bound
+does not reach it either: 94.9934 % under an objective of 95 % prints as
+94.994 %. The replay compares a transcript to one unit in the last place of
+a number, in either direction, and so cannot tell a bound from its
+neighbor; the tests compare the printed ends with references of their own.
+
+The rounding begins before the printing. `quiet_bound()`, the bound for a
+count of zero, is formed to forty digits in decimals from the numbers that
+the exposure and the level are, and returned as the nearest float that is
+not below it; a level so near 1 that it is 1 as a float keeps its
+complement, and a positive bound below every float is the least float above
+zero. `rate_upper()` and `rate_limits()` find their limits by a search that
+places them to about 1e-15 of their values, move each outward by 1e-12 of
+itself, and round the quotient by the exposure to the float on the outer
+side. A lower limit of zero stays zero.
+
+The limits of a span in `ch23_mix` are printed by that convention, to the
+hundredth of a millisecond: rounded to the nearest, a
 mean of 199.95 ms or more would print as 200 ms or more. A limit is compared
 with the bound as it was computed, not with its printed form, and the bound
 is computed without rounding: in `ch23_case` a change of a percentile is an
@@ -258,7 +283,11 @@ the tail at 1e150 to within the measured accuracy, 1e-12, is taken as 1e150,
 by one rule for the search from the tail and the search from the middle of
 the distribution. The functions of `swmetro/dist.py` compute with floats of
 64 bits and hold their degrees of freedom as one; a probability that is a
-`Fraction` or a `Decimal` is compared as the number that it is.
+`Fraction` or a `Decimal` is compared as the number that it is. The two
+searches keep their answers under the numbers as Python's own, taken before
+an answer is looked up, so that a `Fraction` whose parts are integers of
+NumPy is the key of `Fraction(1, 4)`, and `True` is refused and never the
+key of 1.
 `rect_interval()` returns
 exact fractions as well, the center less and plus the exact product of the
 level and the half-width. Nothing in it passes through a float, and no step
@@ -364,7 +393,7 @@ of the versions before it. Seeds alone do not specify a result: the stored
 transcripts, the trace fixture and the measurement record are part of the
 repository for that reason.
 
-These are the files for Version 69 of the book.
+These are the files for Version 70 of the book.
 
 ## License
 

@@ -7,7 +7,8 @@ from pathlib import Path
 
 from examples import ch16_trace_measurements as tm
 from examples.ch20_judge import exact_interval
-from swmetro.stats import as_count, paired_exact
+from swmetro.stats import as_count, enclosed
+from swmetro.stats import paired_exact
 from swmetro.stats import poisson_tails, upward
 from swmetro.stats import quiet_bound
 from swmetro.stats import rate_limits, rate_upper
@@ -899,12 +900,10 @@ def first_count():
     """The first count above zero."""
     c = tm.current(1, 30)
     print(f"one message in 30 s: {c}")
-    lo, hi = map(float, c.interval())
-    print("  normal, 95 %:"
-          f" {lo:.5f} to {hi:.5f}")
-    lo, hi = rate_limits(1, 30)
-    print("  exact, 95 %:"
-          f" {lo:.5f} to {hi:.5f}")
+    lo, hi = enclosed(*c.interval(), 5)
+    print(f"  normal, 95 %: {lo} to {hi}")
+    lo, hi = enclosed(*rate_limits(1, 30), 5)
+    print(f"  exact, 95 %: {lo} to {hi}")
     print("  " + most(rate_upper(1, 30)))
 
 

@@ -513,7 +513,10 @@ class RareTails(unittest.TestCase):
         a = (1 - NEXT_TO_ONE) / 2
         self.assertEqual(1 - a, 1.0)                                              # why 1 less the other tail fails
         low = stats.rate_limits(1, 1, NEXT_TO_ONE)[0]
-        self.assertTrue(math.isclose(low, -math.log1p(-a), rel_tol=1e-12), low)   # Version 52: 3.11e-61
+        # Since Version 70 a lower limit is moved downward by 1e-12 of itself, so that it is not above the limit
+        # of the model (tests/test_review69.py): the tolerance was 1e-12 until then.
+        self.assertTrue(math.isclose(low, -math.log1p(-a), rel_tol=3e-12), low)   # Version 52: 3.11e-61
+        self.assertLessEqual(low, -math.log1p(-a))
         low = judge.exact_interval(1, 10, NEXT_TO_ONE)[0]
         self.assertTrue(math.isclose(low, -math.expm1(math.log1p(-a) / 10), rel_tol=1e-12), low)   # 1.08e-17
         k = Result(0, 1).k(1e-18)

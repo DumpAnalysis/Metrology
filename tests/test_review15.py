@@ -302,9 +302,12 @@ class JudgeModel(unittest.TestCase):
     def test_the_transcript(self):
         text = expected("ch20_judge")
         for line in ("2 of 20 judged passes:", "  95 % interval 0.000 to 0.223", "0 of 25 judged passes:",
-                     "  corrected -0.2000, below 0", "  judged rate 0.000 to 0.137,", "40 of 40 judged passes:",
-                     "  corrected +1.1333, above 1", "  judged rate 0.912 to 1.000,", "  no overlap with the judge",
+                     "  corrected -0.2000, below 0", "  judged rate 0.000 to 0.138,", "40 of 40 judged passes:",
+                     "  corrected +1.1333, above 1", "  judged rate 0.911 to 1.000,", "  no overlap with the judge",
                      "  model, 0.15 to 0.90, at 95 %"):
+            # Until Version 69 the ends of an interval were printed to the nearest digit. Since Version 70 the
+            # lower end is rounded downward and the upper one upward, so that the printed interval holds the
+            # computed one (tests/test_review69.py). The two read 0.000 to 0.137 and 0.912 to 1.000.
             self.assertIn(line + "\n", text)
         self.assertEqual(text.count("  no overlap with the judge\n"), 2)
 

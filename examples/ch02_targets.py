@@ -3,7 +3,7 @@
 import random
 
 from swmetro.stats import ecdf_quantile
-from swmetro.stats import quantile_ranks
+from swmetro.stats import enclosed, quantile_ranks
 
 
 def record(n, rng):
@@ -32,13 +32,14 @@ def main():
     cover = 100 * (b - a) / (n + 1)
     print(f"record of {n} latencies, ms")
     print(f"p90 of the record        {p90:7.1f}")
+    low, top = enclosed(xs[lo - 1], xs[hi - 1], 1)
     print(f"p90 of the process, 95 % "
-          f"[{xs[lo - 1]:.1f}, {xs[hi - 1]:.1f}]")
+          f"[{low}, {top}]")
     print(f"  ranks {lo} and {hi}, "
           f"coverage {100 * held:.2f} %")
     print(f"next latency, ranks {a} to {b}")
-    print(f"{'':25}"
-          f"[{xs[a - 1]:.1f}, {xs[b - 1]:.1f}]")
+    low, top = enclosed(xs[a - 1], xs[b - 1], 1)
+    print(f"{'':25}[{low}, {top}]")
     print(f"  coverage {b - a}/{n + 1}"
           f" = {cover:.1f} %")
 

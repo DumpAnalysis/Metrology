@@ -5,6 +5,7 @@ import random
 
 from swmetro.propagate import lpu
 from swmetro.stats import as_count, cohen_kappa
+from swmetro.stats import enclosed
 
 # Simulation truth, unknown to the analyst:
 SENS, SPEC = 0.90, 0.85  # judge's hit rates
@@ -253,13 +254,11 @@ def main():
         where = feasible(y)[1]
         print(f"  corrected {y:+.4f}, {where}")
         if ends:
-            a, b = ends
-            print("  95 % interval"
-                  f" {a:.3f} to {b:.3f}")
+            a, b = enclosed(*ends, 3)
+            print(f"  95 % interval {a} to {b}")
             continue
-        a, b = seen
-        print("  judged rate"
-              f" {a:.3f} to {b:.3f},")
+        a, b = enclosed(*seen, 3)
+        print(f"  judged rate {a} to {b},")
         print("  no overlap with the judge")
         print(f"  model, {1 - SPEC:.2f} to"
               f" {SENS:.2f}, at 95 %")
@@ -270,10 +269,11 @@ def main():
     except ValueError as err:
         print(f"sens 0.10, spec 0.15: {err}")
     k, n, sens, spec = mirrored(*odd)
-    y, _, (a, b) = few_outputs(k, n, sens, spec)
+    y, _, ends = few_outputs(k, n, sens, spec)
+    a, b = enclosed(*ends, 3)
     print(f"  verdicts exchanged, {k} of {n}:")
     print(f"  corrected {y:+.4f},")
-    print(f"  95 % interval {a:.3f} to {b:.3f}")
+    print(f"  95 % interval {a} to {b}")
 
 
 if __name__ == "__main__":

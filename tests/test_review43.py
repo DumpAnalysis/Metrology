@@ -374,10 +374,14 @@ class TheEndsOfTheRange(unittest.TestCase):
             ps = every_probability(1722, right_b, 2000)
             low = float(min(ps))
             low = f"{low:.6f}" if low >= 1e-4 else f"{low:.2e}"                  # ".3g" and ".4f" until Version 44
-            rows.append(f"  b = {right_b}: {low} to {float(max(ps)):.6f}")
+            # Until Version 69 both ends of a range were printed to the nearest digit. Since Version 70 the least
+            # probability is rounded downward and the greatest upward, so that the printed range holds them all
+            # (tests/test_review69.py). The upper ends of two rows read 0.124738 and 0.046195.
+            top = math.ceil(max(ps) * 10 ** 6) / 10 ** 6
+            rows.append(f"  b = {right_b}: {low} to {top:.6f}")
         self.assertEqual(lines[23:28], ["two-sided p that 1722 and b allow:"] + rows)
-        self.assertEqual(rows, ["  b = 1727: 0.062500 to 0.864711", "  b = 1758: 2.91e-11 to 0.124738",
-                                "  b = 1767: 5.68e-14 to 0.051495", "  b = 1768: 2.84e-14 to 0.046195"])
+        self.assertEqual(rows, ["  b = 1727: 0.062500 to 0.864711", "  b = 1758: 2.91e-11 to 0.124739",
+                                "  b = 1767: 5.68e-14 to 0.051495", "  b = 1768: 2.84e-14 to 0.046196"])
         self.assertNotIn("0.0000", "".join(lines[23:28]))                         # two rows of Version 43 began so
         self.assertEqual(printed(accuracy.main), text)
 

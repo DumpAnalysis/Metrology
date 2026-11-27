@@ -151,7 +151,10 @@ class AnExactValueStaysWhereItIs(unittest.TestCase):
         self.assertEqual(core.rect_interval(100, 0.5, 1.0), (99.5, 100.5))
         self.assertIn("  observed 0.593, corrected 0.592, u 0.024\n", expected("ch20_judge"))
         self.assertIn("MC, independent normal, 200000 draws:\n  sample mean 1.2862  sample sd 0.0348\n"
-                      "  95 % of draws  [1.220, 1.356]\n", expected("ch05_propagation"))
+                      "  95 % of draws  [1.219, 1.357]\n", expected("ch05_propagation"))
+        # Until Version 69 the ends of an interval were printed to the nearest digit. Since Version 70 the
+        # lower end is rounded downward and the upper one upward, so that the printed interval holds the
+        # computed one (tests/test_review69.py). The interval read [1.220, 1.356].
 
 
 def version_26_quantile(xs, q):

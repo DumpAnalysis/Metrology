@@ -385,7 +385,12 @@ class ASmallUncertaintyOfARatio(unittest.TestCase):
         for a, b in zip(got, before):
             self.assertAlmostEqual(a / b, 1.0, places=12)
         text = expected("ch05_propagation")
-        self.assertIn(f"  mean {got[0]:.4f}  sd {got[1]:.4f}\n  central 95 %  [{got[2]:.3f}, {got[3]:.3f}]\n", text)
+        # Until Version 69 the ends of an interval were printed to the nearest digit. Since Version 70 the
+        # lower end is rounded downward and the upper one upward, so that the printed interval holds the
+        # computed one (tests/test_review69.py). The line read [1.220, 1.355].
+        low, top = math.floor(Fraction(got[2]) * 1000) / 1000, math.ceil(Fraction(got[3]) * 1000) / 1000
+        self.assertEqual((low, top), (1.219, 1.356))
+        self.assertIn(f"  mean {got[0]:.4f}  sd {got[1]:.4f}\n  central 95 %  [{low:.3f}, {top:.3f}]\n", text)
         self.assertEqual(len(text.splitlines()), 40)                             # as in Version 40
         self.assertEqual(printed(chapter5.main), text)
 

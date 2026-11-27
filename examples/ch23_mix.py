@@ -8,8 +8,8 @@ from decimal import Decimal
 from fractions import Fraction
 
 from swmetro.stats import as_count, downward
-from swmetro.stats import exact_q, known, native
-from swmetro.stats import upward
+from swmetro.stats import enclosed, exact_q
+from swmetro.stats import known, native, upward
 from swmetro.stats import weighted_quantile
 
 # (class, requests, mean duration in ms)
@@ -373,6 +373,23 @@ def with_one(x, mean, n=900):
         n - 1, rest, 200, 810)
 
 
+def up_to(top, places=2):
+    """The most that can be within a limit,
+    as a percentage: an upper bound, rounded
+    upward, and with more places where it
+    would else be printed as the 95 % of
+    the objective that it does not reach."""
+    return upward(100 * top, places, 95) + " %"
+
+
+def between(low, top, places=0):
+    """Both bounds on that share, the lower
+    one rounded downward."""
+    low, top = enclosed(100 * low, 100 * top,
+                        places, 95)
+    return f"{low} % to {top} %"
+
+
 def lost_class(before, after):
     """The second period without the records
     of its slow class."""
@@ -404,8 +421,7 @@ def lost_class(before, after):
               f" p95 {p95(full):.0f}")
     low, high = within(part, before, 200)
     print("  within 200 ms: "
-          f"{100 * float(low):.1f} % to"
-          f" {100 * float(high):.1f} %")
+          + between(low, high, 1))
     print("  p95 at most 200 ms:"
           f" {verdict(low, high)}")
     slow, share = len(after["slow"]), gone["slow"]
@@ -416,14 +432,13 @@ def lost_class(before, after):
         text = ("no other limit" if cap is None
                 else f"none above {cap} ms")
         print(f"  {text}:")
-        print(f"    to {100 * float(top):.2f} %,"
+        print(f"    to {up_to(top)},"
               f" {verdict(low, top)}")
     print("  none above 810 ms, one recovered")
     for x in (100, 110, 700):
         most = with_one(x, 450, slow)
         top = low + share * most / slow
-        print(f"    at {x} ms: to"
-              f" {100 * float(top):.2f} %,"
+        print(f"    at {x} ms: to {up_to(top)},"
               f" {verdict(low, top)}")
     print("  at 100 ms, the mean as it prints")
     for digits in (2, 1, 0):
@@ -431,7 +446,7 @@ def lost_class(before, after):
         most = with_one(100, 450 - half, slow)
         top = low + share * most / slow
         print(f"    {450:.{digits}f} ms: to"
-              f" {100 * float(top):.2f} %,"
+              f" {up_to(top)},"
               f" {verdict(low, top)}")
     print("  720 ms, of one request or of all")
     rows = (("one", with_one(720, 450, slow)),
@@ -439,8 +454,7 @@ def lost_class(before, after):
              most_within(slow, 450, 200, 720)))
     for text, most in rows:
         top = low + share * most / slow
-        print(f"    {text}: to"
-              f" {100 * float(top):.2f} %,"
+        print(f"    {text}: to {up_to(top)},"
               f" {verdict(low, top)}")
     low, gap = Fraction(98, 100), Fraction(2, 100)
     print("  98 % known within, 2 % missing:"
@@ -467,8 +481,7 @@ def one_unknown():
         for limit in limits:
             low, high = within(rec, rec, limit)
             print(f"  within {limit} ms: "
-                  f"{100 * float(low):.0f} % to"
-                  f" {100 * float(high):.0f} %")
+                  + between(low, high))
             print(f"  p95 at most {limit} ms:"
                   f" {verdict(low, high)}")
 
@@ -493,8 +506,7 @@ def two_missing():
         rec = classes(rec)
         low, high = within(rec, rec, 200)
         print(f"  {text:<16}"
-              f"{100 * float(low):.0f} % to"
-              f" {100 * float(high):.0f} %,"
+              f"{between(low, high)},"
               f" {verdict(low, high)}")
 
 
@@ -910,13 +922,6 @@ def components(before, after, stat=mean,
         if k:
             print(f"  open {when}: {k} of"
                   f" {len(xs)} durations")
-    if (shares(before) == shares(after)
-            and not (one(start) and one(end))):
-        inner = spanned(change, "+")
-        print("  the mix is the same in both"
-              " periods:")
-        print(f"    within {inner}, mix +0")
-        return
     orders = ((f"class {what} first",
                after, before, "after"),
               ("mix first",

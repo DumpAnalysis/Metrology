@@ -8,6 +8,7 @@ from swmetro.record import combined, comparable
 from swmetro.record import decide, guard, in_unit
 from swmetro.record import missing, read, spread
 from swmetro.record import stale
+from swmetro.stats import downward, enclosed
 
 ROOT = Path(__file__).resolve().parent.parent
 # A record from other telemetry, written
@@ -102,14 +103,27 @@ def report(title, rec):
 def near(title, rec, value):
     """The record with an estimate close to
     the limit, and the bounds of that
-    estimate plus its guard band."""
+    estimate plus its guard band. Two ends
+    that differ are two bounds, however
+    close: the lower is rounded downward and
+    the upper upward, to two places or to
+    the second digit of their distance, and
+    neither is printed across the limit.
+    Equal ends are one value, rounded to
+    the nearest."""
     change = {("result", "value"): value}
     rec = altered(rec, change)
     report(title, rec)
     lo, hi = guard(rec)[0]
     text = f"{lo:.2f}"
-    if hi - lo >= 0.005:
-        text += f" to {hi:.2f}"
+    if hi.is_infinite():
+        text = f"{downward(lo, 2)} or more"
+    elif hi != lo:
+        places = 1 - (hi - lo).adjusted()
+        limit = rec["decision"]["limit"]
+        ends = enclosed(lo, hi, max(2, places),
+                        limit)
+        text = " to ".join(ends)
     print(f"  estimate + band: {text}")
 
 
@@ -140,8 +154,8 @@ def main():
     rows = (("components allow", spread),
             ("with the stated u", combined))
     for name, f in rows:
-        lo, hi = f(shown)
-        print(f"  {name}: {lo:.3f} to {hi:.3f}")
+        lo, hi = enclosed(*f(shown), 3)
+        print(f"  {name}: {lo} to {hi}")
     near("rounded, estimate 194.6", shown, 194.6)
     near("rounded, estimate 194.8", shown, 194.8)
     near("working values, estimate 194.6",

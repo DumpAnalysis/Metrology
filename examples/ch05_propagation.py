@@ -8,6 +8,7 @@ from swmetro.dist import z_ppf
 from swmetro.propagate import lpu, monte_carlo
 from swmetro.propagate import normal, rect
 from swmetro.propagate import summarize
+from swmetro.stats import enclosed
 
 N = 200_000  # Monte Carlo trials
 RATE = Fraction(1, 10 ** 9)  # u of a clock rate
@@ -166,14 +167,14 @@ def linear_case():
     print(f"MC, independent normal, {N} draws:")
     print(f"  sample mean {m:.4f}"
           f"  sample sd {s:.4f}")
-    print(f"  95 % of draws  [{lo:.3f},"
-          f" {hi:.3f}]")
+    lo, hi = enclosed(lo, hi, 3)
+    print(f"  95 % of draws  [{lo}, {hi}]")
     m, s, lo, hi = lognormal_ratio(842, 12,
                                    655, 15)
     print("exact, independent lognormal:")
     print(f"  mean {m:.4f}  sd {s:.4f}")
-    print(f"  central 95 %  [{lo:.3f},"
-          f" {hi:.3f}]")
+    lo, hi = enclosed(lo, hi, 3)
+    print(f"  central 95 %  [{lo}, {hi}]")
 
 
 def nonlinear_case():
@@ -182,13 +183,14 @@ def nonlinear_case():
     u_t = half / 3 ** 0.5
     y, uc, _ = lpu(rate, [1000, 2.0], [0, u_t])
     print(f"LPU    R = {y:.0f}  u_c = {uc:.0f}")
-    lo, hi = y - 2 * uc, y + 2 * uc
-    print(f"LPU k=2  [{lo:.0f}, {hi:.0f}]")
+    lo, hi = enclosed(y - 2 * uc, y + 2 * uc, 0)
+    print(f"LPU k=2  [{lo}, {hi}]")
     draws = [lambda rng: 1000, rect(1.2, 2.8)]
     ys = monte_carlo(rate, draws, N, 5)
     m, s, lo, hi = summarize(ys)
+    lo, hi = enclosed(lo, hi, 0)
     print(f"MC     R = {m:.0f}  u = {s:.0f}")
-    print(f"MC 95 %  [{lo:.0f}, {hi:.0f}]")
+    print(f"MC 95 %  [{lo}, {hi}]")
     # The same without a simulation: T is
     # uniform on [a, b], and R = 1000 / T
     # falls as T rises.
@@ -197,8 +199,9 @@ def nonlinear_case():
     s = math.sqrt(1e6 / (a * b) - m * m)
     lo, hi = (1000 / (b - (b - a) * p)
               for p in (0.025, 0.975))
+    lo, hi = enclosed(lo, hi, 2)
     print(f"exact  R = {m:.2f}  u = {s:.2f}")
-    print(f"exact 95 %  [{lo:.2f}, {hi:.2f}]")
+    print(f"exact 95 %  [{lo}, {hi}]")
 
 
 def main():

@@ -186,7 +186,7 @@ class ASlowStreamInTheRecordAndInTheReference(unittest.TestCase):
         held, sizes = mix.both({"fast": [100] * 18, "slow": again}, {"fast": range(18), "slow": again})
         self.assertIs(held["slow"], again)
         self.assertEqual(len(sizes["slow"]), 2)
-        self.assertEqual(len(expected("ch23_mix").splitlines()), 122)          # 108 until Version 65
+        self.assertEqual(len(expected("ch23_mix").splitlines()), 126)          # 108 until Version 65, 122 until 69
         self.assertEqual(printed(mix.main), expected("ch23_mix"))
 
 
@@ -509,7 +509,12 @@ class TheHalfWidthOfAWilsonInterval(unittest.TestCase):
         self.assertEqual(lines[0], "observed accuracy 87.0 %")
         for line, n in zip(lines[1:4], (500, 2000, 10_000)):
             low, high = wilson_limits(round(0.87 * n), n)
-            self.assertEqual(line, f"n = {n:>5}: [{100 * low:.1f}, {100 * high:.1f}] %, half-width {50 * (high - low):.1f} points")
+            # Until Version 69 the two limits were printed to the nearest tenth: [83.8, 89.7], [85.5, 88.4] and
+            # [86.3, 87.6]. Since Version 70 the lower one is rounded downward and the upper one upward
+            # (tests/test_review69.py). The half-width is a value, and is rounded to the nearest as before.
+            a = Decimal(100 * low).quantize(Decimal("0.1"), rounding=ROUND_FLOOR)
+            b = Decimal(100 * high).quantize(Decimal("0.1"), rounding=ROUND_CEILING)
+            self.assertEqual(line, f"n = {n:>5}: [{a}, {b}] %, half-width {50 * (high - low):.1f} points")
         self.assertNotIn("±", expected("ch17_accuracy"))                        # the sign of an expanded uncertainty
         low, high = wilson_limits(435, 500)
         self.assertEqual((round(100 * low, 4), round(100 * high, 4), round(50 * (low + high), 4)), (83.7679, 89.6679, 86.7179))

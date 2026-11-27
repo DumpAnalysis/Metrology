@@ -1,7 +1,7 @@
 record of 400 latencies, ms
 p90 of the record          164.5
-p90 of the process, 95 % [158.0, 174.4]
+p90 of the process, 95 % [157.9, 174.5]
   ranks 348 and 372, coverage 95.48 %
 next latency, ranks 10 to 391
-                         [45.0, 202.9]
+                         [44.9, 203.0]
   coverage 381/401 = 95.0 %

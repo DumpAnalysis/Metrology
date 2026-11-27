@@ -266,10 +266,14 @@ class WhatTwoScoresAllow(unittest.TestCase):
         for right_b in (1727, 1758, 1767, 1768):                                 # 1767 since Version 44
             ps = [uneven(a, b) for _, a, b in every_table(self.A, right_b, self.N)]
             low = f"{min(ps):.6f}" if min(ps) >= 1e-4 else f"{min(ps):.2e}"      # ".3g" and ".4f" until Version 44
-            rows.append(f"  b = {right_b}: {low} to {max(ps):.6f}")
+            # Until Version 69 both ends of a range were printed to the nearest digit. Since Version 70 the least
+            # probability is rounded downward and the greatest upward, so that the printed range holds them all
+            # (tests/test_review69.py). The upper ends of two rows read 0.124738 and 0.046195.
+            top = math.ceil(Fraction(max(ps)) * 10 ** 6) / 10 ** 6
+            rows.append(f"  b = {right_b}: {low} to {top:.6f}")
         self.assertEqual(lines[23:28], ["two-sided p that 1722 and b allow:"] + rows)
-        self.assertEqual(rows, ["  b = 1727: 0.062500 to 0.864711", "  b = 1758: 2.91e-11 to 0.124738",
-                                "  b = 1767: 5.68e-14 to 0.051495", "  b = 1768: 2.84e-14 to 0.046195"])
+        self.assertEqual(rows, ["  b = 1727: 0.062500 to 0.864711", "  b = 1758: 2.91e-11 to 0.124739",
+                                "  b = 1767: 5.68e-14 to 0.051495", "  b = 1768: 2.84e-14 to 0.046196"])
         self.assertEqual(printed(accuracy.main), text)
 
 

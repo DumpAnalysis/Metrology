@@ -190,8 +190,12 @@ class WholeRecord(unittest.TestCase):
         lo, hi = guard(self.near(self.shown, 194.6))[0]
         self.assertEqual((f"{a_lo:.2f}", f"{lo:.2f}", f"{hi:.2f}"), ("199.95", "199.87", "200.11"))
         text = expected("ch22_record_check")
+        # Until Version 69 the two ranges of the estimate plus its band read 199.87 to 200.11 and 200.07 to
+        # 200.31, each end to the nearest hundredth. Since Version 70 the lower end is rounded downward and the
+        # upper one upward: 200.1105 lies in the first range and above 200.11 (tests/test_review69.py).
+        self.assertTrue(199.86 < lo < 199.87 and 200.11 < hi < 200.12)
         for line in ("  components allow: 2.982 to 3.122", "  with the stated u: 3.050 to 3.122",
-                     "  estimate + band: 199.87 to 200.11", "  estimate + band: 200.07 to 200.31",
+                     "  estimate + band: 199.86 to 200.12", "  estimate + band: 200.06 to 200.32",
                      "  estimate + band: 199.95"):
             self.assertIn(line + "\n", text)
         source = (ROOT / "figures" / "make_figures.py").read_text(encoding="utf-8")
