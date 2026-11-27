@@ -215,12 +215,19 @@ class ADurationThatWasLost(unittest.TestCase):
         self.assertEqual([round(x) for x in (start, least, via)], [83, 92, 95])
         self.assertEqual((round(least - start), round(via - start), round(least - via)), (8, 12, -4))
         text = printed(mix.components, before, after).splitlines()
-        self.assertEqual(text, ["mean, 83 -> 92 ms or more: +8 ms or more",
+        # Version 66 printed "92 ms or more" for a least mean of 91.82 ms, and this test expected it: the limit
+        # was rounded to the nearest whole millisecond, which shut out the means from 91.82 ms to 92 ms. It also
+        # gave up the first order. From Version 67 a limit is rounded to its safe side, to the hundredth, and
+        # each part of the change of a mean is a sum over the classes (tests/test_review66.py).
+        self.assertLess(least, 92)
+        self.assertEqual(text, ["mean, 83 -> 91.81 ms or more: +8.48 ms or more",
                                 "  open after: 1 of 22 durations",
-                                "  class means first: not determined,",
-                                "    a duration after is open",
+                                "  class means first, via 83.33 ms or more:",
+                                "    within +0 or more, mix +8.48 or more",
                                 "  mix first, via 95 ms:",
-                                "    within -4 or more, mix +12"])
+                                "    within -3.64 or more, mix +12",
+                                "  average of the two orders:",
+                                "    within -1.82 or more, mix +10.3 or more"])
         # A request stored as infinity before: the statistic of that period is infinite at any mix.
         text = printed(mix.components, {"web": [100.0] * 10 + [math.inf], "api": [50.0] * 5},
                        {"web": [100.0] * 19, "api": [60.0] * 2})

@@ -164,11 +164,11 @@ def quick(ms, beta):
     """The sign of the slope from floats, or
     None where their rounding could hide it.
     A term -m * sigmoid(-beta * m) is right
-    to within its share 2|beta m| + 8 of the
+    to within 2|beta m| + 8 units of its
     last place, and the terms are added
-    without a further error. A term below
-    the least normal float keeps no such
-    share, and nothing is concluded."""
+    without a further error. Nothing is
+    concluded from a term below the least
+    normal float, or near the last one."""
     try:
         b = float(beta)
         fs = [float(m) for m in ms]
@@ -183,6 +183,8 @@ def quick(ms, beta):
             return None
         terms.append(t)
         slack.append(abs(t) * (2 * abs(x) + 8))
+    if not sum(slack) < 1e300:
+        return None
     total = math.fsum(terms)
     if abs(total) > math.fsum(slack) * 2.0 ** -52:
         return (total > 0) - (total < 0)
@@ -195,11 +197,10 @@ def sure(ms, beta, digits):
     not show it. The terms are kept as
     logarithms and added as shares of the
     largest, apart for the margins below
-    zero and above: a margin far out and
-    one next to zero both give a term too
-    small for a float. A share below
-    10 ** -digits is left out and counted
-    in what the sum may be wrong by."""
+    zero and above: a margin far out or next
+    to zero gives a term too small for a
+    float. A share below 10 ** -digits is
+    left out and counted in the error."""
     room = Context(prec=digits, Emax=MAX_EMAX,
                    Emin=MIN_EMIN)
     with localcontext(room):
@@ -283,9 +284,8 @@ def fit_temperature(data, lo=0.2, hi=10.0):
     T falls, and with margins that sum to
     zero or less, as T rises: there is no
     finite T. These are errors. Otherwise
-    the slope changes its sign once, and
-    the floats on either side of the change
-    are found by bisection."""
+    the slope changes its sign once, between
+    two floats that bisection finds."""
     try:
         lo, hi = map(float, known([lo, hi]))
     except ValueError:

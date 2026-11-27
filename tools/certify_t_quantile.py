@@ -17,7 +17,9 @@ a = allowance / 100 it verifies
     P(T > k (1 - a))  >=  risk  >=  P(T > k (1 + a)),
 
 which brackets the true quantile without finding it. Where t_isf refuses a
-quantile as too large, it verifies that the quantile is indeed beyond 2**498.
+quantile as too large, it verifies that the quantile is indeed beyond 1e150,
+the ceiling that t_isf states. Until Version 66 the search stopped at 2**498,
+the last doubling below that ceiling, and so did this check.
 
 It needs mpmath, which the examples and the tests do not:
 
@@ -71,7 +73,7 @@ def main(argv):
             k = mp.mpf(t_isf(p, v))
         except ValueError:
             refused += 1
-            if not upper_tail(mp.mpf(2) ** 498, v) > p:
+            if not upper_tail(mp.mpf(10) ** 150, v) > p:
                 failed.append(("refused without need", p, v))
             continue
         a = mp.mpf(DELTA.numerator) / DELTA.denominator / (1 - 2 * mp.mpf(p)) / MARGIN

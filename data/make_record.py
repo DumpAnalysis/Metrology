@@ -28,7 +28,7 @@ from swmetro import record as checker  # noqa: E402
 SOURCES = ["examples/ch22_budget.py", "examples/ch09_histogram.py",
            "swmetro/core.py", "swmetro/dist.py", "swmetro/stats.py",
            "swmetro/record.py", "data/make_record.py"]
-RELEASE = "book Version 66, November 2026"
+RELEASE = "book Version 67, November 2026"
 REPOSITORY = "github.com/DumpAnalysis/Metrology"
 RISK = 0.05
 # What the record says of each component of the budget beyond its name, its

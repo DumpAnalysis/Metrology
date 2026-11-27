@@ -4,6 +4,7 @@ import statistics as st
 from dataclasses import dataclass
 from decimal import Decimal
 from fractions import Fraction
+from numbers import Real
 
 from .dist import t_cdf, t_isf, t_within
 from .stats import mean
@@ -140,23 +141,26 @@ def fmt(value, u, unit="", digits=2):
 
 def _dof(dof):
     """Degrees of freedom as the float that
-    the distributions take: a number above
-    zero, or math.inf. A decimal or a
-    fraction is rounded once, here. A text
-    and a truth value are no numbers, and
-    a number that is 0 as a float, or
-    beyond the range of a float, is
-    refused: math.inf says that the
-    uncertainty is taken as known."""
-    if isinstance(dof, (str, bool)):
+    the distributions take: an int, a float,
+    a Fraction or a Decimal above zero.
+    Bytes, a text and a truth value are no
+    numbers. A number that is 0 as a float
+    is refused, and so is a finite one
+    beyond a float: only an infinity that is
+    given as one says that the uncertainty
+    is taken as known."""
+    real = isinstance(dof, (Real, Decimal))
+    if isinstance(dof, bool) or not real:
         raise TypeError("dof is no number")
     try:
-        dof = float(dof)
+        f = float(dof)
     except OverflowError:
+        f = math.inf
+    if f == math.inf != dof:
         raise ValueError("dof beyond a float")
-    if not dof > 0:
+    if not f > 0:
         raise ValueError("dof must be > 0")
-    return dof
+    return f
 
 
 def _level(p):

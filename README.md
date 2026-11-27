@@ -2,7 +2,7 @@
 
 Code examples for the book *Metrology in Software Diagnostics, Observability,
 and Debugging: With Applications to Machine Learning and AI* by Dmitry Vostokov
-(OpenTask, ISBN 978-1-919135-15-1). Book Version 66, November 2026.
+(OpenTask, ISBN 978-1-919135-15-1). Book Version 67, November 2026.
 
 Repository: https://github.com/DumpAnalysis/Metrology
 
@@ -78,7 +78,7 @@ will print different numbers on your machine; that is what they are for.
 | `expected/` | The transcript of each example, as printed in the book. |
 | `data/` | The trace fixture of Chapter 16 (`app_trace.log`) and its seeded generator (`make_trace.py`); the measurement record of Chapter 22 (`measurement_record.json`), a blank template with the same fields (`record_template.json`), a description of the form, of the decision procedure and of what the checker examines (`RECORD_FORMAT.md`), and the program that writes both (`make_record.py`). |
 | `figures/` | `make_figures.py` draws the book's thirty-two figures from the same functions as the examples. Needs matplotlib and Pillow at the versions in `requirements.txt`; output goes to `figures/out/`. |
-| `tests/` | `test_swmetro.py`: unit tests of the package. `test_review.py`, `test_review2.py` to `test_review5.py`, `test_review7.py` to `test_review46.py` and `test_review48.py` to `test_review65.py`: regression tests, numbered by the version of the book whose review they followed; each checks the code against an independent fact (a closed form, a definition evaluated by brute force, a published table, a simulated coverage), not against saved output. `test_release.py`: the license text is the published one, and the record and this file name the repository and the release. |
+| `tests/` | `test_swmetro.py`: unit tests of the package. `test_review.py`, `test_review2.py` to `test_review5.py`, `test_review7.py` to `test_review46.py` and `test_review48.py` to `test_review66.py`: regression tests, numbered by the version of the book whose review they followed; each checks the code against an independent fact (a closed form, a definition evaluated by brute force, a published table, a simulated coverage), not against saved output. `test_release.py`: the license text is the published one, and the record and this file name the repository and the release. |
 | `tools/` | Two optional checks of the Student t quantile against high-precision arithmetic. They need mpmath. |
 | `run_all.py` | The replay program. |
 | `LICENSE` | PolyForm Strict License 1.0.0. |
@@ -119,7 +119,7 @@ will print different numbers on your machine; that is what they are for.
 | 16 | `ch16_bounds` | exact | Bounds on a failure share from an incomplete capture, and the decision they allow; the ranks that bound a percentile when some latencies are unknown; a percentile objective decided from completions, timeouts and lost records; what one more histogram bound would establish |
 | 17 | `ch17_accuracy` | exact | Intervals for accuracy; paired comparison in percentage points, with the correlation of the right answers and the exact test for the pairs that differ, one-sided and two-sided, for two pairs of lists with the same scores; the limits of that test that two scores alone allow, for a lead of either model and for a tie, with some pairs verified, with batches that keep the other pairs together, and with the counts that one doubtful label in each batch can hide; probabilities as exact fractions |
 | 17 | `ch17_seeds` | exact | Variation of a score across seeds and splits |
-| 18 | `ch18_calibration` | exact | Temperature scaling, with the loss taken from the logit; bias of the ECE estimator; a fit with one confident error, and the interval that a hundred labels leave for its temperature, for a logit of either sign, its ends printed outward; cases held to a finite logit and a label of 0 or 1, and every score to a finite temperature above zero, at least one case and a whole number of bins; residuals formed on the side where they keep their digits; the temperature of one stated logit from the distance of its probability to one half; the sign of the slope of the loss from its terms as they are, with decimals where floats do not show it, and the fitted temperature as the float nearest the minimum |
+| 18 | `ch18_calibration` | exact | Temperature scaling, with the loss taken from the logit; bias of the ECE estimator; a fit with one confident error, and the interval that a hundred labels leave for its temperature, for a logit of either sign, its ends printed outward; cases held to a finite logit and a label of 0 or 1, and every score to a finite temperature above zero, at least one case and a whole number of bins; residuals formed on the side where they keep their digits; the temperature of one stated logit from the distance of its probability to one half; the sign of the slope of the loss from its terms as they are, with decimals where floats do not show it, and the fitted temperature as the float nearest the minimum; a sum of floats that is beyond a float left to the decimals |
 | 19 | `ch19_float` | exact | Floating-point resolution, among it stamps that count nanoseconds from 1970 and lie 1 ns apart; accumulation, order |
 | 19 | `ch19_inference_timing` | live | Cold start and steady state |
 | 20 | `ch20_error_bars` | exact | Clustered and paired standard errors; exact tests of a gain with the labels of the two models exchanged by question and by passage |
@@ -130,7 +130,7 @@ will print different numbers on your machine; that is what they are for.
 | 22 | `ch22_record_check` | exact | Checking a record: missing inputs, values that cannot be, careless edits and the stale outcome that each leaves behind, working values and rounded ones near the limit, comparability with a second record |
 | 22 | `ch22_runs` | exact | Which p95 across runs: long-run mean, next run, pooled requests; three sets of runs with one equally weighted mean of run percentiles, and what weighting by requests and pooling give instead |
 | 23 | `ch23_case` | exact | A diagnostic case: workload, instrument, or service; replay through four configurations; an empty window shown as no observations, with an upper bound for its arrival rate, and exact limits for a single request; power, bound, and the decision against a declared margin |
-| 23 | `ch23_mix` | exact | A change of request mix: observed and standardized means and percentiles; the change of the mean and of the 95th percentile divided between the classes and the mix, in both orders; a class of the reference mix without observations, and what such records still decide, alone, with a mean and an upper limit of the lost durations, with one of them recovered, with the mean known only as it prints, and with a duration known as that of one request or as the longest of all; a request whose duration is not known, or known only by a bound, and the span that it leaves for the change of a mean, with the percentile and the mix settled; both periods at one mix that neither had, and what one request decides there; a class that only the later period has, the one order that its records determine for the mean, and a percentile that is determined without its durations; classes and periods given as streams, each read once, and the weighted mean as one division of two exact sums |
+| 23 | `ch23_mix` | exact | A change of request mix: observed and standardized means and percentiles; the change of the mean and of the 95th percentile divided between the classes and the mix, in both orders; a class of the reference mix without observations, and what such records still decide, alone, with a mean and an upper limit of the lost durations, with one of them recovered, with the mean known only as it prints, and with a duration known as that of one request or as the longest of all; a request whose duration is not known, or known only by a bound, and the span that it leaves for the change of a mean, with the percentile and the mix settled; the limits of a span printed to the hundredth of a millisecond and rounded to their safe side; each part of the change of a mean as a sum over the classes, in which a class that keeps its share adds nothing to the change of the mix; the difference of two infinite means reported as not defined; both periods at one mix that neither had, and what one request decides there; a class that only the later period has, the one order that its records determine for the mean, and a percentile that is determined without its durations; classes and periods given as streams, each read once, and the weighted mean as one division of two exact sums |
 
 ## Quantile conventions
 
@@ -163,16 +163,18 @@ deadline of the client, and `None`, a NaN, an infinity and a bound such as
 
 A bound that an example prints is rounded to its safe side, an upper bound
 upward and a lower bound downward, by `upward()` and `downward()` of
-`swmetro/stats.py`, in exact arithmetic. A limit is compared with the bound
-as it was computed, not with its printed form, and the bound is computed
-without rounding: in `ch23_case` a change of a percentile is an exact
-difference, a float only where a float holds it, and an upper bound adds the
-exact product of its factor and the standard uncertainty, a fraction, so that
-a bound equal to a margin, or just above it, is not reported as below it. An
-offset that the paired example adds to a reading is added in the same way.
-The two fields of a row are added as floats where both are floats, since
-that sum is the duration a configuration records, and exactly otherwise, so
-that a decimal duration on a bucket bound stays on it.
+`swmetro/stats.py`, in exact arithmetic. The limits of a span in `ch23_mix`
+are printed so, to the hundredth of a millisecond: rounded to the nearest, a
+mean of 199.95 ms or more would print as 200 ms or more. A limit is compared
+with the bound as it was computed, not with its printed form, and the bound
+is computed without rounding: in `ch23_case` a change of a percentile is an
+exact difference, a float only where a float holds it, and an upper bound
+adds the exact product of its factor and the standard uncertainty, a
+fraction, so that a bound equal to a margin, or just above it, is not
+reported as below it. An offset that the paired example adds to a reading is
+added in the same way. The two fields of a row are added as floats where both
+are floats, since that sum is the duration a configuration records, and
+exactly otherwise, so that a decimal duration on a bucket bound stays on it.
 
 A `Result` of `swmetro/core.py` takes its value, its uncertainty, a limit and
 a level of coverage as an `int`, a `float`, a `Fraction` or a `Decimal`. The
@@ -189,28 +191,30 @@ half-width as a float and refuses one beyond the range of a float, which
 `interval()` and `report()` keep as the fraction that it is. A value or an
 uncertainty beyond that range is refused. The comparisons of a `Result` are
 exact, so that a `Decimal` beside a float needs no setting of the decimal
-context, and `report()` rounds half to even whatever that context says.
-An infinite limit has the probability 1 or 0 whatever the distribution. A
-finite limit has its own, however far it lies: its distance is the exact
-ratio, and where the square of that ratio is beyond the range of a float the
-tail of Student's distribution is taken from the logarithm of the distance. A
-tail below the least float is 0. Any number of degrees of freedom above zero
-is admitted: below 1e-9 the tail is taken from the limiting form of the
+context, and `report()` rounds half to even whatever that context says. An
+infinite limit has the probability 1 or 0 whatever the distribution. A finite
+limit has its own, however far it lies: its distance is the exact ratio, and
+where the square of that ratio is beyond the range of a float the tail of
+Student's distribution is taken from the logarithm of the distance. A tail
+below the least float is 0. Any number of degrees of freedom above zero is
+admitted: below 1e-9 the tail is taken from the limiting form of the
 incomplete beta function, so that the least positive float has a probability
 at every limit, and none that falls as the limit rises. The degrees of
 freedom are taken in any of the four types and stored as a float: a number
-that is zero as a float, or beyond the range of a float, is refused, and
-`math.inf` says that the uncertainty is taken as known.
-`welch_satterthwaite()` forms its quotient from the numbers as they are and
-rounds it once, so that a budget of one component has the degrees of freedom
-of that component. One continued fraction gives the tail of Student's
-distribution up to 1e25 degrees of freedom, and the normal tail, which is
-then the same to the last place, beyond. Against references in decimal
-arithmetic its relative error was below 1e-12 down to tails of 1e-300 and
-below 1e-13 for tails above 1e-12. Below that accuracy the computed tail is
-not monotonic: between two adjacent limits it can rise by rounding. A result
-without uncertainty has an expanded uncertainty of zero at every level, and
-its report prints `u = 0` where a coverage factor would stand; no factor is
+that is zero as a float is refused, and so is a finite number beyond the
+range of a float, in whatever type it is given. Only an infinity that is
+given as one, `math.inf` or the decimal `Infinity`, says that the uncertainty
+is taken as known. `welch_satterthwaite()` forms its quotient from the
+numbers as they are and rounds it once, so that a budget of one component has
+the degrees of freedom of that component. One continued fraction gives the
+tail of Student's distribution up to 1e25 degrees of freedom, and the normal
+tail stands for it beyond, an approximation within the measured accuracy.
+Against references in decimal arithmetic the relative error was below 1e-12
+down to tails of 1e-300 and below 1e-13 for tails above 1e-12, in the range
+that was tested. Below that accuracy the computed tail is not monotonic:
+between two adjacent limits it can rise by rounding. A result without
+uncertainty has an expanded uncertainty of zero at every level, and its
+report prints `u = 0` where a coverage factor would stand; no factor is
 looked for. A factor is printed with two decimal places, or with two
 significant digits where that takes more, and a value that rounds to zero
 without a sign. A level so close to 1 that its tail `(1 - p) / 2` is below
@@ -320,7 +324,7 @@ of the versions before it. Seeds alone do not specify a result: the stored
 transcripts, the trace fixture and the measurement record are part of the
 repository for that reason.
 
-These are the files for Version 66 of the book.
+These are the files for Version 67 of the book.
 
 ## License
 

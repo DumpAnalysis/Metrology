@@ -205,10 +205,11 @@ def t_sf(t, dof):
     above infinity. t is a float, or an
     exact number of any size. One method
     serves every number of degrees of
-    freedom up to 1e25, and beyond it the
-    normal tail is the same to the last
-    place. Against references in decimals,
-    for 1e-9 to 1e25 degrees of freedom, the
+    freedom up to 1e25. Beyond it the
+    normal tail is used, an approximation
+    within the accuracy measured here.
+    Against references in decimals, from
+    1e-9 degrees of freedom upward, the
     relative error was below 1e-12 down to
     tails of 1e-300, and below 1e-13 for
     tails above 1e-12. Below that accuracy
@@ -218,8 +219,8 @@ def t_sf(t, dof):
     if t == math.inf:
         return 0.0
     if dof > _MANY:
-        # The normal tail, to the last place.
-        # Beyond 1000 it is 0 as a float.
+        # The normal tail. Beyond 1000 it
+        # is 0 as a float.
         z = float(min(t, 1e3))
         return 0.5 * math.erfc(z / math.sqrt(2))
     if t > 1e153 * math.sqrt(dof):
@@ -239,14 +240,14 @@ def t_cdf(t, dof):
 
 def _bisect(below, lo, hi):
     """The t at which `below` turns from true
-    to false: hi is doubled until it is past
-    that point, and the interval is then
-    halved as far as floats go. A point
-    beyond 1e150 is refused."""
+    to false: hi is doubled, up to 1e150,
+    until it is past that point, and the
+    interval is then halved as far as floats
+    go. A point beyond 1e150 is refused."""
     while below(hi):
-        lo, hi = hi, 2 * hi
-        if hi > _T_MAX:
+        if hi >= _T_MAX:
             raise ValueError("quantile too large")
+        lo, hi = hi, min(2 * hi, _T_MAX)
     for _ in range(200):
         mid = (lo + hi) / 2
         if mid in (lo, hi):
