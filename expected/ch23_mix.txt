@@ -106,3 +106,17 @@ p95, 100 -> 90 ms: -10 ms
     within -10, mix +0
   average of the two orders:
     within -10, mix +0
+20 web requests of 100 ms in each
+period, one duration lost after:
+mean, 100 -> 95 ms or more: -5 ms or more
+  open after: 1 of 20 durations
+  the mix is the same in both periods:
+    within -5 or more, mix +0
+p95, 100 -> 100 ms: +0 ms
+  open after: 1 of 20 durations
+  class distributions first, via 100 ms:
+    within +0, mix +0
+  mix first, via 100 ms:
+    within +0, mix +0
+  average of the two orders:
+    within +0, mix +0

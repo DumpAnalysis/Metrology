@@ -2,8 +2,10 @@
 
     python figures/make_figures.py          (needs matplotlib)
 
-The figures are black-and-white line art, 224 pt wide (the text width of
-the book), written to figures/out/ as 1200 dpi PNG files. Figures 16.4, 16.7
+The figures are black-and-white line art, drawn 224 pt wide and written to
+figures/out/ as 1200 dpi PNG files. 224 pt is the width of the drawing and not
+that of the text: the book places each figure at the size that its page
+allows, and the text of its 7 x 10 inch edition is 342 pt wide. Figures 16.4, 16.7
 and 20.1 have one gray band each besides, Figure 16.6 has two, and
 Figure 10.2 draws one of its two curves in gray. Figure 6.1 hatches the bars
 of one of its two models, and Figure 6.3 shades one region. Each is drawn from the
@@ -44,7 +46,7 @@ from swmetro.record import guard  # noqa: E402
 from swmetro.stats import ecdf_quantile, quantile, wilson  # noqa: E402
 
 OUT = Path(__file__).resolve().parent / "out"
-WIDTH = 224 / 72  # inches
+WIDTH = 224 / 72  # inches: the drawing, not the text
 BLACK, GREY, PALE = "#000000", "#8c8c8c", "#cfcfcf"
 
 plt.rcParams.update({

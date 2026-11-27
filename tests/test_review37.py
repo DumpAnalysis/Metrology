@@ -15,6 +15,7 @@ import io
 import math
 import random
 import unittest
+from decimal import Decimal, localcontext
 from fractions import Fraction
 from pathlib import Path
 
@@ -175,10 +176,15 @@ class AMinimumAtALimit(unittest.TestCase):
         # observed frequency, and the loss is least there.
         data = [(math.log(2), 1), (math.log(2), 1), (math.log(2), 0)]
         self.assertAlmostEqual(at_one(math.log(2), 2, 3), 1.0, places=12)
-        # Until Version 64 this read slope() == 0.0; lean() of Version 65 returns the sign, which is 0 here
-        # because exp(-ln 2) is the float 0.5 and the two sums of terms are then equal.
+        # Until Version 64 this read slope() == 0.0, and in Version 65 lean() == 0: exp(-ln 2) is the float 0.5,
+        # and the rounded terms add up to nothing. From Version 66 lean() gives the sign of the terms as they
+        # are. The logit is the float nearest ln 2, which is below ln 2 by 2.3e-17, so the minimum is below 1 by
+        # 3 parts in 10**17, the slope at T = 1 is below zero, and 1 is still the float nearest the minimum.
         self.assertEqual(math.exp(-math.log(2)), 0.5)
-        self.assertEqual(cal.lean(cal.margins(data), 1.0), 0)
+        with localcontext() as forty:
+            forty.prec = 40
+            self.assertLess(Decimal(math.log(2)).exp(), 2)                       # the float is below ln 2
+        self.assertEqual(cal.lean(cal.margins(data), 1.0), -1)
         self.assertEqual(f"{cal.fit_temperature(data, 0.2, 10):.4f}", "1.0000")
         self.assertEqual(cal.fit_temperature(data, 0.2, 1), 1)                   # Version 37: "the minimum is above hi"
         self.assertEqual(cal.fit_temperature(data, 1, 10), 1)                    # Version 37: "the minimum is below lo"

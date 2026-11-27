@@ -484,9 +484,12 @@ class LogitsAtTheEndOfTheFloats(unittest.TestCase):
 
     def test_the_ends_of_a_search(self):
         data = [(2, 1), (1, 0), (0, 1)]
-        for lo in (5e-324, 0, -1, math.nan):
+        # Until Version 65 the least float was refused as well: its reciprocal is beyond a float. From Version
+        # 66 the reciprocal is a fraction, and the search starts there as it does anywhere.
+        for lo in (0, -1, math.nan):
             with self.assertRaisesRegex(ValueError, "need 0 < lo < hi < inf"):
                 cal.fit_temperature(data, lo, 10)
+        self.assertEqual(cal.fit_temperature(data, 5e-324, 10), cal.fit_temperature(data))
         self.assertAlmostEqual(cal.fit_temperature(data, 1e-300, 10), cal.fit_temperature(data), places=9)
 
 

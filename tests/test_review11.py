@@ -258,8 +258,9 @@ class CoverageFactor(unittest.TestCase):
                 self.assertAlmostEqual(t_isf(tail, dof) / series, 1.0, places=8, msg=(dof, tail))
 
     def test_many_degrees_of_freedom(self):
-        # Two methods meet at 10**6: bisection on the incomplete beta function below, an expansion
-        # about the normal quantile above. The quantile itself moves by parts in 10**12 between them.
+        # Until Version 65 two methods met at 10**6: bisection on the incomplete beta function below, and an
+        # expansion about the normal quantile above, and the quantile moved by parts in 10**12 between them.
+        # From Version 66 the bisection serves every number up to 1e25. The checks stand as they were.
         for tail in (0.4, 0.25, 0.05, 0.001, 1e-9, 1e-30):
             below, above = t_isf(tail, 1e6), t_isf(tail, 1e6 + 1)
             self.assertAlmostEqual(above / below, 1.0, places=8, msg=tail)

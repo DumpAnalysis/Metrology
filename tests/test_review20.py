@@ -459,11 +459,12 @@ class PercentileWithAMissingClass(unittest.TestCase):
     def test_the_transcript(self):
         text = expected("ch23_mix")
         out = printed(mix.one_bulk)
-        self.assertTrue(text.endswith(out))
+        # Until Version 65 these were the last lines. Version 66 prints one_lost() after them.
+        self.assertTrue(text.endswith(out + printed(mix.one_lost)))
         self.assertTrue(out.startswith("99 common requests in each period,\none bulk request of 500 ms after:\nmean, 82 -> 76 ms: -6 ms\n"))
         self.assertIn("p95, 100 -> 90 ms: -10 ms\n", out)
         self.assertIn("  mix first, via 100 ms:\n    within -10, mix +0\n", out)
-        self.assertEqual(len(text.splitlines()), 108)            # 69 in Version 21, 73 until 48, 84 in 49, 96 in 50, 100 in 51, 103 until 57
+        self.assertEqual(len(text.splitlines()), 122)   # 69 in Version 21, 73 until 48, 84 in 49, 96 in 50, 100 in 51, 103 until 57, 108 until 65
 
 
 class BothPeriodsAtOneMix(unittest.TestCase):

@@ -541,6 +541,92 @@ def shown(x, plus=""):
     return f"{n:{plus}d}"
 
 
+def is_open(x):
+    """A request whose duration the record
+    leaves open: unknown, or a bound."""
+    return unknown(x) or isinstance(x, tuple)
+
+
+def ends(pairs):
+    """The pairs twice: with every open
+    duration at the least that the record
+    allows for it, and at the most. An
+    unknown duration is 0 or more, and a
+    bound gives the least; neither has a
+    most."""
+    low, top = [], []
+    for x, w in pairs:
+        least = x
+        if unknown(x):
+            least = 0
+        elif isinstance(x, tuple):
+            least = x[1]
+        most = math.inf if is_open(x) else x
+        low.append((least, w))
+        top.append((most, w))
+    return low, top
+
+
+def reach(stat, pairs):
+    """(least, most) of a statistic that does
+    not fall when a duration rises, over
+    everything that the open durations can
+    have been: the same number twice where
+    they do not matter. An end that is no
+    number, as the mean of an infinity above
+    and one below, is no limit."""
+    low, top = ends(pairs)
+    least = most = stat(exact(low))
+    if top != low:
+        most = stat(exact(top))
+    if least != least:
+        least = -math.inf
+    if most != most:
+        most = math.inf
+    return least, most
+
+
+def apart(new, old):
+    """The span of the change from one span
+    to another. An infinity less an
+    infinity is no number, and no limit."""
+    low, top = new[0] - old[1], new[1] - old[0]
+    if low != low:
+        low = -math.inf
+    if top != top:
+        top = math.inf
+    return low, top
+
+
+def one(span):
+    """Is the span one finite number?"""
+    return span[0] == span[1] not in ENDS
+
+
+def spanned(span, plus="", unit=""):
+    """A span as text: one number, or what
+    limits it."""
+    low, top = span
+    if low == top:
+        return shown(low, plus) + unit
+    if (low, top) == (-math.inf, math.inf):
+        return "no limit"
+    if top == math.inf:
+        return f"{shown(low, plus)}{unit} or more"
+    if low == -math.inf:
+        return f"{shown(top, plus)}{unit} or less"
+    return (f"{shown(low, plus)} to"
+            f" {shown(top, plus)}{unit}")
+
+
+def shares(rec):
+    """The mix of a period: the share of each
+    class in its requests."""
+    total = sum(len(xs) for xs in rec.values())
+    return {name: Fraction(len(xs), total)
+            for name, xs in rec.items() if xs}
+
+
 def components(before, after, stat=mean,
                name="mean", what="means"):
     """The change of a statistic of all the
@@ -559,51 +645,103 @@ def components(before, after, stat=mean,
     the missing durations do not matter, as
     they may not for a percentile. If they
     differ, as they do for a mean, the order
-    is not determined. The two enclose only
-    a statistic that does not fall when a
-    duration rises. A statistic of another
-    quantity, such as the distance of a
-    duration from a target, has to be given
-    records of that quantity. Every
-    statistic is taken from exact durations,
-    the differences and their average are
-    exact, and each number is rounded where
-    it is printed, and not before."""
+    is not determined. A request that is in
+    the record with its duration unknown, or
+    known only to exceed a time, is still a
+    request of its class: the statistic is
+    taken with every such duration at its
+    least and with none of them ending, and
+    what is printed is the span between the
+    two. With the same mix in both periods
+    the whole change is within the classes,
+    whatever the durations were. The spans
+    enclose only a statistic that does not
+    fall when a duration rises. A statistic
+    of another quantity, such as the
+    distance of a duration from a target,
+    has to be given records of that
+    quantity. Every statistic is taken from
+    exact durations, the differences and
+    their average are exact, and each
+    number is rounded where it is printed,
+    and not before."""
     before, after = periods(before, after)
-    start = stat(exact(weighted(before)))
-    end = stat(exact(weighted(after)))
-    print(f"{name}, {shown(start)} ->"
-          f" {shown(end)} ms:"
-          f" {shown(end - start, '+')} ms")
+    start = reach(stat, weighted(before))
+    end = reach(stat, weighted(after))
+    change = apart(end, start)
+    print(f"{name}, {spanned(start)} ->"
+          f" {spanned(end, unit=' ms')}:"
+          f" {spanned(change, '+', ' ms')}")
+    for rec, when in ((before, "before"),
+                      (after, "after")):
+        xs = [x for v in rec.values() for x in v]
+        k = sum(map(is_open, xs))
+        if k:
+            print(f"  open {when}: {k} of"
+                  f" {len(xs)} durations")
+    if (shares(before) == shares(after)
+            and not (one(start) and one(end))):
+        inner = spanned(change, "+")
+        print("  the mix is the same in both"
+              " periods:")
+        print(f"    within {inner}, mix +0")
+        return
     orders = ((f"class {what} first",
                after, before, "after"),
               ("mix first",
                before, after, "before"))
     found = []
     for text, rec, mix, when in orders:
-        low, top = (
-            stat(exact(weighted(rec, mix,
-                                fill=x)))
-            for x in (-math.inf, math.inf))
-        if low != top:
+        via = tuple(
+            reach(stat, weighted(rec, mix,
+                                 fill=x))[i]
+            for i, x in enumerate(ENDS[::-1]))
+        if not one(via):
             gone = ", ".join(absent(rec, mix))
+            kind = "infinite"
+            if via[0] != via[1]:
+                kind = "open"
+            why = f"a duration {when} is {kind}"
+            if gone:
+                why = f"no {gone} requests {when}"
             print(f"  {text}: not determined,")
-            print(f"    no {gone} requests"
-                  f" {when}")
+            print(f"    {why}")
             continue
-        inner, mixed = low - start, end - low
+        inner = apart(via, start)
+        mixed = apart(end, via)
         if rec is before:
             inner, mixed = mixed, inner
-        found.append((inner, mixed))
-        print(f"  {text}, via {shown(low)} ms:")
-        print(f"    within {shown(inner, '+')},"
-              f" mix {shown(mixed, '+')}")
+        if one(inner) and one(mixed):
+            found.append((inner[0], mixed[0]))
+        inner = spanned(inner, "+")
+        mixed = spanned(mixed, "+")
+        print(f"  {text}, via"
+              f" {shown(via[0])} ms:")
+        print(f"    within {inner}, mix {mixed}")
     if len(found) == 2:
         inner, mixed = (sum(xs) / 2
                         for xs in zip(*found))
         print("  average of the two orders:")
         print(f"    within {shown(inner, '+')},"
               f" mix {shown(mixed, '+')}")
+
+
+def one_lost():
+    """Twenty requests of one class in each
+    period, all of 100 ms, and the duration
+    of one of them lost in the second. The
+    request is in the record: the mix has
+    not changed. The mean is open upward,
+    and the percentile is settled, because
+    one request in twenty does not reach
+    it."""
+    before = {"web": [100] * 20}
+    after = {"web": [100] * 19 + [None]}
+    print("20 web requests of 100 ms in each")
+    print("period, one duration lost after:")
+    components(before, after)
+    components(before, after, p95, "p95",
+               "distributions")
 
 
 def one_bulk():
@@ -713,6 +851,7 @@ def main():
     two_missing()
     new_class(before, after)
     one_bulk()
+    one_lost()
 
 
 if __name__ == "__main__":

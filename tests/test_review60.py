@@ -92,7 +92,7 @@ class OneStreamTwoClasses(unittest.TestCase):
 
     def test_the_transcript_is_what_it_was(self):
         self.assertEqual(printed(mix.main), expected("ch23_mix"))
-        self.assertEqual(len(expected("ch23_mix").splitlines()), 108)
+        self.assertEqual(len(expected("ch23_mix").splitlines()), 122)          # 108 until Version 65
 
 
 class OneStreamUnderTwoObservedClasses(unittest.TestCase):

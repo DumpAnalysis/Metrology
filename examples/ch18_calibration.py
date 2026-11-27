@@ -3,6 +3,8 @@
 import math
 import random
 import statistics as st
+from decimal import MAX_EMAX, MIN_EMIN
+from decimal import Context, Decimal, localcontext
 from fractions import Fraction
 
 from examples.ch20_judge import exact_interval
@@ -54,12 +56,26 @@ def scaled(z, temp):
     return q
 
 
-def checked(data, temp=1.0):
+def cases(data):
     """The cases as a list, at least one, of
-    (logit / T, label). The logit and T are
-    finite numbers that known() admits, the
-    label is 0 or 1, and T is above zero in
-    the type in which it came: below zero
+    (logit, label): the logit a finite number
+    that known() admits, in the type in which
+    it came, and the label 0 or 1."""
+    data = list(data)
+    if not data:
+        raise ValueError("no cases")
+    zs = known([z for z, _ in data], "logit")
+    for _, y in data:
+        if y not in (0, 1):
+            raise ValueError("a label is 0 or 1")
+    return [(z, int(y == 1))
+            for z, (_, y) in zip(zs, data)]
+
+
+def checked(data, temp=1.0):
+    """The cases of cases() as (logit / T,
+    label). T is a finite number above zero
+    in the type in which it came: below zero
     the labels would change places, and a
     confident error would score well."""
     data = list(data)
@@ -68,12 +84,8 @@ def checked(data, temp=1.0):
     temp = known([temp], "T")[0]
     if not temp > 0:
         raise ValueError("need T > 0")
-    zs = known([z for z, _ in data], "logit")
-    for _, y in data:
-        if y not in (0, 1):
-            raise ValueError("a label is 0 or 1")
-    return [(scaled(z, temp), int(y == 1))
-            for z, (_, y) in zip(zs, data)]
+    return [(scaled(z, temp), y)
+            for z, y in cases(data)]
 
 
 def residual(z, y):
@@ -148,95 +160,176 @@ def margins(data):
     return [z if y else -z for z, y in data]
 
 
+def quick(ms, beta):
+    """The sign of the slope from floats, or
+    None where their rounding could hide it.
+    A term -m * sigmoid(-beta * m) is right
+    to within its share 2|beta m| + 8 of the
+    last place, and the terms are added
+    without a further error. A term below
+    the least normal float keeps no such
+    share, and nothing is concluded."""
+    try:
+        b = float(beta)
+        fs = [float(m) for m in ms]
+    except OverflowError:
+        return None
+    terms, slack = [], []
+    for f in fs:
+        x = b * f
+        s = sigmoid(-x)
+        t = -f * s
+        if min(b, abs(f), s, abs(t)) < LEAST:
+            return None
+        terms.append(t)
+        slack.append(abs(t) * (2 * abs(x) + 8))
+    total = math.fsum(terms)
+    if abs(total) > math.fsum(slack) * 2.0 ** -52:
+        return (total > 0) - (total < 0)
+    return None
+
+
+def sure(ms, beta, digits):
+    """The sign of the slope from decimals of
+    `digits` digits, or None where they do
+    not show it. The terms are kept as
+    logarithms and added as shares of the
+    largest, apart for the margins below
+    zero and above: a margin far out and
+    one next to zero both give a term too
+    small for a float. A share below
+    10 ** -digits is left out and counted
+    in what the sum may be wrong by."""
+    room = Context(prec=digits, Emax=MAX_EMAX,
+                   Emin=MIN_EMIN)
+    with localcontext(room):
+        b = Decimal(beta.numerator)
+        b /= beta.denominator
+        logs = []
+        for m in ms:
+            a = Decimal(abs(m.numerator))
+            a /= m.denominator
+            x = b * a
+            v = a.ln() - ((-x).exp() + 1).ln()
+            if m > 0:
+                v -= x
+            logs.append((v, 3 * x + abs(v) + 8))
+        top, most = max(logs)
+        unit = Decimal(10) ** (2 - digits)
+        sums = [Decimal(0), Decimal(0)]
+        slack = Decimal(10) ** -digits * len(ms)
+        for m, (v, w) in zip(ms, logs):
+            if v - top < -3 * digits:
+                continue
+            if (w + most) * unit > 0.001:
+                return None
+            share = (v - top).exp()
+            sums[m > 0] += share
+            slack += share * (w + most) * unit
+        slack += sum(sums) * len(ms) * unit
+        up, down = sums
+        if abs(up - down) > slack:
+            return (up > down) - (up < down)
+    return None
+
+
 def lean(ms, beta):
     """Sign of the derivative of the summed
-    loss by beta, which is 1 / T. The
-    derivative rises with beta. Its terms
-    are -m * sigmoid(-beta * m), below zero
-    for a margin above zero and above zero
-    for one below. They are added as
-    fractions: the sum may be beyond a
-    float, and has a sign. A term below the
-    least normal float has lost digits, or
-    all of them, and the sum can have lost
-    its sign with them: a margin far out and
-    one next to zero both give a term that
-    rounds to zero. The terms are then kept
-    as logarithms, and the two sums, of the
-    terms of either sign, are compared as
-    shares of the largest term."""
-    ms = [m for m in ms if m]
-    ss = [sigmoid(-beta * m) for m in ms]
-    if all(min(s, abs(m * s)) >= LEAST
-           for m, s in zip(ms, ss)):
-        total = sum(Fraction(-m * s)
-                    for m, s in zip(ms, ss))
-        return (total > 0) - (total < 0)
-    up, down = [], []
-    for m in ms:
-        x = beta * m
-        v = math.log(abs(m)) - max(x, 0)
-        v -= math.log1p(math.exp(-abs(x)))
-        (down if m > 0 else up).append(v)
-    top = max(up + down)
-    up = math.fsum(math.exp(v - top) for v in up)
-    down = math.fsum(math.exp(v - top)
-                     for v in down)
-    return (up > down) - (up < down)
+    loss by beta, which is 1 / T, at an exact
+    beta. The derivative rises with beta.
+    Its terms are -m * sigmoid(-beta * m),
+    below zero for a margin above zero and
+    above zero for one below. The sign is
+    that of the sum of the terms as they
+    are, and not of their rounded values:
+    rounded terms can add up to zero, or to
+    the other sign, where the loss is nearly
+    flat. Where floats do not show it, it
+    is found with 40 decimal digits, and
+    with twice as many until it shows. A
+    slope with no sign in 640 digits is
+    refused. No margin, no slope."""
+    ms = [Fraction(m) for m in ms if m]
+    beta = Fraction(beta)
+    sign = quick(ms, beta) if ms else 0
+    digits = 40
+    while sign is None:
+        if digits > 640:
+            raise ValueError("the slope has no "
+                             "sign in 640 digits")
+        sign = sure(ms, beta, digits)
+        digits *= 2
+    return sign
 
 
 def fit_temperature(data, lo=0.2, hi=10.0):
     """The finite T above zero that minimizes
-    the NLL on a calibration set, if it lies
+    the NLL on a calibration set, as the
+    float nearest to it, if that float lies
     between lo and hi, both finite: they
     bound the search and not the model. A
     minimum beyond them is reported, and not
-    replaced by the nearer of the two. The
-    shape of the loss is settled
-    from the margins before anything is
-    searched, because a search among rounded
-    losses can stop where they are equal.
-    With margins that are all zero every T
-    has the same loss: the data leave T
+    replaced by the nearer of the two; one
+    that rounds to lo or to hi is that
+    float. The shape of the loss is settled
+    from the margins, as the numbers that
+    they are, before anything is searched,
+    because a search among rounded losses
+    can stop where they are equal. With
+    margins that are all zero every T has
+    the same loss: the data leave T
     unidentified. Otherwise, with no margin
     below zero the loss falls all the way as
     T falls, and with margins that sum to
     zero or less, as T rises: there is no
-    finite T. These are errors, as is a
-    minimum outside the interval. A minimum
-    at lo or at hi is returned. Otherwise
-    the slope changes its sign once inside,
-    and bisection finds where."""
-    if not 0 < lo < hi < math.inf > 1 / lo:
+    finite T. These are errors. Otherwise
+    the slope changes its sign once, and
+    the floats on either side of the change
+    are found by bisection."""
+    try:
+        lo, hi = map(float, known([lo, hi]))
+    except ValueError:
+        lo = hi = 0.0
+    if not 0 < lo < hi:
         raise ValueError("need 0 < lo < hi < inf")
-    ms = margins(checked(data))
+    ms = margins((Fraction(z), y)
+                 for z, y in cases(data))
     if not any(ms):
         raise ValueError("the loss is the same "
                          "at every T")
     if min(ms) >= 0:
         raise ValueError("no finite T: the loss "
                          "falls as T falls")
-    if sum(map(Fraction, ms)) <= 0:
+    if sum(ms) <= 0:
         raise ValueError("no finite T: the loss "
                          "falls as T rises")
-    at_lo = lean(ms, 1 / float(lo))
-    at_hi = lean(ms, 1 / float(hi))
-    if at_lo < 0:
+
+    def above(a, b):
+        """Is the minimum above the middle of
+        the floats a and b?"""
+        mid = (Fraction(a) + Fraction(b)) / 2
+        return lean(ms, 1 / mid) > 0
+
+    if not above(math.nextafter(lo, 0.0), lo):
         raise ValueError("the minimum is "
                          "below lo")
-    if at_hi > 0:
+    top = min(math.nextafter(hi, math.inf),
+              math.nextafter(math.inf, 0.0))
+    if above(hi, top):
         raise ValueError("the minimum is "
                          "above hi")
-    if not (at_lo and at_hi):
-        return hi if at_lo else lo
-    a, b = math.log(lo), math.log(hi)
-    for _ in range(60):
-        mid = (a + b) / 2
-        if lean(ms, math.exp(-mid)) > 0:
+    a, b = lo, hi
+    while True:
+        mid = math.sqrt(a) * math.sqrt(b)
+        if not a < mid < b:
+            mid = a / 2 + b / 2
+        if not a < mid < b:
+            break
+        if above(mid, mid):
             a = mid
         else:
             b = mid
-    return math.exp((a + b) / 2)
+    return b if above(a, b) else a
 
 
 def correction():
@@ -269,6 +362,36 @@ def estimator_bias():
               f"{st.fmean(reps):.3f}")
 
 
+def logit_of(p):
+    """log(p / (1 - p)) for 0 < p < 1, as a
+    fraction. Next to one half the quotient
+    is next to 1, and 1 - p rounds away half
+    of what p differs from one half by: for
+    the float below 0.5 it is 0.5. The
+    distance d = 2p - 1 is formed from the
+    number that p is, and the logit is twice
+    the inverse hyperbolic tangent of d,
+    which below 1e-9 is d to the last
+    place. Beyond one quarter and three
+    quarters the lesser of p and 1 - p is
+    formed in the same way; below the least
+    normal float its logarithm is that of
+    its two whole numbers."""
+    p = Fraction(p)
+    d = 2 * p - 1
+    if abs(d) < 1e-9:
+        return 2 * d
+    if abs(d) <= 0.5:
+        return Fraction(2 * math.atanh(d))
+    r = min(p, 1 - p)
+    if r >= LEAST:
+        ln = math.log(r) - math.log1p(-r)
+    else:
+        ln = math.log(r.numerator)
+        ln -= math.log(r.denominator)
+    return Fraction(ln if d < 0 else -ln)
+
+
 def at_one_logit(logit, p):
     """The T above zero that turns one stated
     logit into the logit of the probability
@@ -278,13 +401,23 @@ def at_one_logit(logit, p):
     for one below: as T rises from 0 without
     limit, the stated probability moves from
     that label to a half and reaches
-    neither."""
+    neither. The quotient of the two logits
+    is formed from the numbers that they are
+    and rounded once; a T that is no finite
+    float above zero is refused."""
     side = (logit > 0) - (logit < 0)
     leans = (p > 0.5) - (p < 0.5)
     if not (0 < p < 1 and side and leans == side):
         raise ValueError("no T above zero "
                          "states this p")
-    return float(logit) / math.log(p / (1 - p))
+    try:
+        t = Fraction(logit) / logit_of(p)
+        t = float(t)
+    except OverflowError:
+        t = math.inf
+    if not 0 < t < math.inf:
+        raise ValueError("T is beyond a float")
+    return t
 
 
 def temperatures(logit, positive, n):

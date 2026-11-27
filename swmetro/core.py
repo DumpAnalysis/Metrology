@@ -138,6 +138,27 @@ def fmt(value, u, unit="", digits=2):
     return f"{text} {unit}".strip()
 
 
+def _dof(dof):
+    """Degrees of freedom as the float that
+    the distributions take: a number above
+    zero, or math.inf. A decimal or a
+    fraction is rounded once, here. A text
+    and a truth value are no numbers, and
+    a number that is 0 as a float, or
+    beyond the range of a float, is
+    refused: math.inf says that the
+    uncertainty is taken as known."""
+    if isinstance(dof, (str, bool)):
+        raise TypeError("dof is no number")
+    try:
+        dof = float(dof)
+    except OverflowError:
+        raise ValueError("dof beyond a float")
+    if not dof > 0:
+        raise ValueError("dof must be > 0")
+    return dof
+
+
 def _level(p):
     """A coverage probability: a decimal p as
     the fraction that it is."""
@@ -181,8 +202,10 @@ class Result:
             raise ValueError("value is no number")
         if not (u >= 0 and math.isfinite(u)):
             raise ValueError("u must be >= 0")
-        if not self.dof > 0:
-            raise ValueError("dof must be > 0")
+        # The class is frozen: the float is
+        # stored where the number was given.
+        dof = _dof(self.dof)
+        object.__setattr__(self, "dof", dof)
         resolved(self.value, u)
 
     def k(self, p=0.95):
@@ -422,20 +445,29 @@ def welch_satterthwaite(us, dofs):
     uncertainty needs its degrees of freedom:
     one that is left out would count as
     infinitely many. math.inf says so where
-    that is meant."""
-    us, dofs = list(us), list(dofs)
+    that is meant. The quotient is formed
+    from the numbers as they are and
+    rounded once: the fourth power of an
+    uncertainty over very few degrees of
+    freedom is beyond a float, and one
+    component alone keeps exactly its
+    own."""
+    us = list(us)
+    dofs = [_dof(d) for d in dofs]
     if len(dofs) != len(us):
         raise ValueError("one dof for each u")
-    if not all(d > 0 for d in dofs):
-        raise ValueError("dof must be > 0")
     if not all(0 <= u < math.inf for u in us):
         raise ValueError("u must be >= 0")
-    us, _ = _scaled(us)
-    den = sum(u ** 4 / d for u, d in zip(us, dofs)
-              if u > 0 and math.isfinite(d))
+    us = [_exact(u) ** 2 for u in us]
+    den = sum(v * v / _exact(d)
+              for v, d in zip(us, dofs)
+              if math.isfinite(d))
     if not den:
         return math.inf
-    return combine(*us) ** 4 / den
+    try:
+        return float(sum(us) ** 2 / den)
+    except OverflowError:
+        return math.inf
 
 
 class Budget:
@@ -449,13 +481,14 @@ class Budget:
 
     def add(self, name, kind, u, dof=math.inf):
         """kind: 'A' or 'B' (evaluation type).
-        u must be finite and not negative."""
+        u must be finite and not negative.
+        The degrees of freedom are held to
+        _dof() and kept as they were given."""
         if kind not in ("A", "B"):
             raise ValueError("kind is 'A' or 'B'")
         if not (u >= 0 and math.isfinite(u)):
             raise ValueError("u must be >= 0")
-        if not dof > 0:
-            raise ValueError("dof must be > 0")
+        _dof(dof)
         self.rows.append((name, kind, u, dof))
         return self
 

@@ -201,7 +201,7 @@ class ABoundKeptWithTheRequest(unittest.TestCase):
 
     def test_the_transcript(self):
         lines = expected("ch23_mix").splitlines()
-        self.assertEqual(len(lines), 108)                                        # 96 in Version 50, 100 in 51, 103 until 57
+        self.assertEqual(len(lines), 122)                               # 96 in Version 50, 100 in 51, 103 until 57, 108 until 65
         at = lines.index("90 fast requests and 10 slow, one")
         rows = ["90 fast requests and 10 slow, one"]
         cases = (("of the slow without a duration:", None, (200,)), ("and known only to exceed 200 ms:", (">", 200), (200, 250)),

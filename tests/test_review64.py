@@ -226,7 +226,10 @@ class TheSignOfTheSlope(unittest.TestCase):
         if math.exp(-x) != 0.5:
             self.skipTest("exp(-ln 2) is not the float 0.5 here")
         data = [(x, 1), (x, 1), (x, 0)]
-        self.assertEqual(cal.lean(cal.margins(data), 1.0), 0)
+        # Version 65 returned 0 here, the sign of the sum of the rounded terms. From Version 66 the sign is that
+        # of the terms as they are: the float nearest ln 2 is below ln 2, the minimum is below 1 by 3 parts in
+        # 10**17, and the slope at T = 1 is below zero. The float nearest the minimum is 1, as before.
+        self.assertEqual(cal.lean(cal.margins(data), 1.0), -1)
         self.assertEqual(cal.fit_temperature(data, 1.0, 10.0), 1.0)
         self.assertEqual(cal.fit_temperature(data, 0.2, 1.0), 1.0)
         self.assertAlmostEqual(cal.fit_temperature(data), 1.0, places=12)

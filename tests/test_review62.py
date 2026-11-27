@@ -186,7 +186,7 @@ class ASlowStreamInTheRecordAndInTheReference(unittest.TestCase):
         held, sizes = mix.both({"fast": [100] * 18, "slow": again}, {"fast": range(18), "slow": again})
         self.assertIs(held["slow"], again)
         self.assertEqual(len(sizes["slow"]), 2)
-        self.assertEqual(len(expected("ch23_mix").splitlines()), 108)
+        self.assertEqual(len(expected("ch23_mix").splitlines()), 122)          # 108 until Version 65
         self.assertEqual(printed(mix.main), expected("ch23_mix"))
 
 

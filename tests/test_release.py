@@ -19,7 +19,7 @@ class Release(unittest.TestCase):
     def test_record_names_the_repository_and_release(self):
         rec = json.loads((ROOT / "data" / "measurement_record.json").read_text(encoding="utf-8"))
         self.assertEqual(rec["sources"]["repo"], "github.com/DumpAnalysis/Metrology")
-        self.assertIn("Version 65", rec["sources"]["release"])
+        self.assertIn("Version 66", rec["sources"]["release"])
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         self.assertIn("https://github.com/DumpAnalysis/Metrology", readme)
         self.assertIn("PolyForm Strict License 1.0.0", readme)

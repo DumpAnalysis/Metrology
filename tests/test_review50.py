@@ -295,7 +295,7 @@ class TheMeanAsItPrints(unittest.TestCase):
 
     def test_the_transcript(self):
         lines = expected("ch23_mix").splitlines()
-        self.assertEqual(len(lines), 108)                                        # 100 in Version 51, 103 until 57
+        self.assertEqual(len(lines), 122)                                        # 100 in Version 51, 103 until 57, 108 until 65
         at = lines.index("  at 100 ms, the mean as it prints")
         rows = []
         for digits, half in ((2, Fraction(5, 1000)), (1, Fraction(5, 100)), (0, Fraction(1, 2))):

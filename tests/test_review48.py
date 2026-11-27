@@ -556,7 +556,7 @@ class AMeanAndAnUpperLimit(unittest.TestCase):
 
     def test_the_transcript(self):
         lines = expected("ch23_mix").splitlines()
-        self.assertEqual(len(lines), 108)                                        # 84 in Version 49, 96 in 50, 100 in 51, 103 until 57
+        self.assertEqual(len(lines), 122)                    # 84 in Version 49, 96 in 50, 100 in 51, 103 until 57, 108 until 65
         at = lines.index("  within 200 ms: 89.1 % to 99.1 %")
         rows = ["  p95 at most 200 ms: unresolved", "  with the slow mean of 450 ms and"]
         for cap, name in ((None, "no other limit"), (800, "none above 800 ms"), (810, "none above 810 ms")):
