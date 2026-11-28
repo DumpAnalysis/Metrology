@@ -11,7 +11,8 @@ from swmetro.core import fixed
 from swmetro.dist import phi, z_ppf
 from swmetro.stats import as_count, bootstrap
 from swmetro.stats import downward, ecdf_quantile
-from swmetro.stats import enclosed, known, native
+from swmetro.stats import enclosed, fraction
+from swmetro.stats import known, native
 from swmetro.stats import quantile_interval
 from swmetro.stats import quiet_bound, rate_limits
 from swmetro.stats import run_length, upward
@@ -53,15 +54,14 @@ def elapsed(xs):
 
 def pair(x, y):
     """The two fields of a row before they are
-    added. Two floats stay floats: their sum
-    is the duration that a configuration
-    records. Anything else is taken as the
-    exact fractions that the two are, so that
-    200.3 ms after no wait is still on a
-    bucket bound of 200.3 ms."""
+    added. Two floats stay floats: their sum is
+    the duration that a configuration records.
+    Others are the fractions that they are:
+    200.3 ms after no wait is still on a bucket
+    bound of 200.3 ms."""
     if type(x) is type(y) is float:
         return x, y
-    return Fraction(x), Fraction(y)
+    return fraction(x), fraction(y)
 
 
 def exact(x, y, sign=1):
@@ -73,7 +73,7 @@ def exact(x, y, sign=1):
     across it first. As floats, 1.3 - 0.1 is
     1.2, below the decimal 1.20, and the two
     that are stored differ by more than it."""
-    total = Fraction(x) + sign * Fraction(y)
+    total = fraction(x) + sign * fraction(y)
     if type(x) is type(y) is float:
         close = x + sign * y
         if close == total:

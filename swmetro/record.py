@@ -11,10 +11,11 @@ thereby a record whose model fits the
 system."""
 import json
 import math
-from decimal import Context, Decimal
+from decimal import Decimal
 from fractions import Fraction
 
 from .dist import t_isf, t_mid
+from .stats import stated
 from .units import Q
 
 FORMAT = "measurement record, version 5"
@@ -82,10 +83,9 @@ LEAST = Fraction(1, 10 ** 300)
 FEW = Fraction(1, 1000)
 FAR = Fraction(10) ** 149
 # What is shown is a decimal: exact if it has
-# at most 40 digits. A guard band is shown
-# with the 17 digits of a float.
-SHOW = Context(prec=40)
-BAND = Context(prec=17)
+# at most 40 digits. A square root that is
+# no fraction is bounded with as many.
+SHOW = stated(40)
 
 
 def _once(pairs):
@@ -329,6 +329,21 @@ def exact(x):
     return Fraction(_dec(x))
 
 
+def rounded(x, places):
+    """x rounded to `places` decimals, a half
+    to the even digit, with the tens for
+    places below zero. A decimal is rounded
+    in whole numbers and keeps its places:
+    round() would do it as the decimal
+    context of the caller says."""
+    if not isinstance(x, Decimal):
+        return round(x, places)
+    unit = Fraction(10) ** -places
+    n = round(Fraction(x) / unit)
+    digits = tuple(map(int, str(abs(n))))
+    return Decimal((n < 0, digits, -places))
+
+
 def bounds(x, digits):
     """Lowest and highest value that rounding
     to `digits` significant digits can have
@@ -403,12 +418,33 @@ def _full(q):
     return Decimal(f"{whole}e{-e}")
 
 
-def _root(q):
-    """Square root of a fraction, as a decimal
-    of at most 40 digits. No float is formed
-    on the way, so that the square of 1e-200
-    and that of 1e200 keep their roots."""
-    return _tidy(SHOW.sqrt(_shown(q)))
+def _root(q, digits=SHOW.prec):
+    """Bounds of the square root of a fraction
+    q >= 0, as fractions. Where q is the
+    square of a fraction the two are equal
+    and are that fraction. Otherwise they are
+    decimals of `digits` digits, one unit of
+    the last digit apart, with the root
+    between them. Whole numbers alone take
+    part: no float is formed, so that the
+    square of 1e-200 and that of 1e200 keep
+    their roots, and no decimal context
+    rounds on the way."""
+    n, d = q.numerator, q.denominator
+    a, b = math.isqrt(n), math.isqrt(d)
+    if a * a == n and b * b == d:
+        return (Fraction(a, b),) * 2
+    half = (len(str(n)) - len(str(d))) // 2
+    places = digits - half
+    while True:
+        unit = Fraction(10) ** -places
+        r = math.isqrt(math.floor(q / unit ** 2))
+        if r >= 10 ** digits:
+            places -= 1
+        elif r < 10 ** (digits - 1):
+            places += 1
+        else:
+            return r * unit, (r + 1) * unit
 
 
 def _squares(rec, both=True):
@@ -441,12 +477,19 @@ def _squares(rec, both=True):
     return max(lo, s_lo ** 2), min(hi, s_hi ** 2)
 
 
+def _roots(lo, hi):
+    """A lower bound of the root of lo and an
+    upper bound of the root of hi, as
+    decimals for display."""
+    lo, hi = _root(lo)[0], _root(hi)[1]
+    return _full(lo), _full(hi)
+
+
 def spread(rec):
     """Bounds of what the components combine
     to, without regard to the stated value,
     as decimals for display."""
-    lo, hi = _squares(rec, both=False)
-    return _root(lo), _root(hi)
+    return _roots(*_squares(rec, both=False))
 
 
 def combined(rec):
@@ -460,7 +503,7 @@ def combined(rec):
     both = _squares(rec)
     if both is None:
         return None
-    return _root(both[0]), _root(both[1])
+    return _roots(*both)
 
 
 def _factor(risk, dof):
@@ -545,43 +588,63 @@ def _over(k, u2, x, strict):
     return left >= right
 
 
+def _band(k, u2, x, top):
+    """A bound of the guard band k u as a
+    fraction, where u2 is the square of u: the
+    lower bound, or with `top` the upper one.
+    A band that is known exactly, with a root
+    that is a fraction, is returned as it is.
+    Otherwise digits are added to the root
+    until the bound stands to x as the band
+    itself does: below it, on it or above it,
+    which _over() tells exactly. None is a
+    band without a bound."""
+    if not u2:
+        return Fraction(0)
+    if k is None:
+        return None
+    side = (_over(k, u2, x, True),
+            _over(k, u2, x, False))
+    digits = SHOW.prec
+    while True:
+        b = k * _root(u2, digits)[top]
+        if (b > x, b >= x) == side:
+            return b
+        digits *= 2
+
+
 def guard(rec):
     """Bounds, as decimals for display, of the
     two guarded values of a record that has
     passed the checks: the estimate plus the
-    guard band, and the estimate less it. The
-    band has the 17 digits of a float and is
-    added to the estimate exactly, so that
-    with no band the estimate appears as it
-    is written. The sum is a decimal and is
-    returned in full, see _full(). An
-    unbounded band gives an infinite
-    bound."""
+    guard band, and the estimate less it.
+    They are the four numbers that decide()
+    compares with the limit, for the rounding
+    of the record and for the allowance of a
+    computed coverage factor, and each stands
+    to the limit as decide() finds it. With a
+    factor that is known and an uncertainty
+    whose root is a fraction, the band is
+    exact, and the two bounds of a record of
+    working values are one number. A bound
+    is a decimal and is returned in full,
+    see _full(). An unbounded band gives an
+    infinite bound."""
     room, us, ks = _parts(rec)
     limit = exact(rec["decision"]["limit"])
     v = limit - room[1], limit - room[0]
-    b = []
-    for i, u2 in enumerate(us):
-        k = ks[i][0]
-        if k is None:
-            k = ks[i][i + 1]
-        band = Fraction(0)
-        if u2 and k is None:
-            band = None
-        elif u2:
-            u = _root(u2)
-            band = BAND.multiply(_shown(k), u)
-            band = Fraction(band)
-        b.append(band)
+    k = ks[0][1], ks[1][2]
 
-    def end(x, band, sign):
+    def end(i, sign):
+        j = i if sign > 0 else 1 - i
+        x = sign * room[1 - i]
+        band = _band(k[j], us[j], x, j)
         if band is None:
-            return sign * Decimal("Infinity")
-        return _full(x + sign * band)
-    return ((end(v[0], b[0], 1),
-             end(v[1], b[1], 1)),
-            (end(v[0], b[1], -1),
-             end(v[1], b[0], -1)))
+            far = "Infinity", "-Infinity"
+            return Decimal(far[sign < 0])
+        return _full(v[i] + sign * band)
+    return ((end(0, 1), end(1, 1)),
+            (end(0, -1), end(1, -1)))
 
 
 def decide(rec):

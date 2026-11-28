@@ -2,11 +2,11 @@
 """Chapter 20: an LLM judge as an instrument."""
 import math
 import random
-from fractions import Fraction
 
 from swmetro.propagate import lpu
-from swmetro.stats import as_count, cohen_kappa
+from swmetro.stats import as_count, as_level
 from swmetro.stats import binomial_within
+from swmetro.stats import cohen_kappa
 from swmetro.stats import enclosed, least
 from swmetro.stats import not_above
 
@@ -135,9 +135,7 @@ def exact_interval(k, n, level=0.95):
         raise ValueError("no trials")
     if k > n:
         raise ValueError("need 0 <= k <= n")
-    if not 0 < level < 1:
-        raise ValueError("need 0 < level < 1")
-    a = (1 - Fraction(level)) / 2
+    a = (1 - as_level(level)) / 2
 
     def low_enough(p, digits):
         ends = binomial_within(k, n, p, digits)

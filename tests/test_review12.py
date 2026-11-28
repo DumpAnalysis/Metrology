@@ -267,18 +267,21 @@ class WhatIsShown(unittest.TestCase):
         rec = opened(file_text("9007199254740993", "9007199254740994", us=("0.5",), dof="1", risk="0.25"))
         self.assertEqual(guard(rec), ((Decimal("9007199254740993.5"),) * 2, (Decimal("9007199254740992.5"),) * 2))
         self.assertEqual(decide(rec), ("accept", []))
-        # A computed factor: the 17 digits of a float for the band.
+        # A computed factor. Until Version 71 the band had the 17 digits of a float and the two ends were one
+        # number. A band that is known exactly then lost its digits beyond the seventeenth, and the display
+        # could show a sum on the limit that lay above it (tests/test_review71.py). Since Version 72 the ends
+        # are bounds: the factor a part in a million lower and higher, the allowance of the decision, and the
+        # root rounded downward and upward. They mirror each other about the reading, exactly.
         rec = ch22_record_check.altered(read(STORED), {("result", "value"): Decimal("194.6")})
-        (lo, hi), (down, _) = guard(rec)
-        self.assertEqual(lo, hi)
-        band = lo - Decimal("194.6")
-        self.assertEqual(down, Decimal("194.6") - band)
-        self.assertLessEqual(len(band.as_tuple().digits), 17)
+        (lo, hi), (down, up) = guard(rec)
+        at = Fraction("194.6")
+        self.assertTrue(lo < hi and Fraction(lo) - at == at - Fraction(up) and Fraction(hi) - at == at - Fraction(down))
         r = rec["result"]
         k = checker.t_isf(0.05, float(r["dof"]))
         u = math.sqrt(sum(float(c["u"]) ** 2 for c in rec["components"]))
-        self.assertAlmostEqual(float(band), k * u, places=12)
-        self.assertEqual(f"{lo:.5f}", "199.94976")
+        self.assertAlmostEqual(float(Fraction(lo) - at), (1 - 1e-6) * k * u, places=12)
+        self.assertAlmostEqual(float(Fraction(hi) - at), (1 + 1e-6) * k * u, places=12)
+        self.assertEqual((f"{lo:.6f}", f"{hi:.6f}"), ("199.949756", "199.949767"))
 
     def test_an_unbounded_band(self):
         rec = opened(file_text("50", "100", us=("1",), dof="1e-9"))

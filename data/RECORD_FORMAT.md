@@ -308,12 +308,22 @@ display, and `decide` does not use them.
 - A sum or a product of stated numbers is shown exactly if it has at most
   40 digits. With no guard band the guarded value is the estimate as it is
   written: `9007199254740993` and not the float `9007199254740992.0`.
-- A guard band is given the 17 digits of a float, since the coverage factor
-  has no more, and is added to the estimate exactly.
-- A square root that is not a decimal is shown to 40 digits. No float is
-  formed on the way, so a single uncertainty of 1e-200 is shown as `1E-200`
-  and one of 1e200 as `1E+200`; their squares would be 0 and infinity as
-  floats.
+- The guarded values are bounds of the four numbers that `decide` compares
+  with the limit. A computed coverage factor enters with its allowance of
+  one part in a million, lower at a lower bound of the band and higher at an
+  upper one. With a factor that is known, and an uncertainty whose root is a
+  fraction, the band is exact and is added to the estimate exactly: 199 with
+  an uncertainty of 1.00000000000000004, one degree of freedom and a risk of
+  0.25 gives `200.00000000000000004`. Each bound lies on the side of the
+  limit, or on the limit, where `decide` finds it.
+- A square root that is a fraction is that fraction, however many digits it
+  has. One that is not is bounded with 40 digits, downward for a lower bound
+  and upward for an upper one, and with more where a bound next to the limit
+  needs them. The root is taken in whole numbers. No float is formed on the
+  way, so a single uncertainty of 1e-200 is shown as `1E-200` and one of
+  1e200 as `1E+200`; their squares would be 0 and infinity as floats. No
+  decimal context rounds on the way either: the decimal settings of the
+  caller have no part in what is shown or decided.
 - A factor that is not computed is shown by what is known of it: the
   estimate plus the lower bound of the band at one end, and `Infinity` at
   the other; `-Infinity` and the estimate less that bound for the lower
@@ -433,7 +443,9 @@ known. It does not mean that every field of the record is filled in.
 combine to, and `combined(record)` the bounds that the whole record supports,
 with `result.u` taken into account, or `None` if the two do not meet.
 `guard(record)` returns the bounds of the estimate plus the guard band and of
-the estimate less it. For working values each pair of bounds is one number.
+the estimate less it. For working values with a factor that is known, each
+pair of bounds is one number. With a computed factor the two bounds lie a
+millionth of the band on either side of the computed sum.
 All three return decimals (see *What the checker shows*).
 
 ## Comparing two records

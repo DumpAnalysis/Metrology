@@ -1,15 +1,16 @@
 # replay: exact
 """Chapter 22: checking a record before use."""
 import copy
-from decimal import Decimal
+from fractions import Fraction
 from pathlib import Path
 
 from swmetro.core import decimals
 from swmetro.record import combined, comparable
-from swmetro.record import decide, guard, in_unit
-from swmetro.record import missing, read, spread
-from swmetro.record import stale
+from swmetro.record import decide, exact, guard
+from swmetro.record import in_unit, missing, read
+from swmetro.record import rounded, spread, stale
 from swmetro.stats import downward, enclosed
+from swmetro.stats import nearest
 
 ROOT = Path(__file__).resolve().parent.parent
 # A record from other telemetry, written
@@ -63,7 +64,7 @@ def altered(rec, changes):
 
 def two(x):
     """x with two significant digits."""
-    return round(x, decimals(x))
+    return rounded(x, decimals(x))
 
 
 def displayed(rec):
@@ -81,7 +82,7 @@ def displayed(rec):
     r["value_step"] = 0.0
     if r["u"] > 0:
         place = decimals(r["u"])
-        r["value"] = round(r["value"], place)
+        r["value"] = rounded(r["value"], place)
         r["value_step"] = 10.0 ** -place
     r["u"], r["dof"] = two(r["u"]), two(r["dof"])
     r["significant_digits"] = 2
@@ -108,32 +109,30 @@ def near(title, rec, value):
     that differ are two bounds, however
     close: the lower is rounded downward and
     the upper upward, to two places or to
-    the second digit of their distance, and
-    neither is printed across the limit or
-    onto it. That holds for the one end of
-    a range without an upper end as well.
+    the second digit of their distance.
     Equal ends are one value, rounded to
-    the nearest, with more places where two
-    would print it as the limit."""
+    the nearest. The limit is read as the
+    decision reads it, and whatever is
+    printed stands to it as the number did:
+    below it, on it or above it, with more
+    places where two would not show that."""
     change = {("result", "value"): value}
     rec = altered(rec, change)
     report(title, rec)
     lo, hi = guard(rec)[0]
-    limit = rec["decision"]["limit"]
+    limit = exact(rec["decision"]["limit"])
     if hi.is_infinite():
         low = downward(lo, 2, limit)
         text = f"{low} or more"
     elif hi != lo:
-        places = 1 - (hi - lo).adjusted()
-        ends = enclosed(lo, hi, max(2, places),
-                        limit)
+        apart = Fraction(hi) - Fraction(lo)
+        places = 2
+        while apart * 10 ** places < 10:
+            places += 1
+        ends = enclosed(lo, hi, places, limit)
         text = " to ".join(ends)
     else:
-        places = 2
-        text = f"{lo:.2f}"
-        while Decimal(text) == limit != lo:
-            places += 1
-            text = f"{lo:.{places}f}"
+        text = nearest(lo, 2, limit)
     print(f"  estimate + band: {text}")
 
 

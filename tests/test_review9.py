@@ -169,10 +169,16 @@ class WholeRecord(unittest.TestCase):
             self.assertEqual((round(value - 0.05 + k_small * 3.05, 2), round(top, 2)), both)
             rec = self.near(self.shown, value)
             (a_lo, a_hi), (r_lo, r_hi) = (tuple(map(float, pair)) for pair in guard(rec))
-            self.assertAlmostEqual(a_lo, value - 0.05 + k_small * 3.05, places=5)
-            self.assertAlmostEqual(a_hi, top, places=5)
-            self.assertAlmostEqual(r_lo, value - 0.05 - k_large * hi, places=5)
-            self.assertAlmostEqual(r_hi, value + 0.05 - k_small * 3.05, places=5)
+            # Since Version 72 the four ends are the numbers that decide() compares with the limit: a computed
+            # coverage factor stands one part in a million lower at a lower bound of the band and as much higher
+            # at an upper one, the allowance of Chapter 22. Until Version 71 the ends held the factor as it was
+            # computed, and the display could show both below a limit at which decide() withheld a decision
+            # (tests/test_review71.py). The comparison was to five places and is now to nine.
+            less, more = 1 - 1e-6, 1 + 1e-6
+            self.assertAlmostEqual(a_lo, value - 0.05 + less * k_small * 3.05, places=9)
+            self.assertAlmostEqual(a_hi, value + 0.05 + more * k_large * hi, places=9)
+            self.assertAlmostEqual(r_lo, value - 0.05 - more * k_large * hi, places=9)
+            self.assertAlmostEqual(r_hi, value + 0.05 - less * k_small * 3.05, places=9)
             self.assertEqual(decide(rec), outcome, value)
         # At 194.8 every value the record allows gives one outcome.
         self.assertGreater(194.75 + k_small * 3.05, 200.0)
@@ -181,10 +187,16 @@ class WholeRecord(unittest.TestCase):
     def test_the_working_values_and_the_figure(self):
         rec = self.near(self.rec, 194.6)
         a_lo, a_hi = map(float, guard(rec)[0])
-        self.assertEqual(a_lo, a_hi)
         k = t_upper(0.05, self.rec["result"]["dof"])
-        self.assertAlmostEqual(a_lo, 194.6 + k * self.rec["result"]["u"], places=5)
-        self.assertEqual(f"{a_lo:.5f}", "199.94976")
+        band = k * self.rec["result"]["u"]
+        # Until Version 71 the two ends were one number, the sum with the factor as computed, 199.94976.
+        # Since Version 72 they are its two bounds for the allowance of the factor, a millionth of the band
+        # on either side: the numbers that decide() compares (tests/test_review71.py).
+        self.assertAlmostEqual(a_lo, 194.6 + (1 - 1e-6) * band, places=9)
+        self.assertAlmostEqual(a_hi, 194.6 + (1 + 1e-6) * band, places=9)
+        self.assertEqual(f"{(a_lo + a_hi) / 2:.5f}", "199.94976")
+        self.assertEqual((f"{a_lo:.6f}", f"{a_hi:.6f}"), ("199.949756", "199.949767"))
+        a_lo = (a_lo + a_hi) / 2            # the mark of Figure 22.1
         self.assertEqual(decide(rec), ("accept", []))
         # What Figure 22.1 draws, and what Transcript 22.4 prints.
         lo, hi = guard(self.near(self.shown, 194.6))[0]
@@ -196,15 +208,23 @@ class WholeRecord(unittest.TestCase):
         self.assertTrue(199.86 < lo < 199.87 and 200.11 < hi < 200.12)
         for line in ("  components allow: 2.982 to 3.122", "  with the stated u: 3.050 to 3.122",
                      "  estimate + band: 199.86 to 200.12", "  estimate + band: 200.06 to 200.32",
-                     "  estimate + band: 199.95"):
+                     "  estimate + band: 199.949755 to 199.949767"):      # until Version 71: 199.95
             self.assertIn(line + "\n", text)
         source = (ROOT / "figures" / "make_figures.py").read_text(encoding="utf-8")
         self.assertIn("from swmetro.record import guard", source)
 
     def test_a_working_record_always_has_one_number(self):
+        # The name is that of Version 10, when the two ends of a working record were one number. Since Version
+        # 72 that holds where the band is known exactly (tests/test_review71.py). With a computed factor the
+        # ends are two bounds, two millionths of the band apart, and nothing else separates them: the rounding
+        # of a rounded record moves them a ten thousand times further.
+        k = t_upper(0.05, self.rec["result"]["dof"])
+        width = 2e-6 * k * self.rec["result"]["u"]
         for value in (150.0, 194.6, 194.65, 199.0, 250.0):
             (a_lo, a_hi), (r_lo, r_hi) = guard(self.near(self.rec, value))
-            self.assertEqual((a_lo, r_lo), (a_hi, r_hi))
+            self.assertAlmostEqual(float(a_hi - a_lo), width, places=12)
+            self.assertAlmostEqual(float(r_hi - r_lo), width, places=12)
+            self.assertTrue(a_lo < a_hi and r_lo < r_hi and a_lo + r_hi == a_hi + r_lo)
             self.assertIn(decide(self.near(self.rec, value))[0], ("accept", "reject", "undecided"))
 
 

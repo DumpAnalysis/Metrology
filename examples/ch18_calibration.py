@@ -3,13 +3,13 @@
 import math
 import random
 import statistics as st
-from decimal import MAX_EMAX, MIN_EMIN
-from decimal import Context, Decimal, localcontext
+from decimal import Decimal, localcontext
 from fractions import Fraction
 
 from examples.ch20_judge import exact_interval
-from swmetro.stats import as_count, known
-from swmetro.stats import downward, upward
+from swmetro.stats import as_count, downward
+from swmetro.stats import fraction, known, native
+from swmetro.stats import stated, upward
 
 LEAST = 2.0 ** -1022  # the least normal float
 
@@ -47,7 +47,7 @@ def scaled(z, temp):
         q = z / temp
     else:
         try:
-            q = Fraction(z) / Fraction(temp)
+            q = fraction(z) / fraction(temp)
             q = float(q)
         except OverflowError:
             q = math.inf
@@ -199,9 +199,9 @@ def sure(ms, beta, digits):
     or next to zero gives a term too small for a
     float. A share below 10 ** -digits is left out
     and counted in the error."""
-    room = Context(prec=digits, Emax=MAX_EMAX,
-                   Emin=MIN_EMIN)
-    with localcontext(room):
+    # A context that takes nothing from the
+    # decimal settings of the caller.
+    with localcontext(stated(digits)):
         b = Decimal(beta.numerator)
         b /= beta.denominator
         logs = []
@@ -246,8 +246,8 @@ def lean(ms, beta):
     with 40 decimal digits, and with twice as many
     until it shows. A slope with no sign in 640
     digits is refused. No margin, no slope."""
-    ms = [Fraction(m) for m in ms if m]
-    beta = Fraction(beta)
+    ms = [fraction(m) for m in ms if m]
+    beta = fraction(beta)
     sign = quick(ms, beta) if ms else 0
     digits = 40
     while sign is None:
@@ -287,7 +287,7 @@ def fit_temperature(data, lo=0.2, hi=10.0):
         lo = hi = 0.0
     if not 0 < lo < hi:
         raise ValueError("need 0 < lo < hi < inf")
-    ms = margins((Fraction(z), y)
+    ms = margins((fraction(z), y)
                  for z, y in cases(data))
     if not any(ms):
         raise ValueError("the loss is the same "
@@ -372,7 +372,7 @@ def logit_of(p):
     formed in the same way; below the least
     normal float its logarithm is that of
     its two whole numbers."""
-    p = Fraction(p)
+    p = fraction(p)
     d = 2 * p - 1
     if abs(d) < 1e-9:
         return 2 * d
@@ -389,17 +389,17 @@ def logit_of(p):
 
 def at_one_logit(logit, p):
     """The T above zero that turns one stated
-    logit into the logit of the probability
-    p. There is one only for p between a half
-    and the label that the logit leans to,
-    which is 1 for a logit above zero and 0
-    for one below: as T rises from 0 without
-    limit, the stated probability moves from
-    that label to a half and reaches
-    neither. The quotient of the two logits
-    is formed from the numbers that they are
-    and rounded once; a T that is no finite
+    logit into the logit of the probability p.
+    There is one only for p between a half and the
+    label that the logit leans to, which is 1 for
+    a logit above zero and 0 for one below: as T
+    rises from 0 without limit, the stated
+    probability moves from that label to a half
+    and reaches neither. The quotient of the two
+    logits is formed from the numbers that they
+    are and rounded once; a T that is no finite
     float above zero is refused."""
+    logit, p = native(logit), native(p)
     side = (logit > 0) - (logit < 0)
     leans = (p > 0.5) - (p < 0.5)
     if not (0 < p < 1 and side and leans == side):

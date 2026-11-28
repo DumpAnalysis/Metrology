@@ -7,8 +7,9 @@ from pathlib import Path
 
 from examples import ch16_trace_measurements as tm
 from examples.ch20_judge import exact_interval
-from swmetro.stats import as_count, enclosed
-from swmetro.stats import least, not_above
+from swmetro.stats import as_count, as_level
+from swmetro.stats import chance, enclosed
+from swmetro.stats import least, native, not_above
 from swmetro.stats import paired_exact
 from swmetro.stats import poisson_within
 from swmetro.stats import quiet_bound
@@ -31,8 +32,9 @@ def merged(spans):
     be subtracted from one another: as
     floats, such stamps lie 256 ns apart."""
     out = []
-    for x, y in sorted((Fraction(x), Fraction(y))
-                       for x, y in spans):
+    for x, y in sorted(
+            tuple(Fraction(native(t)) for t in s)
+            for s in spans):
         if not x < y:
             raise ValueError("empty stretch")
         if out and x <= out[-1][1]:
@@ -54,7 +56,8 @@ def starts(spans, delta):
     delta. A request longer than a stretch
     can start before it and end after it,
     and leave neither."""
-    if delta < 0:
+    delta = native(delta)
+    if not 0 <= delta < math.inf:
         raise ValueError("need delta >= 0")
     spans, delta = merged(spans), Fraction(delta)
     back = [(x - delta, y - delta)
@@ -115,15 +118,18 @@ def mean_reach(spans, shares):
     not reach() at the mean duration, which
     for a single window is never smaller and
     can give too low a bound. The shares are
-    taken as the numbers that they are, and
-    the mean is a fraction."""
-    spans, shares = list(spans), list(shares)
+    taken as the numbers that they are and
+    divided by their total, which for the
+    floats 0.2 and 0.8 is above one."""
+    spans = list(spans)
+    shares = [(Fraction(native(p)), d)
+              for p, d in shares]
     total = sum(p for p, _ in shares)
     if (abs(total - 1) > 1e-9
             or min(p for p, _ in shares) < 0):
         raise ValueError("shares must sum to 1")
-    return sum(Fraction(p) * reach(spans, d)
-               for p, d in shares)
+    return sum(p * reach(spans, d)
+               for p, d in shares) / total
 
 
 def by_messages(spans, delta):
@@ -175,14 +181,12 @@ def paired_upper(n, spans, delta, level=0.95):
     probability is known to be 1 - level or
     less, see least()."""
     n = as_count(n)
-    if not 0 < level < 1:
-        raise ValueError("need 0 < level < 1")
+    tail = 1 - as_level(level)
     if not n:
         return paired_bound(spans, delta, level)
     two, one = by_messages(spans, delta)
     if not two + one > 0:
         raise ValueError("no exposure")
-    tail = 1 - Fraction(level)
 
     def test(rate, digits):
         half = Fraction(rate) / 2
@@ -216,6 +220,7 @@ def kept_starts(spans, delta, keep, unit):
     of the times and of one another. The
     share is taken as the number that it is,
     and the length is a fraction."""
+    keep = native(keep)
     if not 0 < keep <= 1:
         raise ValueError("need 0 < keep <= 1")
     keep = Fraction(keep)
@@ -243,12 +248,11 @@ def searched_bound(seconds, windows, level=0.95):
     least(). For one window that is
     quiet_bound()."""
     windows = as_count(windows, "windows", 1)
+    level = as_level(level)
+    seconds = native(seconds)
     if not 0 < seconds < math.inf:
         raise ValueError("no exposure")
-    if not 0 < level < 1:
-        raise ValueError("need 0 < level < 1")
     seconds = Fraction(seconds)
-    level = Fraction(level)
 
     def test(rate, digits):
         mean = Fraction(rate) * seconds
@@ -270,13 +274,10 @@ def gap_somewhere(rate, total, length):
     Windows that overlap are not independent.
     The sum is the chance for the largest of
     the gaps, see gap_given(), taken over the
-    Poisson count. It is summed in floats
-    from gap_terms(), with signs that
-    alternate, and is good to some thirteen
-    digits."""
-    terms = gap_terms(rate, total, length)
-    return sum(float(c) * math.exp(-x)
-               for c, x in terms)
+    Poisson count. The terms of gap_terms()
+    alternate in sign, and chance() returns
+    the float nearest to their sum."""
+    return chance(gap_terms(rate, total, length))
 
 
 def gap_terms(rate, total, length):
@@ -285,6 +286,8 @@ def gap_terms(rate, total, length):
     c * exp(-x). The three arguments are
     taken as the numbers that they are, and
     the pairs are fractions."""
+    rate, total, length = map(
+        native, (rate, total, length))
     if not 0 < length <= total < math.inf:
         raise ValueError("no room for the gap")
     if total > 20 * length:
@@ -462,9 +465,7 @@ def gap_bound(total, length, level=0.95):
     returned is the least at which it is
     known to be 1 - level or less, see
     least()."""
-    if not 0 < level < 1:
-        raise ValueError("need 0 < level < 1")
-    tail = 1 - Fraction(level)
+    tail = 1 - as_level(level)
 
     def test(rate, digits):
         terms = gap_terms(rate, total, length)
@@ -508,9 +509,10 @@ def some_empty(rate, terms):
     disjoint windows are independent. Those
     of pairs are not, since a request that
     starts in one window can end in the
-    next."""
-    return sum(sign * math.exp(-rate / 2 * a)
-               for sign, a in terms)
+    next. chance() encloses the sum."""
+    half = Fraction(native(rate)) / 2
+    return chance((sign, half * a)
+                  for sign, a in terms)
 
 
 def searched_pairs(windows, delta, level=0.95):
@@ -527,12 +529,10 @@ def searched_pairs(windows, delta, level=0.95):
     float that is returned is the least at
     which it is known to be 1 - level or
     less, see least()."""
-    if not 0 < level < 1:
-        raise ValueError("need 0 < level < 1")
+    tail = 1 - as_level(level)
     net = {}
     for sign, a in selections(windows, delta):
         net[a] = net.get(a, 0) + sign
-    tail = 1 - Fraction(level)
 
     def test(rate, digits):
         half = Fraction(rate) / 2

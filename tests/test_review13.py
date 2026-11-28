@@ -94,8 +94,11 @@ class RiskNextToOneHalf(unittest.TestCase):
         self.assertTrue(0 < low < k < high)
         (lo, hi), (down, up) = guard(opened(file_text("100", "100", risk=NINES)))
         self.assertTrue(down < 100 < lo)                          # the two ends of the review
-        self.assertAlmostEqual(float(lo - 100) / want, 1.0, places=12)
-        self.assertAlmostEqual(float(100 - down) / want, 1.0, places=12)
+        # Until Version 71 both ends held the factor as computed. Since Version 72 the lower end of the sum
+        # holds its lower bound and the lower end of the difference its upper bound, a part in a million
+        # away: the numbers that decide() compares (tests/test_review71.py).
+        self.assertAlmostEqual(float(lo - 100) / want, 1 - 1e-6, places=12)
+        self.assertAlmostEqual(float(100 - down) / want, 1 + 1e-6, places=12)
 
     def test_the_sign_settles_equality_at_every_supported_risk(self):
         for n in (1, 2, 6, 9, 12, 16, 17, 20, 30, 100, 299, 300):

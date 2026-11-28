@@ -9,7 +9,7 @@ from fractions import Fraction
 
 from swmetro.stats import as_count, downward
 from swmetro.stats import enclosed, exact_q
-from swmetro.stats import known, native, upward
+from swmetro.stats import fraction, known, upward
 from swmetro.stats import weighted_quantile
 
 # (class, requests, mean duration in ms)
@@ -108,7 +108,7 @@ def mean(pairs):
     1/3 have a mean below 200 ms. An infinite
     fill is the mean, and with a duration
     that is no number there is none."""
-    pairs = [(x, Fraction(w)) for x, w in pairs]
+    pairs = [(x, fraction(w)) for x, w in pairs]
     total = sum(w for _, w in pairs)
     if not total:
         raise ValueError("no requests")
@@ -116,7 +116,7 @@ def mean(pairs):
     odd = [x for x in xs if x != x or x in ENDS]
     if odd:
         return sum(map(float, odd))
-    top = sum(Fraction(native(x)) * w
+    top = sum(fraction(x) * w
               for x, w in pairs)
     if any(isinstance(x, float) for x in xs):
         return float(top / total)
@@ -544,7 +544,7 @@ def exact(pairs):
     out = []
     for x, w in pairs:
         try:
-            x = Fraction(native(x))
+            x = fraction(x)
         except (TypeError, ValueError,
                 OverflowError):
             pass

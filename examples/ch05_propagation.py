@@ -8,7 +8,7 @@ from swmetro.dist import z_ppf
 from swmetro.propagate import lpu, monte_carlo
 from swmetro.propagate import normal, rect
 from swmetro.propagate import summarize
-from swmetro.stats import enclosed
+from swmetro.stats import enclosed, fraction
 
 N = 200_000  # Monte Carlo trials
 RATE = Fraction(1, 10 ** 9)  # u of a clock rate
@@ -84,7 +84,7 @@ def shared_rate(first=0, last=10 ** 9, u=RATE):
     its u_c with the rate as the one input.
     The model is linear, the law is exact
     for it, and the two forms agree."""
-    u = Fraction(u)
+    u = fraction(u)
     xs = [10 ** 17 + first, 10 ** 17 + last]
     us = [x * u for x in xs]
     y, uc, cu = lpu(lambda t: t[1] - t[0],

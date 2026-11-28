@@ -5,7 +5,7 @@ from fractions import Fraction
 from pathlib import Path
 
 from swmetro import Result, type_a, u_tri
-from swmetro.stats import as_count, linfit
+from swmetro.stats import as_count, linfit, native
 from swmetro.stats import quiet_bound, upward
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -67,8 +67,8 @@ def ticks(seconds):
     floats 1000 * 2.007 is 2007.0000000000002,
     and a line stamped 2007 would be counted
     on the wrong side of that end."""
-    if isinstance(seconds, float):
-        seconds = repr(float(seconds))
+    if not isinstance(seconds, str):
+        seconds = str(native(seconds))
     q = 1000 * Fraction(seconds)
     return int(q) if q == int(q) else q
 

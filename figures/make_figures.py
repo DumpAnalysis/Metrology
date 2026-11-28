@@ -1011,14 +1011,17 @@ def psi_null():
 
 def guard_values():
     """The estimate plus its guard band for the record of Chapter 22 with an
-    estimate of 194.6 ms: one number from the working values, a range from
-    the same record rounded to two significant digits. The marks stand where
-    the values were computed. The two ends of the range are labeled with
-    bounds, the lower rounded downward and the upper upward, as Listing 22.4
-    prints them; the single value is labeled to the nearest hundredth."""
+    estimate of 194.6 ms: from the working values, and a range from the same
+    record rounded to two significant digits. The marks stand where the
+    values were computed. The two ends of the range are labeled with bounds,
+    the lower rounded downward and the upper upward, as Listing 22.4 prints
+    them. The working values give two bounds as well, a millionth of the
+    band on either side of the computed sum, for the allowance of the
+    coverage factor. At this scale they are one mark, drawn at their middle
+    and labeled to the nearest hundredth."""
     rec = c22.load("measurement_record.json")
     change = {("result", "value"): 194.6}
-    working = float(guard(c22.altered(rec, change))[0][0])
+    working = sum(map(float, guard(c22.altered(rec, change))[0])) / 2
     ends = guard(c22.altered(c22.displayed(rec), change))[0]
     labels = downward(ends[0], 2), upward(ends[1], 2)
     lo, hi = map(float, ends)

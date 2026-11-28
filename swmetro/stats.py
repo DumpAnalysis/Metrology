@@ -4,7 +4,9 @@ import random
 import statistics as st
 from decimal import MAX_EMAX, MIN_EMIN, Context
 from decimal import ROUND_CEILING, ROUND_FLOOR
-from decimal import Decimal
+from decimal import ROUND_HALF_EVEN
+from decimal import Decimal, DivisionByZero
+from decimal import InvalidOperation, Overflow
 from fractions import Fraction
 from functools import lru_cache
 from numbers import Integral, Real
@@ -59,6 +61,11 @@ def native(x):
     except OverflowError:
         return f
     return y if y == f else f
+
+
+def fraction(x):
+    """native() of x, as the fraction it is."""
+    return Fraction(native(x))
 
 
 def natives(xs):
@@ -199,25 +206,41 @@ def _placed(n, places):
     return f"{sign}{whole}.{part:0{places}d}"
 
 
-def _toward(x, places, limit, sign):
-    """x as text, rounded toward +inf for a
-    sign of 1 and toward -inf for -1, in exact
-    arithmetic. With a limit that x does not
-    reach on that side, places are added until
-    the text does not reach it either."""
+def _decimal(f):
+    """Whether a fraction is a decimal of
+    finitely many places."""
+    d = f.denominator
+    for p in (2, 5):
+        while d % p == 0:
+            d //= p
+    return d == 1
+
+
+def _rounded(x, places, limit, way):
+    """x as text, rounded by `way` to a whole
+    number of its last place, in exact
+    arithmetic. With a limit, the text stands
+    to it as x does: below it, on it or above
+    it. Places are added until it does. A
+    number on a limit that is no decimal has
+    no such text, and keeps its places."""
     places = as_count(places, "number of places")
-    x = sign * Fraction(native(x))
+    x = Fraction(native(x))
     if limit is not None:
-        limit = sign * Fraction(native(limit))
+        limit = Fraction(native(limit))
+        if x == limit and not _decimal(x):
+            limit = None
     while True:
         scale = 10 ** places
-        n = math.ceil(x * scale)
-        if limit is None or not x < limit:
+        n = way(x * scale)
+        if limit is None:
             break
-        if n < limit * scale:
+        at = limit * scale
+        if (n > at, n < at) == (x > limit,
+                                x < limit):
             break
         places += 1
-    return _placed(sign * n, places)
+    return _placed(n, places)
 
 
 def upward(x, places, below=None):
@@ -228,26 +251,36 @@ def upward(x, places, below=None):
     bound that was computed. A float is the
     binary number that it is, and `places` is a
     whole number not below 0. With `below`, a
-    limit above x, the text stays below it
-    too, with more places where that needs
+    limit, the text stands to the limit as x
+    does, with more places where that needs
     them: 94.9934 % under an objective of 95 %
-    is 94.994 % and not 95.00 %."""
-    return _toward(x, places, below, 1)
+    is 94.994 % and not 95.00 %, and 200.003
+    on a limit of 200.003 is not 200.01."""
+    return _rounded(x, places, below, math.ceil)
 
 
 def downward(x, places, above=None):
     """The same toward -inf, for a lower bound,
-    and with `above` a limit below x."""
-    return _toward(x, places, above, -1)
+    with `above` for its limit."""
+    return _rounded(x, places, above, math.floor)
+
+
+def nearest(x, places, limit=None):
+    """The same to the nearest, a half to the
+    even digit: for a value, which is no
+    bound. Against a limit of 200.003 a
+    value of 200.004 is 200.004, where two
+    places would put it below."""
+    return _rounded(x, places, limit, round)
 
 
 def enclosed(low, top, places, limit=None):
     """The two ends of an interval as text, the
     lower one rounded downward and the upper
     one upward: the interval that is printed
-    holds the one that was computed. An end
-    that lies on one side of a `limit` is
-    printed on that side, see upward()."""
+    holds the one that was computed. Each end
+    stands to a `limit` as it did before it
+    was printed, see upward()."""
     return (downward(low, places, limit),
             upward(top, places, limit))
 
@@ -545,18 +578,43 @@ def _span(exposure, level):
     return exposure, level
 
 
+def as_level(level):
+    """A level as the fraction that it is: a
+    probability above 0 and below 1, taken as
+    native() gives it. A float of any width
+    is the binary number that it is, and a
+    truth value is no level."""
+    level = native(level)
+    if not 0 < level < 1:
+        raise ValueError("need 0 < level < 1")
+    return Fraction(level)
+
+
 DEEPEST = 5120
 
 
 @lru_cache(maxsize=None)
+def stated(digits, way=ROUND_HALF_EVEN):
+    """A decimal context of so many digits,
+    with exponents as far as Python has them,
+    that states all that it has: what one
+    leaves unstated comes from a default that
+    a program can change, and an operator
+    between two decimals uses the context of
+    the thread. The package uses these."""
+    traps = [InvalidOperation, DivisionByZero,
+             Overflow]
+    return Context(prec=digits, rounding=way,
+                   Emax=MAX_EMAX, Emin=MIN_EMIN,
+                   capitals=1, clamp=0, flags=[],
+                   traps=traps)
+
+
 def _sides(digits):
     """Two ways of rounding a decimal to so
-    many digits, downward and upward, with
-    exponents as far as Python has them."""
-    return tuple(
-        Context(prec=digits, rounding=way,
-                Emax=MAX_EMAX, Emin=MIN_EMIN)
-        for way in (ROUND_FLOOR, ROUND_CEILING))
+    many digits, downward and upward."""
+    return (stated(digits, ROUND_FLOOR),
+            stated(digits, ROUND_CEILING))
 
 
 def poisson_within(n, mean, digits=40):
@@ -601,8 +659,12 @@ def poisson_within(n, mean, digits=40):
 
 def _ends(lo, hi, digits):
     """Two decimals that enclose a
-    probability, as fractions."""
-    least_kept = Decimal(10) ** (-10 * digits)
+    probability, as fractions. The least
+    power that is kept is written as its
+    digits: a power computed here would be
+    computed under the decimal context of
+    the caller."""
+    least_kept = Decimal((0, (1,), -10 * digits))
     if hi < least_kept:
         return Fraction(0), Fraction(least_kept)
     return (max(Fraction(lo), Fraction(0)),
@@ -676,15 +738,42 @@ def sum_within(terms, digits=40):
     value x and is enclosed as in
     poisson_within(). The c are taken as
     the numbers that they are, and they
-    multiply and add exactly."""
-    lo = hi = Fraction(0)
+    multiply and add exactly. Terms of one
+    x are taken together first: the 1023
+    terms that ten windows in a row give
+    Listing 16.4 have 24 exponents."""
+    net = {}
     for c, x in terms:
-        c = Fraction(native(c))
+        x, c = native(x), fraction(c)
+        net[x] = net.get(x, 0) + c
+    lo = hi = Fraction(0)
+    for x, c in net.items():
         a, b = poisson_within(0, x, digits)
         if c < 0:
             a, b = b, a
         lo, hi = lo + c * a, hi + c * b
     return lo, hi
+
+
+def chance(terms):
+    """A probability that is the sum of
+    c * exp(-x) over the pairs (c, x) of
+    `terms`, as a float. Summed in floats,
+    terms whose signs alternate can leave a
+    sum above 1. The sum is enclosed, see
+    sum_within(), with more digits until its
+    two ends round to one float: the nearest
+    to the sum, not below 0 and not above 1,
+    or the lower of two after DEEPEST digits."""
+    terms = list(terms)
+    digits = 40
+    while True:
+        lo, hi = sum_within(terms, digits)
+        lo, hi = max(lo, 0), min(hi, 1)
+        low, top = float(lo), float(hi)
+        if low == top or 2 * digits > DEEPEST:
+            return low
+        digits *= 2
 
 
 def not_above(ends, x):
@@ -924,6 +1013,13 @@ def _root(f):
     return math.ldexp(r, cut - k - 1)
 
 
+def _size(v):
+    """abs(v), with no decimal context."""
+    if isinstance(v, Decimal):
+        return v.copy_abs()
+    return abs(v)
+
+
 def _plain(v):
     """Whether a float holds this reading as
     it stands. Above 2**53 floats no longer
@@ -932,7 +1028,7 @@ def _plain(v):
     theirs, even if one is equal to it."""
     if isinstance(v, float):
         return True
-    return abs(v) <= 2 ** 53 and float(v) == v
+    return _size(v) <= 2 ** 53 and float(v) == v
 
 
 def _kept(f, readings):
@@ -1158,7 +1254,7 @@ def exchange_exact(diffs):
     paired_exact()."""
     ways, total, pairs = {0: 1}, 0, 0
     for d in map(native, diffs):
-        size = as_count(abs(d), "difference")
+        size = as_count(_size(d), "difference")
         if not size:
             continue
         total += size if d > 0 else -size

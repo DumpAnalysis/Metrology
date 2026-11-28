@@ -283,7 +283,14 @@ class BoundsOfTheListing(Precision):
         self.assertNotEqual(float(2 * t), 2 * t)
         self.assertEqual(silence.by_messages([(0, 30)], F("2.346")), (F("27.654"), F("4.692")))
         self.assertEqual(silence.mean_reach([(0, 30)], [(0.5, 10), (0.5, 50)]), 50)
-        self.assertEqual(silence.mean_reach([(0, 30)], [(0.9, 1), (0.1, 291)]), F(0.9) * 31 + F(0.1) * 60)
+        # Until Version 71 the mean was the sum of the shares times the reaches. The float 0.9 is
+        # 8106479329266893 / 2 ** 53 and the float 0.1 is 3602879701896397 / 2 ** 55: they sum to more than
+        # one, by 2 ** -55, and a mean that kept the excess could exceed every reach. Since Version 72 the
+        # shares are divided by their exact total (tests/test_review71.py).
+        self.assertEqual((F(0.9), F(0.1)), (F(8106479329266893, 2 ** 53), F(3602879701896397, 2 ** 55)))
+        self.assertEqual(4 * 8106479329266893 + 3602879701896397 - 2 ** 55, 1)
+        self.assertEqual(silence.mean_reach([(0, 30)], [(0.9, 1), (0.1, 291)]),
+                         (F(0.9) * 31 + F(0.1) * 60) / (F(0.9) + F(0.1)))
         self.assertEqual(silence.kept_starts([(0, 30)], 10, 0.25, "message"), F(55, 4))
         self.assertEqual(silence.kept_starts([(0, 30)], 10, 0.25, "request"), 10)
         # A message rate is twice a rate of requests: one search on half the exposure, and no doubled float.
@@ -667,9 +674,12 @@ class TheSideOfTheLimit(Precision):
         self.assertEqual(self.shown(rec), "  estimate + band: 194.60")
 
     def test_the_transcript_is_what_it_was(self):
+        # The two ranges of the rounded record are what they were. The line of the working values read
+        # 199.95 until Version 71. Since Version 72 it has the two bounds that the allowance for the computed
+        # coverage factor leaves, which decide() compares with the limit (tests/test_review71.py).
         text = expected("ch22_record_check")
         for line in ("  estimate + band: 199.86 to 200.12\n", "  estimate + band: 200.06 to 200.32\n",
-                     "  estimate + band: 199.95\n"):
+                     "  estimate + band: 199.949755 to 199.949767\n"):
             self.assertIn(line, text)
 
 

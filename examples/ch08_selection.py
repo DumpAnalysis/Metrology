@@ -5,6 +5,7 @@ import random
 import statistics as st
 from fractions import Fraction
 
+from swmetro.stats import fraction
 from swmetro.stats import weighted_quantile
 
 SLOW = 300.0  # ms; slower traces are all kept
@@ -45,15 +46,14 @@ def kept(rows, rng):
 
 
 def summary(pairs):
-    """Weighted mean, inverse-ECDF p95 and
-    share above SLOW of (value, weight). All
-    sums are sums of fractions: the mean is
-    rounded once, and nothing changes when
-    every weight is multiplied exactly by
-    one number; see weighted_quantile()."""
-    pairs = [(x, Fraction(w)) for x, w in pairs]
+    """Weighted mean, inverse-ECDF p95 and share
+    above SLOW of (value, weight). All sums are
+    sums of fractions: the mean is rounded once,
+    and an exact common factor of the weights
+    changes nothing; see weighted_quantile()."""
+    pairs = [(x, fraction(w)) for x, w in pairs]
     total = sum(w for _, w in pairs)
-    top = sum(Fraction(x) * w for x, w in pairs)
+    top = sum(fraction(x) * w for x, w in pairs)
     slow = sum(w for x, w in pairs if x > SLOW)
     p95 = weighted_quantile(pairs, 0.95)
     return (float(top / total), p95,

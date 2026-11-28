@@ -217,15 +217,20 @@ class UnitsAtTheLimit(unittest.TestCase):
         r = rec["result"]
         k = t_isf(rec["decision"]["risk"], r["dof"])
         u = math.sqrt(sum(c["u"] ** 2 for c in rec["components"]))
-        self.assertEqual(a_lo, a_hi)
-        self.assertAlmostEqual(a_hi, r["value"] + k * u, places=9)
-        self.assertAlmostEqual(r_lo, r["value"] - k * u, places=9)
-        # The values on Figure 22.1, as the review recomputed them.
-        self.assertAlmostEqual(a_hi, 199.94976, places=5)
+        # Until Version 71 the two ends of a working record were one number, with the factor as computed.
+        # Since Version 72 they are its bounds for the allowance of one part in a million for that factor,
+        # the numbers that decide() compares (tests/test_review71.py).
+        self.assertAlmostEqual(a_lo, r["value"] + (1 - 1e-6) * k * u, places=9)
+        self.assertAlmostEqual(a_hi, r["value"] + (1 + 1e-6) * k * u, places=9)
+        self.assertAlmostEqual(r_lo, r["value"] - (1 + 1e-6) * k * u, places=9)
+        self.assertAlmostEqual(r_hi, r["value"] - (1 - 1e-6) * k * u, places=9)
+        # The values on Figure 22.1, as the review recomputed them, with the factor as computed. Since Version
+        # 72 they lie inside the bounds, by the allowance at most: 5.4e-6 of the bands here, and half a unit of
+        # the review's last digit.
+        self.assertAlmostEqual((a_lo + a_hi) / 2, 199.94976, places=5)
         lo, hi = map(float, guard(ch22_record_check.altered(ch22_record_check.displayed(load("measurement_record.json")),
                                                             {("result", "value"): 194.6}))[0])
-        self.assertAlmostEqual(lo, 199.86507, places=5)
-        self.assertAlmostEqual(hi, 200.11094, places=5)
+        self.assertTrue(0 < 199.86507 - lo < 1.1e-5 and 0 < hi - 200.11094 < 1.1e-5, (lo, hi))
 
 
 class CoverageFactor(unittest.TestCase):

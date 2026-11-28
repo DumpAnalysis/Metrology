@@ -42,7 +42,8 @@ def _float(x, exact=False):
         x = Fraction(int(n), int(d))
     kinds = (Fraction, Decimal)
     if exact and isinstance(x, kinds):
-        if x == x and abs(x) != math.inf:
+        finite = getattr(x, "is_finite", None)
+        if finite is None or finite():
             return Fraction(x)
     return float(x)
 

@@ -49,7 +49,7 @@ rounded, estimate 194.8
 working values, estimate 194.6
   decision inputs missing: 0
   status: accept
-  estimate + band: 199.95
+  estimate + band: 199.949755 to 199.949767
 against a record at twice the load
   differs in: conditions
   comparable across conditions: yes

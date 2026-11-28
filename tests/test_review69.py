@@ -236,7 +236,14 @@ class TheRangeOfFigure22(Precision):
 
     def test_the_two_ranges_and_the_point(self):
         lo, hi = self.ends(194.6)
-        self.assertEqual((str(lo)[:16], str(hi)[:16]), ("199.865066223853", "200.110939345699"))   # as the review has them
+        # The review has the two ends as 199.865066223853 and 200.110939345699, with the coverage factors as
+        # computed, and until Version 71 guard() returned those. Since Version 72 the ends are the numbers that
+        # decide() compares: the factor a part in a million lower at the lower end and higher at the upper one,
+        # which moves each end outward by a millionth of its band (tests/test_review71.py).
+        was = D("199.865066223853"), D("200.110939345699")
+        self.assertTrue(lo < was[0] and was[1] < hi)
+        self.assertAlmostEqual(float(was[0] - lo), 1e-6 * float(was[0] - D("194.55")), places=11)
+        self.assertAlmostEqual(float(hi - was[1]), 1e-6 * float(was[1] - D("194.65")), places=11)
         self.assertTrue(lo < D("200.1105") < hi and D("200.1105") > D("200.11"))   # in the range, above the old label
         text = printed(check.near, "rounded", self.shown, 194.6).splitlines()[-1]
         self.assertEqual(text, "  estimate + band: 199.86 to 200.12")           # Version 69: 199.87 to 200.11
@@ -247,12 +254,17 @@ class TheRangeOfFigure22(Precision):
         self.assertEqual(text, "  estimate + band: 200.06 to 200.32")           # Version 69: 200.07 to 200.31
         self.assertTrue(D("200.06") <= lo and hi <= D("200.32") and lo > 200)
         lo, hi = self.ends(194.6, self.rec)
-        self.assertEqual(lo, hi)                                                # working values: one number
-        self.assertEqual(f"{lo:.12f}", "199.949761190600")
-        self.assertEqual(printed(check.near, "working", self.rec, 194.6).splitlines()[-1], "  estimate + band: 199.95")
+        # Working values: one number until Version 71, 199.949761190600 with the factor as computed, printed
+        # as 199.95. Since Version 72 its two bounds for the allowance of the factor, printed as bounds.
+        was = D("199.949761190600")
+        self.assertTrue(lo < was < hi)
+        self.assertAlmostEqual(float(was - lo), 1e-6 * float(was - D("194.6")), places=11)
+        self.assertAlmostEqual(float(hi - was), 1e-6 * float(was - D("194.6")), places=11)
+        self.assertEqual(printed(check.near, "working", self.rec, 194.6).splitlines()[-1],
+                         "  estimate + band: 199.949755 to 199.949767")
         lines = expected("ch22_record_check")
         for line in ("  estimate + band: 199.86 to 200.12", "  estimate + band: 200.06 to 200.32",
-                     "  estimate + band: 199.95"):
+                     "  estimate + band: 199.949755 to 199.949767"):
             self.assertIn(line + "\n", lines)
 
     def test_the_same_record_in_seconds(self):
