@@ -8,7 +8,7 @@ float 1e-9 turned one second into
 import math
 from fractions import Fraction
 
-from .stats import native
+from .stats import native, nearest
 
 _BIN = {"Ki": 2 ** 10, "Mi": 2 ** 20,
         "Gi": 2 ** 30, "Ti": 2 ** 40}
@@ -107,4 +107,6 @@ class Q:
             v = float(v)
         if isinstance(v, float):
             return f"{v:g} {self.unit}"
+        if isinstance(v, int):
+            v = nearest(v, 0)
         return f"{v} {self.unit}"

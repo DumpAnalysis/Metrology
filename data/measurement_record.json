@@ -91,7 +91,7 @@
   "not_evaluated": [],
   "sources": {
     "repo": "github.com/DumpAnalysis/Metrology",
-    "release": "book Version 72, November 2026",
+    "release": "book Version 73, November 2026",
     "files": [
       "examples/ch22_budget.py",
       "examples/ch09_histogram.py",
@@ -102,17 +102,17 @@
       "data/make_record.py"
     ],
     "sha256_16_of_each": [
-      "2b1473db85211018",
-      "3c763c50171f50c3",
-      "0d5ad38fea820c76",
-      "526389d309c959b5",
-      "21340b4888172d17",
-      "f598b7d579a931fc",
-      "1b50c601596967ba"
+      "8607034afb111728",
+      "3f2f2cf49da91cdd",
+      "1a0481a18cb6bddf",
+      "1ee31c7dca3aafad",
+      "034d5ee145ba5e27",
+      "7a8c8ce6afa4c5bb",
+      "f6dc75f9dd064b47"
     ],
     "sha256": [
-      "78b582a3f161cafc56725c47ab4850f4",
-      "8930d99f37924e54873c3c028f62b042"
+      "786c55f523c52fbbbce6090c4024fa6c",
+      "3a3a01ba1d55b3a78e001c96de61e04a"
     ],
     "of": "the files' text, in order, LF ends"
   },

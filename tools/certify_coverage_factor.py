@@ -73,7 +73,7 @@ def rational(q):
     return mp.mpf(q.numerator) / mp.mpf(q.denominator)
 
 
-def centre(t, dof):
+def center(t, dof):
     """P(0 < T < t) for Student's t. The incomplete beta function is taken in
     the form whose argument is formed without loss, and the complement only
     where t^2 is so far above dof that the direct argument would round to 1."""
@@ -99,7 +99,7 @@ def brackets(risk, dof, lo, hi):
     """True if the factor for this exact risk lies between lo and hi."""
     gap = HALF - risk
     if gap < risk:
-        return centre(lo, dof) <= rational(gap) <= centre(hi, dof)
+        return center(lo, dof) <= rational(gap) <= center(hi, dof)
     return upper_tail(lo, dof) >= rational(risk) >= upper_tail(hi, dof)
 
 
@@ -119,7 +119,7 @@ def judge(risk, dof):
         return "refused", ("no bound", float(risk), float(dof))
     if k is None:                             # bounded from below only
         sound = (high is None and low == 2 * gap and gap < risk and dof < Fraction(1, 1000)
-                 and centre(rational(low), dof) <= rational(gap))
+                 and center(rational(low), dof) <= rational(gap))
         return "bounded", None if sound else ("a bound that does not hold", str(risk)[:40], float(dof))
     if low == k == high:                      # the one factor that is known
         known = k == 1 and dof == 1 and risk == Fraction(1, 4)

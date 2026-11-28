@@ -7,7 +7,7 @@ from fractions import Fraction
 from .core import resolved
 from .stats import _floor, _root, as_count
 from .stats import exact_q, mean, native, natives
-from .stats import variance
+from .stats import number, variance
 
 
 def correlations(corr, n):
@@ -107,7 +107,8 @@ def lpu(f, xs, us, corr=None):
     us = [native(u) for u in us]
     if len(us) != len(xs):
         raise ValueError("one u for each x")
-    if not all(0 <= u < math.inf for u in us):
+    ok = (0 <= number(u) < math.inf for u in us)
+    if not all(ok):
         raise ValueError("u must be >= 0")
     m = correlations(corr, len(xs))
     y = f(xs)

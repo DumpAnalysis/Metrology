@@ -7,10 +7,7 @@ from numbers import Real
 
 from .dist import t_cdf, t_isf, t_within
 from .stats import _root, mean, native, natives
-from .stats import variance
-
-
-_ENDS = (math.inf, -math.inf)
+from .stats import nearest, number, variance
 
 
 def _exact(x):
@@ -52,7 +49,8 @@ def decimals(u, digits=2):
     significant digits of the uncertainty u,
     counted after rounding, so that 0.0996 is
     shown as 0.10. Negative for the tens."""
-    if not u > 0 or u == math.inf:
+    u = number(u)
+    if not 0 < u < math.inf:
         return 3
     d = digits - 1 - _exp10(u)
     if _units(u, d) >= 10 ** digits:
@@ -72,8 +70,9 @@ def resolved(at, spread):
     lost. The remedy is to subtract an origin
     first, in whole numbers. The step and the
     spread are compared exactly."""
-    step = 1000 * Fraction(math.ulp(float(at)))
-    if spread > 0 and step > _exact(spread):
+    at = float(native(at))
+    step = 1000 * Fraction(math.ulp(at))
+    if 0 < number(spread) < step:
         raise ValueError(
             "too fine for a float of this size")
 
@@ -87,14 +86,9 @@ def fixed(value, d):
     nineteen digits, and Python 3.11 has no
     such format for a fraction. A value that
     rounds to zero is shown without a sign."""
-    if value != value or value in _ENDS:
+    if isinstance(number(value), float):
         return f"{value}"
-    n = round(_exact(value) * 10 ** d)
-    sign = "-" if n < 0 else ""
-    whole, part = divmod(abs(n), 10 ** d)
-    if not d:
-        return f"{sign}{whole}"
-    return f"{sign}{whole}.{part:0{d}d}"
+    return nearest(value, d)
 
 
 def full(value):
@@ -104,6 +98,8 @@ def full(value):
     them, 1/8 as 0.125, and one that does
     not end is written as the ratio that it
     is, 1/3."""
+    if isinstance(value, int):
+        return nearest(value, 0)
     if not isinstance(value, Fraction):
         return f"{value}"
     q, d = value.denominator, 0
@@ -111,7 +107,8 @@ def full(value):
         while q % prime == 0:
             q //= prime
     if q > 1:
-        return f"{value}"
+        n, q = value.numerator, value.denominator
+        return f"{nearest(n, 0)}/{nearest(q, 0)}"
     while value * 10 ** d % 1:
         d += 1
     return fixed(value, d)
@@ -213,7 +210,7 @@ class Result:
         v, u = native(self.value), native(self.u)
         if not math.isfinite(v):
             raise ValueError("value is no number")
-        if not (u >= 0 and math.isfinite(u)):
+        if not (math.isfinite(u) and u >= 0):
             raise ValueError("u must be >= 0")
         # The class is frozen: each number is
         # stored where it was given.
@@ -312,14 +309,15 @@ class Result:
         exact ratio of the three numbers, of
         any size: 10 ** 18 is one limit as a
         whole number and as a float."""
+        limit = number(limit)
         if limit != limit:
             raise ValueError("limit is no number")
-        if limit in _ENDS:
+        if isinstance(limit, float):
             return float(limit > 0)
         v = _exact(self.value)
         if self.u == 0:
-            return float(_exact(limit) >= v)
-        z = (_exact(limit) - v) / _exact(self.u)
+            return float(limit >= v)
+        z = (limit - v) / _exact(self.u)
         return t_cdf(z, self.dof)
 
     def report(self, p=0.95):
@@ -397,11 +395,12 @@ def _width(w, n=1):
     fraction that it is for n = 1, and else a
     float, from one division of that fraction,
     which need not be a float itself."""
-    if not w >= 0 or w == math.inf:
+    w = number(w)
+    if not 0 <= w < math.inf:
         raise ValueError("need a width >= 0")
     if n == 1:
-        return _exact(w)
-    return float(_exact(w) / _exact(math.sqrt(n)))
+        return w
+    return float(w / _exact(math.sqrt(n)))
 
 
 def u_rect(half_width):
@@ -422,12 +421,12 @@ def rect_interval(center, half_width, p=0.95):
     width, also at p = 1. With no width both
     limits are the center as it was given.
     No step of a float limits the width."""
+    p, v = number(p), number(center)
     if not 0 <= p <= 1:
         raise ValueError("need 0 <= p <= 1")
-    if center != center or center in _ENDS:
+    if isinstance(v, float):
         raise ValueError("center is no number")
-    v = _exact(center)
-    w = _exact(p) * _width(half_width)
+    w = p * _width(half_width)
     if not w:
         return center, center
     return v - w, v + w
@@ -450,7 +449,7 @@ def _scaled(us):
     the squares and fourth powers of very
     small or very large values within what
     a float can hold."""
-    us = [native(u) for u in us]
+    us = [float(native(u)) for u in us]
     top = max(map(abs, us), default=0)
     e = math.frexp(top)[1]
     return [math.ldexp(u, -e) for u in us], e
@@ -481,9 +480,10 @@ def welch_satterthwaite(us, dofs):
     dofs = [_dof(d) for d in dofs]
     if len(dofs) != len(us):
         raise ValueError("one dof for each u")
+    us = [number(u) for u in us]
     if not all(0 <= u < math.inf for u in us):
         raise ValueError("u must be >= 0")
-    us = [_exact(u) ** 2 for u in us]
+    us = [u ** 2 for u in us]
     den = sum(v * v / _exact(d)
               for v, d in zip(us, dofs)
               if math.isfinite(d))
@@ -514,7 +514,7 @@ class Budget:
         if kind not in ("A", "B"):
             raise ValueError("kind is 'A' or 'B'")
         u = native(u)
-        if not (u >= 0 and math.isfinite(u)):
+        if not (math.isfinite(u) and u >= 0):
             raise ValueError("u must be >= 0")
         _dof(dof)
         row = name, kind, u, native(dof)

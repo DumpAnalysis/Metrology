@@ -34,6 +34,8 @@ def _float(x, exact=False):
     anew from ints: its two parts can be of
     a fixed width, and they are then no key
     under which an answer can be kept."""
+    if type(x) is float:
+        return x
     real = isinstance(x, (Real, Decimal))
     if isinstance(x, bool) or not real:
         raise TypeError(f"no number: {x!r}")
@@ -46,6 +48,22 @@ def _float(x, exact=False):
         if finite is None or finite():
             return Fraction(x)
     return float(x)
+
+
+def _plain(t):
+    """A decimal as the fraction that it is,
+    or as the float for an infinity and a
+    NaN, away from the decimal context of
+    the caller. A text and a truth value
+    are no numbers."""
+    if type(t) is float:
+        return t
+    real = isinstance(t, (Real, Decimal))
+    if isinstance(t, bool) or not real:
+        raise TypeError(f"no number: {t!r}")
+    if isinstance(t, Decimal):
+        return _float(t, True)
+    return t
 
 
 def _fix(x):
@@ -150,8 +168,8 @@ def betainc(a, b, x, y=None):
     thousand each, and a result next to 0
     that is found as 1 less the other part
     keeps what that subtraction leaves."""
-    if y is None:
-        y = 1 - x
+    a, b, x = _float(a), _float(b), _float(x)
+    y = 1 - x if y is None else _float(y)
     if x <= 0:
         return 0.0
     if y <= 0:
@@ -252,7 +270,7 @@ def t_sf(t, dof):
     the tail is not monotonic: between two
     adjacent values of t it can rise by
     rounding."""
-    dof = _float(dof)
+    dof, t = _float(dof), _plain(t)
     if t == math.inf:
         return 0.0
     if dof > _MANY:
@@ -270,6 +288,7 @@ def t_sf(t, dof):
 
 def t_cdf(t, dof):
     """CDF of Student's t distribution."""
+    t = _plain(t)
     if t < 0:
         return t_sf(-t, dof)
     return 1 - t_sf(t, dof)
@@ -310,7 +329,7 @@ def _capped(tail, dof):
     return near <= tail
 
 
-def _centre(t, dof):
+def _center(t, dof):
     """P(0 < T < t) of Student's t for t >= 0.
     Next to t = 0 it keeps its relative
     accuracy, which 1/2 less the upper tail
@@ -364,12 +383,12 @@ def _t_mid(gap, dof):
     if dof > _MANY:
         return _z_mid(gap)
     lo = 1e-9 * min(1.0, math.sqrt(dof))
-    at = _centre(lo, dof)
+    at = _center(lo, dof)
     if gap <= at:
         return gap / at * lo
 
     def below(t):
-        return _centre(t, dof) < gap
+        return _center(t, dof) < gap
     try:
         return _bisect(below, lo, 2 * lo)
     except ValueError:

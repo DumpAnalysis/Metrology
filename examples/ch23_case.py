@@ -12,7 +12,7 @@ from swmetro.dist import phi, z_ppf
 from swmetro.stats import as_count, bootstrap
 from swmetro.stats import downward, ecdf_quantile
 from swmetro.stats import enclosed, fraction
-from swmetro.stats import known, native
+from swmetro.stats import known, number
 from swmetro.stats import quantile_interval
 from swmetro.stats import quiet_bound, rate_limits
 from swmetro.stats import run_length, upward
@@ -131,10 +131,10 @@ def arrival(n, seconds=WINDOW):
     exact limits are stated instead, the
     lower one rounded downward and the upper
     one upward. The window is a finite time
-    above zero, as native() gives it, for
+    above zero, as number() gives it, for
     every count."""
     n = as_count(n)
-    seconds = native(seconds)
+    seconds = number(seconds)
     if not 0 < seconds < math.inf:
         raise ValueError("no exposure")
     if n == 0:

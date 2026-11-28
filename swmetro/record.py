@@ -15,7 +15,7 @@ from decimal import Decimal
 from fractions import Fraction
 
 from .dist import t_isf, t_mid
-from .stats import stated
+from .stats import stated, tens
 from .units import Q
 
 FORMAT = "measurement record, version 5"
@@ -53,7 +53,7 @@ RANGES = (
     ("decision", "limit", lambda v: True,
      "a finite number"),
     ("decision", "risk",
-     lambda v: 0 < v < 0.5,
+     lambda v: 0 < v < Fraction(1, 2),
      "a number in (0, 0.5)"),
 )
 SAME = (
@@ -82,9 +82,9 @@ DELTA = Fraction(1, 10 ** 6)
 LEAST = Fraction(1, 10 ** 300)
 FEW = Fraction(1, 1000)
 FAR = Fraction(10) ** 149
-# What is shown is a decimal: exact if it has
-# at most 40 digits. A square root that is
-# no fraction is bounded with as many.
+# What is shown is a decimal, in full. A square
+# root that is no fraction is bounded with 40
+# digits, and with more next to a limit.
 SHOW = stated(40)
 
 
@@ -200,7 +200,9 @@ def _bad(v, test):
     beyond the range of a float, too large
     for one or too small to differ from zero
     in one: the digits of a decimal are read
-    exactly, but its range is not extended."""
+    exactly, but its range is not extended.
+    The test is put to the number as it is
+    written, see exact()."""
     if is_unknown(v):
         return False
     kinds = (int, float, Decimal)
@@ -216,7 +218,7 @@ def _bad(v, test):
         return True
     if f == 0 and v != 0:
         return True
-    return not test(v)
+    return not test(exact(v))
 
 
 def invalid(rec):
@@ -332,16 +334,25 @@ def exact(x):
 def rounded(x, places):
     """x rounded to `places` decimals, a half
     to the even digit, with the tens for
-    places below zero. A decimal is rounded
-    in whole numbers and keeps its places:
-    round() would do it as the decimal
-    context of the caller says."""
-    if not isinstance(x, Decimal):
+    places below zero. It is the number that
+    x states, see exact(): the float 2.675 is
+    the decimal 2.675 and rounds to 2.68,
+    where round() takes the binary number
+    below it and gives 2.67. A decimal keeps
+    its places, and no decimal context takes
+    part. A float comes back as the float
+    that states the rounded number, and as
+    the decimal where no float does."""
+    if isinstance(x, int):
         return round(x, places)
     unit = Fraction(10) ** -places
-    n = round(Fraction(x) / unit)
-    digits = tuple(map(int, str(abs(n))))
-    return Decimal((n < 0, digits, -places))
+    d = tens(round(exact(x) / unit), -places)
+    if isinstance(x, Decimal):
+        return d
+    f = float(d)
+    if math.isfinite(f) and exact(f) == exact(d):
+        return f
+    return d
 
 
 def bounds(x, digits):
@@ -415,7 +426,7 @@ def _full(q):
     e = max(twos, fives)
     whole = q.numerator * 2 ** (e - twos)
     whole *= 5 ** (e - fives)
-    return Decimal(f"{whole}e{-e}")
+    return tens(whole, -e)
 
 
 def _root(q, digits=SHOW.prec):
@@ -434,8 +445,8 @@ def _root(q, digits=SHOW.prec):
     a, b = math.isqrt(n), math.isqrt(d)
     if a * a == n and b * b == d:
         return (Fraction(a, b),) * 2
-    half = (len(str(n)) - len(str(d))) // 2
-    places = digits - half
+    bits = n.bit_length() - d.bit_length()
+    places = digits - bits * 301 // 2000
     while True:
         unit = Fraction(10) ** -places
         r = math.isqrt(math.floor(q / unit ** 2))
@@ -617,7 +628,9 @@ def guard(rec):
     """Bounds, as decimals for display, of the
     two guarded values of a record that has
     passed the checks: the estimate plus the
-    guard band, and the estimate less it.
+    guard band, and the estimate less it. A
+    record that stopped() names has none,
+    and is refused.
     They are the four numbers that decide()
     compares with the limit, for the rounding
     of the record and for the allowance of a
@@ -630,6 +643,8 @@ def guard(rec):
     is a decimal and is returned in full,
     see _full(). An unbounded band gives an
     infinite bound."""
+    if stopped(rec):
+        raise ValueError("no decision is formed")
     room, us, ks = _parts(rec)
     limit = exact(rec["decision"]["limit"])
     v = limit - room[1], limit - room[0]
@@ -647,35 +662,19 @@ def guard(rec):
             (end(0, -1), end(1, -1)))
 
 
-def decide(rec):
-    """Status of a record under the supported
-    procedure: accept if value + k u <= limit,
-    reject if value - k u > limit, otherwise
-    undecided. Here u is combined from the
-    components, and k is the t quantile at
-    1 - risk for the degrees of freedom of
-    the result. Before that, in this order:
-    invalid if a value cannot be; unresolved
-    if an input is missing, or the format or
-    the procedure is another one, or
-    components are correlated; invalid if the
-    stated u and the components cannot both
-    be true, within the rounding that the
-    record declares; unresolved if a required
-    component was never evaluated or events
-    were lost. The comparison itself is of
-    exact fractions of the numbers as they
-    are written, so that a change of unit
-    cannot change it. A decision is given
-    only if it holds for every value that a
-    rounded record allows, and for a coverage
-    factor anywhere within the allowance for
-    its computation; otherwise the status is
-    unresolved. A factor that is not computed
-    is bounded from below only. It can show
-    that a record is undecided, and no more.
-    The reasons are returned. Unknown is
-    never read as zero."""
+def stopped(rec):
+    """The status and the reasons of a record
+    for which no decision is formed, in this
+    order: invalid if a value cannot be;
+    unresolved if an input is missing, or the
+    format or the procedure is another one,
+    or components are correlated; invalid if
+    the stated u and the components cannot
+    both be true, within the rounding that
+    the record declares; unresolved if a
+    required component was never evaluated
+    or events were lost. None for a record
+    that has passed these checks."""
     why = invalid(rec)
     if why:
         return "invalid", why
@@ -704,6 +703,33 @@ def decide(rec):
         why.append("records were lost")
     if why:
         return "unresolved", why
+    return None
+
+
+def decide(rec):
+    """Status of a record under the supported
+    procedure: accept if value + k u <= limit,
+    reject if value - k u > limit, otherwise
+    undecided. Here u is combined from the
+    components, and k is the t quantile at
+    1 - risk for the degrees of freedom of
+    the result. Before that, the checks of
+    stopped(). The comparison itself is of
+    exact fractions of the numbers as they
+    are written, so that a change of unit
+    cannot change it. A decision is given
+    only if it holds for every value that a
+    rounded record allows, and for a coverage
+    factor anywhere within the allowance for
+    its computation; otherwise the status is
+    unresolved. A factor that is not computed
+    is bounded from below only. It can show
+    that a record is undecided, and no more.
+    The reasons are returned. Unknown is
+    never read as zero."""
+    found = stopped(rec)
+    if found:
+        return found
     room, (u_lo, u_hi), ks = _parts(rec)
     k_lo, k_hi = ks[0][1], ks[1][2]
     if not _over(k_hi, u_hi, room[0], True):
@@ -851,16 +877,18 @@ def in_unit(rec, unit):
     number or a fraction, and it is applied
     to the numbers as they are written, so
     that 0.2414 s is 241.4 ms and nothing
-    else. An unknown one stays unknown, and
-    nothing else in the record is
-    converted."""
+    else. The product is a decimal and is
+    written in full: cut to 40 digits, a
+    value just above a limit would be on it.
+    An unknown one stays unknown, and nothing
+    else in the record is converted."""
     here = Q(1.0, rec["measurand"]["unit"])
     there = here.to(unit)
     f = Fraction(here.factor) / there.factor
     r = _part(rec, "result")
     v, u = r.get("value"), r.get("u")
     if not is_unknown(v):
-        v = _shown(exact(v) * f)
+        v = _full(exact(v) * f)
     if not is_unknown(u):
-        u = _shown(exact(u) * f)
+        u = _full(exact(u) * f)
     return v, u

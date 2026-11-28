@@ -578,7 +578,7 @@ class StudentsTailAtManyDegreesOfFreedom(unittest.TestCase):
                 self.assertGreater(t, -dist.z_ppf(tail) * (1 - 1e-14), (dof, tail))    # heavier than the normal
             for gap in (1e-100, 1e-12, 1e-3, 0.0011, 0.1, 0.2499):
                 t = dist.t_mid(gap, dof)
-                self.assertAlmostEqual(dist._centre(t, dof) / gap, 1, delta=1e-12, msg=(dof, gap))
+                self.assertAlmostEqual(dist._center(t, dof) / gap, 1, delta=1e-12, msg=(dof, gap))
             # Next to t = 0 the probability is in proportion to t, also where t * t is below every float.
             self.assertAlmostEqual(dist.t_mid(1e-300, dof) / dist.t_mid(1e-100, dof), 1e-200, delta=1e-212)
         self.assertFalse(hasattr(dist, "_far"))                                 # no expansion about the normal quantile

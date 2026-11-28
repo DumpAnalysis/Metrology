@@ -5,7 +5,8 @@ import math
 import random
 
 from swmetro.stats import exact_q, known, quantile
-from swmetro.stats import lower_rank, order_stat
+from swmetro.stats import lower_rank, number
+from swmetro.stats import order_stat
 
 BOUNDS = [0.005, 0.01, 0.025, 0.05, 0.1, 0.25,
           0.5, 1.0, 2.5, 5.0, 10.0]  # seconds
@@ -28,11 +29,10 @@ def bucket_quantile(xs, q, bounds=BOUNDS):
     a value. The bounds rise from 0 or above,
     pass known() and interpolate as floats."""
     bounds = list(bounds)
-    ends = [*bounds, math.inf]
     rise = all(a < b for a, b
-               in zip(ends, ends[1:]))
-    if not (bounds and rise
-            and bounds[0] >= 0):
+               in zip(bounds, bounds[1:]))
+    if not (bounds and rise and bounds[0] >= 0
+            and bounds[-1] != math.inf):
         raise ValueError("no rising bounds >= 0")
     bounds, xs = known(bounds, "bound"), known(xs)
     if not xs:
@@ -86,7 +86,7 @@ class LogSketch:
 
     def add(self, x):
         known([x])
-        if not LEAST <= x < math.inf:
+        if not LEAST <= number(x) < math.inf:
             raise ValueError(
                 "need 2**-1022 <= x < inf")
         i = math.ceil(math.log(x) / self.lg)

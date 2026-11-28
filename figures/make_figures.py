@@ -48,7 +48,7 @@ from swmetro.stats import upward, wilson  # noqa: E402
 
 OUT = Path(__file__).resolve().parent / "out"
 WIDTH = 224 / 72  # inches: the drawing, not the text
-BLACK, GREY, PALE = "#000000", "#8c8c8c", "#cfcfcf"
+BLACK, GRAY, PALE = "#000000", "#8c8c8c", "#cfcfcf"
 
 plt.rcParams.update({
     "font.family": ["Liberation Sans", "DejaVu Sans"],
@@ -311,7 +311,7 @@ def stamps_at_fault():
 def aliasing():
     fig, ax = plt.subplots(figsize=(WIDTH, 1.65))
     ts = [i * 0.25 for i in range(4 * 240 + 1)]
-    ax.plot(ts, [c8.gauge(t) for t in ts], color=GREY, lw=0.35)
+    ax.plot(ts, [c8.gauge(t) for t in ts], color=GRAY, lw=0.35)
     scrape = [i * c8.SCRAPE for i in range(17)]
     ax.plot(scrape, [c8.gauge(t) for t in scrape], color=BLACK, lw=0.9,
             marker="o", ms=2.6)
@@ -348,7 +348,7 @@ def counter_readings():
             ls=(0, (4, 2)))
     ax.plot([0, wrap], [first / gb, c8c.WRAP / gb], color=BLACK, lw=0.9)
     ax.plot([wrap, 100], [0, last / gb], color=BLACK, lw=0.9)
-    ax.plot([wrap, wrap], [0, c8c.WRAP / gb], color=GREY, lw=0.4, ls=":")
+    ax.plot([wrap, wrap], [0, c8c.WRAP / gb], color=GRAY, lw=0.4, ls=":")
     ax.plot([wrap], [c8c.WRAP / gb], "o", color=BLACK, ms=2.8, mfc="white",
             mew=0.6)
     ax.plot([wrap], [0], "o", color=BLACK, ms=2.2)
@@ -436,10 +436,10 @@ def two_conventions():
     n = len(measured)
     qs = [0.9995 + k * 0.0004 / 800 for k in range(801)]
     fig, ax = plt.subplots(figsize=(WIDTH, 1.6))
-    ax.axhline(500, color=GREY, lw=0.5, ls=":")
+    ax.axhline(500, color=GRAY, lw=0.5, ls=":")
     ax.text(99.9503, 520, "objective, 500 ms", ha="left", va="bottom")
     ax.plot([100 * q for q in qs], [quantile(measured, q) for q in qs],
-            color=GREY, lw=1.6, solid_capstyle="butt")
+            color=GRAY, lw=1.6, solid_capstyle="butt")
     # the inverse of the empirical distribution steps at the share of the
     # requests that took 1 ms: it has the lower value at that share itself
     step = measured.count(measured[0]) / n
@@ -506,8 +506,8 @@ def calibration_readings():
 
 def control_chart():
     xs = c15.series(random.Random(15))
-    centre, sigma = c15.xmr(xs[:30])
-    zs = [(x - centre) / sigma for x in xs]
+    center, sigma = c15.xmr(xs[:30])
+    zs = [(x - center) / sigma for x in xs]
     hi, cus = 0.0, []
     for z in zs[30:]:
         hi = max(0.0, hi + z - 0.5)
@@ -516,18 +516,18 @@ def control_chart():
                                gridspec_kw={"height_ratios": [1.25, 1]})
     n = range(1, len(xs) + 1)
     a.plot(n, xs, color=BLACK, marker="o", ms=1.8, lw=0.5)
-    for y, style in ((centre, "-"), (centre + 3 * sigma, "--"),
-                     (centre - 3 * sigma, "--")):
+    for y, style in ((center, "-"), (center + 3 * sigma, "--"),
+                     (center - 3 * sigma, "--")):
         a.axhline(y, color=BLACK, lw=0.4, ls=style)
-    a.axvline(30.5, color=GREY, lw=0.4)
-    a.text(31.5, centre - 3 * sigma + 0.5, "mean shifts by 1.5 ms", va="bottom")
-    a.text(70.5, centre + 3 * sigma + 0.3, "upper limit", ha="right",
+    a.axvline(30.5, color=GRAY, lw=0.4)
+    a.text(31.5, center - 3 * sigma + 0.5, "mean shifts by 1.5 ms", va="bottom")
+    a.text(70.5, center + 3 * sigma + 0.3, "upper limit", ha="right",
            va="bottom")
     a.set_ylabel("benchmark, ms")
-    a.set_ylim(centre - 4.2 * sigma, centre + 4.4 * sigma)
+    a.set_ylim(center - 4.2 * sigma, center + 4.4 * sigma)
     b.plot(range(31, 71), cus, color=BLACK, marker="o", ms=1.8, lw=0.5)
     b.axhline(5, color=BLACK, lw=0.4, ls="--")
-    b.axvline(30.5, color=GREY, lw=0.4)
+    b.axvline(30.5, color=GRAY, lw=0.4)
     first = next(i for i, c in enumerate(cus) if c > 5)
     b.plot([31 + first], [cus[first]], marker="o", ms=5.5, mfc="none",
            mec=BLACK, mew=0.6)
@@ -605,7 +605,7 @@ def mean_duration():
     ax.plot(*zip(*ends), color=BLACK, lw=0.6, ls=(0, (3.2, 1.6)), marker="o", ms=2.2)
     one = c16s.plain(c16s.mean_reach(whole, [(1, 30)]))
     two = c16s.plain(c16s.mean_reach(whole, [(0.5, 10), (0.5, 50)]))
-    ax.plot([30, 30], [two, one], color=GREY, lw=0.5, ls=":")
+    ax.plot([30, 30], [two, one], color=GRAY, lw=0.5, ls=":")
     ax.plot([30], [one], marker="o", ms=3.6, color=BLACK, lw=0, zorder=3)
     ax.plot([30], [two], marker="o", ms=3.6, mfc="white", mec=BLACK, mew=0.8, lw=0, zorder=3)
     ax.text(28.5, one + 1.2, "all requests 30 s", ha="right", va="bottom")
@@ -632,7 +632,7 @@ def counted_where():
     for row, (at, _) in enumerate(cases):
         rows = c16s.gap(at)
         stamp = {seq: ms for seq, ms, _, _ in rows}
-        ax.plot([30, 60], [row, row], color=GREY, lw=0.5, ls=":")
+        ax.plot([30, 60], [row, row], color=GRAY, lw=0.5, ls=":")
         for lo, hi, own in c16.runs(rows, 30, 60, (0, 60_000)):
             ax.plot([lo / 1000, hi / 1000], [row, row], color=BLACK, lw=1.6, solid_capstyle="butt")
             for end, seq in ((lo, own[0]), (hi, own[-1])):
@@ -834,7 +834,7 @@ def unlinked_pairs():
         known = (1560, 132 + only_a, 163, 95 + neither)
         ps = [float(p) for p in c17.partly(known, 1722, 1758, 2000)]
         counts.append(len(ps))
-        ax.plot([ps[0], ps[-1]], [y, y], color=GREY, lw=0.7)
+        ax.plot([ps[0], ps[-1]], [y, y], color=GRAY, lw=0.7)
         ax.plot(ps, [y] * len(ps), "o", color=BLACK, ms=2.6, zorder=3)
     assert counts == [16, 10, 6]
     ax.set_xlim(0.0425, 0.0545)
@@ -877,8 +877,8 @@ def batch_labels():
     fig, ax = plt.subplots(figsize=(WIDTH, 1.5))
     ax.axhline(0.05, color=BLACK, lw=0.5, ls=(0, (4, 2)))
     ax.text(10.2, 0.0503, "5 % level", ha="right", va="bottom")
-    ax.plot(most, first, color=GREY, lw=0.7)
-    ax.plot(most, second, color=GREY, lw=0.7)
+    ax.plot(most, first, color=GRAY, lw=0.7)
+    ax.plot(most, second, color=GRAY, lw=0.7)
     ax.plot(most, first, "o", color=BLACK, ms=3.2, zorder=3)
     ax.plot(most, second, "s", color=BLACK, ms=3.0, mfc="white", mew=0.7, zorder=3)
     ax.text(6.0, 0.05415, "B right on 23 and 12: greatest p", ha="center", va="bottom")
@@ -900,7 +900,7 @@ def reliability():
     test = c18.make(5000, 2.0, rng)
     temp = c18.fit_temperature(cal)
     fig, ax = plt.subplots(figsize=(WIDTH * 0.74, WIDTH * 0.74))
-    ax.plot([0, 1], [0, 1], color=GREY, lw=0.4)
+    ax.plot([0, 1], [0, 1], color=GRAY, lw=0.4)
     for t, marker, fill in ((1.0, "o", BLACK), (temp, "s", "white")):
         bins = [b for b in c18.bins_of(test, t) if b[0]]
         pts = [(float(s / n), k / n) for n, s, k, _ in bins]
@@ -1059,7 +1059,7 @@ def one_mix():
     parts = range(3800, 4801)
     share = [k / 1000 for k in parts]
     fig, ax = plt.subplots(figsize=(WIDTH, 1.55))
-    ax.axvline(4.1, color=GREY, lw=0.5, ls=":")
+    ax.axvline(4.1, color=GRAY, lw=0.5, ls=":")
     for rec, style, text, at in ((before, "-", "first period", (3.81, 195.5)),
                                  (after, (0, (3.2, 1.6)), "second period", (3.81, 164.5))):
         ys = [c23.at_share(rec, k, 100_000) for k in parts]

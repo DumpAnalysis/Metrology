@@ -126,7 +126,10 @@ without preventing it. An entry of `not_evaluated` prevents it.
   the calculation.
 
 A rounded record must state `result.value_step`: 0.1 if the estimate was
-rounded to tenths, and 0 if it was not rounded at all. A report rounds an
+rounded to tenths, and 0 if it was not rounded at all. The increment is a
+number of the format like any other, and an increment above zero that is
+too small to differ from zero in a float is not one: an estimate rounded at
+a place below 1e-323 cannot be recorded as rounded. A report rounds an
 estimate to the place of the last digit of its uncertainty, and an estimate
 with an uncertainty of zero has no such place: it is either left as it is,
 with an increment of 0, or rounded to some place that the record then has to
@@ -303,11 +306,16 @@ Four cases stand apart.
 
 `guard(record)`, `spread(record)`, `combined(record)` and
 `in_unit(record, unit)` return `decimal.Decimal` numbers. They are for
-display, and `decide` does not use them.
+display, and `decide` does not use them. `guard` is for a record that has
+passed the checks listed below. For any other it raises `ValueError`, since
+no decision is formed and no number is compared with the limit:
+`stopped(record)` returns the status and the reasons of such a record, as
+`decide` does, and `None` for one that has passed.
 
-- A sum or a product of stated numbers is shown exactly if it has at most
-  40 digits. With no guard band the guarded value is the estimate as it is
-  written: `9007199254740993` and not the float `9007199254740992.0`.
+- A sum or a product of stated numbers is shown exactly, in full, however
+  many digits it has. With no guard band the guarded value is the estimate
+  as it is written: `9007199254740993` and not the float
+  `9007199254740992.0`, and a decimal of 4301 places with all of them.
 - The guarded values are bounds of the four numbers that `decide` compares
   with the limit. A computed coverage factor enters with its allowance of
   one part in a million, lower at a lower bound of the band and higher at an
@@ -329,7 +337,10 @@ display, and `decide` does not use them.
   the other; `-Infinity` and the estimate less that bound for the lower
   guarded value.
 - A conversion of unit applies the exact ratio of the two units to the
-  number as written: 0.2414 s is `241.4` ms.
+  number as written: 0.2414 s is `241.4` ms. Every ratio is a power of two
+  times a power of ten, so the product is a decimal, and it is returned in
+  full: 0.2 s and 10^-41 s more is 200 ms and 10^-38 ms more, above a limit
+  of 200 ms as it is above 0.2 s.
 
 Formatting works as for floats (`f"{x:.2f}"`), and `float(x)` gives the
 nearest float where one is wanted.

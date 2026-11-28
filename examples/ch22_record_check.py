@@ -9,8 +9,9 @@ from swmetro.record import combined, comparable
 from swmetro.record import decide, exact, guard
 from swmetro.record import in_unit, missing, read
 from swmetro.record import rounded, spread, stale
+from swmetro.record import stopped
 from swmetro.stats import downward, enclosed
-from swmetro.stats import nearest
+from swmetro.stats import nearest, tens
 
 ROOT = Path(__file__).resolve().parent.parent
 # A record from other telemetry, written
@@ -63,8 +64,9 @@ def altered(rec, changes):
 
 
 def two(x):
-    """x with two significant digits."""
-    return rounded(x, decimals(x))
+    """The number that x states, with two
+    significant digits."""
+    return rounded(x, decimals(exact(x)))
 
 
 def displayed(rec):
@@ -74,16 +76,24 @@ def displayed(rec):
     to the place of its uncertainty, and the
     record saying so. With no uncertainty
     there is no such place, and the estimate
-    is left as it is."""
+    is left as it is. The increment is one
+    unit of that place, as the float that
+    prints as it. Below the least float
+    there is none, and no record is issued:
+    an increment of 0 would call the
+    rounded estimate exact."""
     out = copy.deepcopy(rec)
     for c in out["components"]:
         c["u"] = two(c["u"])
     r = out["result"]
     r["value_step"] = 0.0
     if r["u"] > 0:
-        place = decimals(r["u"])
+        place = decimals(exact(r["u"]))
+        step = float(tens(1, -place))
+        if not step:
+            raise ValueError("no such increment")
         r["value"] = rounded(r["value"], place)
-        r["value_step"] = 10.0 ** -place
+        r["value_step"] = step
     r["u"], r["dof"] = two(r["u"]), two(r["dof"])
     r["significant_digits"] = 2
     return out
@@ -115,10 +125,14 @@ def near(title, rec, value):
     decision reads it, and whatever is
     printed stands to it as the number did:
     below it, on it or above it, with more
-    places where two would not show that."""
+    places where two would not show that.
+    A record that the checks stop has no
+    such bounds, and none are printed."""
     change = {("result", "value"): value}
     rec = altered(rec, change)
     report(title, rec)
+    if stopped(rec):
+        return
     lo, hi = guard(rec)[0]
     limit = exact(rec["decision"]["limit"])
     if hi.is_infinite():

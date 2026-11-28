@@ -141,7 +141,7 @@ class RiskNextToOneHalf(unittest.TestCase):
                     self.assertTrue(dof == 0.001 and gap >= 0.2, (gap, dof))
                     continue
                 if gap >= 1e-100:
-                    self.assertLess(abs(dist._centre(t, dof) / gap - 1), 1e-12, (gap, dof))
+                    self.assertLess(abs(dist._center(t, dof) / gap - 1), 1e-12, (gap, dof))
                 else:
                     self.assertAlmostEqual(t / t_mid(1e-100, dof), gap / 1e-100, delta=gap * 1e88, msg=(gap, dof))
 
@@ -152,7 +152,7 @@ class RiskNextToOneHalf(unittest.TestCase):
             self.assertAlmostEqual(above / below, 1.0, places=8, msg=dof)
             # The upper tail and the centre add up to one half.
             for t in (1e-12, 1e-3, 0.5, 3.0):
-                self.assertAlmostEqual(dist.t_sf(t, dof) + dist._centre(t, dof), 0.5, places=9, msg=(t, dof))
+                self.assertAlmostEqual(dist.t_sf(t, dof) + dist._center(t, dof), 0.5, places=9, msg=(t, dof))
         self.assertEqual(t_isf(0.4, 5.0), t_mid(0.5 - 0.4, 5.0))
         self.assertAlmostEqual(t_mid(0.25, 1.0), 1.0, places=14)
 

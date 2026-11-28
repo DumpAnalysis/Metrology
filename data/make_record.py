@@ -7,7 +7,8 @@ The record is produced by the program that made the measurement, so that its
 numbers, its decision and the hash of its sources cannot drift from the code.
 The estimate, the uncertainties and the degrees of freedom are written at
 working precision, as the program computed them; only the interval, which the
-checker does not read, is rounded for display.
+checker does not read, is rounded for display, its lower limit downward and
+its upper limit upward.
 tests/test_review2.py checks that the stored file equals a fresh one.
 """
 import hashlib
@@ -22,13 +23,14 @@ sys.path.insert(0, str(ROOT))
 
 from examples import ch22_budget  # noqa: E402
 from swmetro import record as checker  # noqa: E402
+from swmetro.stats import enclosed  # noqa: E402
 
 # The files that determine the record: the measurement, the package, and this
 # program, which sets the decision risk and builds the decision fields.
 SOURCES = ["examples/ch22_budget.py", "examples/ch09_histogram.py",
            "swmetro/core.py", "swmetro/dist.py", "swmetro/stats.py",
            "swmetro/record.py", "data/make_record.py"]
-RELEASE = "book Version 72, November 2026"
+RELEASE = "book Version 73, November 2026"
 REPOSITORY = "github.com/DumpAnalysis/Metrology"
 RISK = 0.05
 # What the record says of each component of the budget beyond its name, its
@@ -81,7 +83,7 @@ def components(bud):
 
 def build():
     bud, r = ch22_budget.from_raw(ch22_budget.record(random.Random(22)))
-    lo, hi = map(float, r.interval(0.95))
+    lo, hi = map(float, enclosed(*r.interval(0.95), 1))
     expects = {key: text for _, key, text in checker.EXPECTS}
     rec = {
         "format": checker.FORMAT,
@@ -118,7 +120,7 @@ def build():
             "u": r.u,
             "dof": r.dof,
             "significant_digits": checker.ALL,
-            "interval_95": [round(lo, 1), round(hi, 1)],
+            "interval_95": [lo, hi],
             "method": expects["method"],
         },
         "decision": {

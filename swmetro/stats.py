@@ -68,6 +68,22 @@ def fraction(x):
     return Fraction(native(x))
 
 
+def number(x):
+    """native() of x as a number that every
+    comparison takes: the fraction that it
+    is, or the float for an infinity and a
+    NaN. A range is tested on it. Under the
+    trap FloatOperation Python compares no
+    decimal with a float, a decimal NaN in a
+    comparison raises or not as another trap
+    says, and an operator between decimals
+    rounds as the context of the caller."""
+    x = native(x)
+    if _finite(x):
+        return Fraction(x)
+    return float(x)
+
+
 def natives(xs):
     """The values as a list, each as native()
     gives it. Every value is looked at, once,
@@ -194,16 +210,32 @@ def known(xs, what="duration"):
     return xs
 
 
+def tens(n, e):
+    """The decimal n * 10 ** e for a whole
+    number n, from its digits: a power in
+    decimals is rounded as the context of
+    the caller says, and Python refuses the
+    text of a whole number of 4301 digits."""
+    if type(n) is not int:
+        raise TypeError("n is a whole number")
+    t = Decimal(n).as_tuple()
+    return Decimal((t.sign, t.digits, e))
+
+
 def _placed(n, places):
     """The whole number n with its last `places`
     digits after the point. Whole numbers alone
     take part, so that no decimal context can
-    round the digits a second time."""
-    sign = "-" if n < 0 else ""
-    whole, part = divmod(abs(n), 10 ** places)
-    if not places:
-        return f"{sign}{whole}"
-    return f"{sign}{whole}.{part:0{places}d}"
+    round the digits a second time, and the
+    digits are those of tens(): no text is
+    made of n itself."""
+    sign, digits, _ = tens(n, 0).as_tuple()
+    text = "".join(map(str, digits))
+    text = text.rjust(places + 1, "0")
+    if places:
+        cut = len(text) - places
+        text = f"{text[:cut]}.{text[cut:]}"
+    return "-" * sign + text
 
 
 def _decimal(f):
@@ -255,7 +287,11 @@ def upward(x, places, below=None):
     does, with more places where that needs
     them: 94.9934 % under an objective of 95 %
     is 94.994 % and not 95.00 %, and 200.003
-    on a limit of 200.003 is not 200.01."""
+    on a limit of 200.003 is not 200.01. An x
+    on its limit is printed as equal to it
+    where the two are a decimal. A third on
+    a limit of a third has no such text and
+    keeps its places: 0.34."""
     return _rounded(x, places, below, math.ceil)
 
 
@@ -398,7 +434,7 @@ def weighted_quantile(pairs, q):
              for x, w in pairs]
     try:
         pairs = [(native(x), w) for x, w in pairs]
-        ok = all(x == x for x, _ in pairs)
+        ok = not any(_nan(x) for x, _ in pairs)
     except TypeError:
         ok = False
     if not ok:
@@ -551,7 +587,7 @@ def wilson(k, n, p=0.95):
         raise ValueError("no trials")
     if k > n:
         raise ValueError("need 0 <= k <= n")
-    p = native(p)
+    p = number(p)
     if not 0 < p < 1:
         raise ValueError("need 0 < p < 1")
     z = _z(p)
@@ -566,11 +602,11 @@ def wilson(k, n, p=0.95):
 
 
 def _span(exposure, level):
-    """An exposure and a level as native()
+    """An exposure and a level as number()
     gives them: a finite time above zero,
     and a probability between 0 and 1."""
-    exposure = native(exposure)
-    level = native(level)
+    exposure = number(exposure)
+    level = number(level)
     if not 0 < exposure < math.inf:
         raise ValueError("no exposure")
     if not 0 < level < 1:
@@ -581,13 +617,13 @@ def _span(exposure, level):
 def as_level(level):
     """A level as the fraction that it is: a
     probability above 0 and below 1, taken as
-    native() gives it. A float of any width
+    number() gives it. A float of any width
     is the binary number that it is, and a
     truth value is no level."""
-    level = native(level)
+    level = number(level)
     if not 0 < level < 1:
         raise ValueError("need 0 < level < 1")
-    return Fraction(level)
+    return level
 
 
 DEEPEST = 5120
@@ -633,10 +669,9 @@ def poisson_within(n, mean, digits=40):
     that power, which keeps the fractions
     short."""
     n = as_count(n)
-    mean = native(mean)
+    mean = number(mean)
     if not 0 <= mean < math.inf:
         raise ValueError("need a mean >= 0")
-    mean = Fraction(mean)
     if not mean:
         return Fraction(1), Fraction(1)
     down, up = _sides(digits)
@@ -696,10 +731,9 @@ def binomial_within(k, n, p, digits=40):
     numbers, and the two fractions are that
     chance."""
     n, k = as_count(n), as_count(k, "k")
-    p = native(p)
+    p = number(p)
     if not 0 <= p <= 1:
         raise ValueError("need 0 <= p <= 1")
-    p = Fraction(p)
     s, t = p.numerator, p.denominator
     if k >= n or not s:
         return Fraction(1), Fraction(1)
@@ -744,7 +778,7 @@ def sum_within(terms, digits=40):
     Listing 16.4 have 24 exponents."""
     net = {}
     for c, x in terms:
-        x, c = native(x), fraction(c)
+        x, c = number(x), fraction(c)
         net[x] = net.get(x, 0) + c
     lo = hi = Fraction(0)
     for x, c in net.items():
@@ -763,16 +797,21 @@ def chance(terms):
     sum above 1. The sum is enclosed, see
     sum_within(), with more digits until its
     two ends round to one float: the nearest
-    to the sum, not below 0 and not above 1,
-    or the lower of two after DEEPEST digits."""
+    to the sum, not below 0 and not above 1.
+    A sum that DEEPEST digits leave between
+    two floats is refused: neither is known
+    to be the nearest."""
     terms = list(terms)
     digits = 40
     while True:
         lo, hi = sum_within(terms, digits)
-        lo, hi = max(lo, 0), min(hi, 1)
-        low, top = float(lo), float(hi)
-        if low == top or 2 * digits > DEEPEST:
+        low = float(min(max(lo, 0), 1))
+        top = float(min(max(hi, 0), 1))
+        if low == top:
             return low
+        if 2 * digits > DEEPEST:
+            raise ValueError("not decided in"
+                             f" {digits} digits")
         digits *= 2
 
 

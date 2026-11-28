@@ -85,7 +85,9 @@ def dec(x):
 
 
 def hostile():
-    """A decimal context of three digits, exponents from -10 to 10, rounding away from zero, every trap set."""
+    """A decimal context of three digits, exponents from -10 to 10, rounding away from zero, with the traps of
+    the eight signals that operations on decimals alone can raise. The ninth, decimal.FloatOperation, was left
+    out here, although the README of Version 72 spoke of every trap: tests/test_review72.py sets all nine."""
     return decimal.Context(prec=3, Emax=10, Emin=-10, rounding=decimal.ROUND_UP, traps=list(SIGNALS))
 
 
@@ -880,7 +882,10 @@ class TheSettingsOfTheCaller(Record):
             got = record.rounded(D(x), places)
             self.assertEqual(str(got), want, x)
             self.assertEqual(got, round(D(x), places), x)                  # under the context of the tests
-        self.assertEqual((record.rounded(2.675, 2), record.rounded(7, -1)), (round(2.675, 2), round(7, -1)))
+        # Version 72 rounded a float as the binary number that it is, 2.675 to 2.67, and this test said so.
+        # The review of Version 72 found one reading rounded in two ways: since Version 73 a float is rounded
+        # as the decimal that a record reads, to 2.68 like the decimal 2.675 (tests/test_review72.py).
+        self.assertEqual((record.rounded(2.675, 2), record.rounded(7, -1)), (2.68, round(7, -1)))
         self.assertIsInstance(record.rounded(2.675, 2), float)
 
     def test_a_default_that_a_program_changed(self):

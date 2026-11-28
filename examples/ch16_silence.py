@@ -10,7 +10,7 @@ from examples.ch20_judge import exact_interval
 from swmetro.stats import as_count, as_level
 from swmetro.stats import chance, enclosed
 from swmetro.stats import least, native, not_above
-from swmetro.stats import paired_exact
+from swmetro.stats import number, paired_exact
 from swmetro.stats import poisson_within
 from swmetro.stats import quiet_bound
 from swmetro.stats import rate_limits, rate_upper
@@ -56,10 +56,10 @@ def starts(spans, delta):
     delta. A request longer than a stretch
     can start before it and end after it,
     and leave neither."""
-    delta = native(delta)
+    delta = number(delta)
     if not 0 <= delta < math.inf:
         raise ValueError("need delta >= 0")
-    spans, delta = merged(spans), Fraction(delta)
+    spans = merged(spans)
     back = [(x - delta, y - delta)
             for x, y in spans]
     return merged(spans + back)
@@ -220,10 +220,9 @@ def kept_starts(spans, delta, keep, unit):
     of the times and of one another. The
     share is taken as the number that it is,
     and the length is a fraction."""
-    keep = native(keep)
+    keep = number(keep)
     if not 0 < keep <= 1:
         raise ValueError("need 0 < keep <= 1")
-    keep = Fraction(keep)
     two, one = by_messages(spans, delta)
     both = {"message": keep * (2 - keep),
             "request": keep}[unit]
@@ -249,10 +248,9 @@ def searched_bound(seconds, windows, level=0.95):
     quiet_bound()."""
     windows = as_count(windows, "windows", 1)
     level = as_level(level)
-    seconds = native(seconds)
+    seconds = number(seconds)
     if not 0 < seconds < math.inf:
         raise ValueError("no exposure")
-    seconds = Fraction(seconds)
 
     def test(rate, digits):
         mean = Fraction(rate) * seconds
@@ -276,26 +274,24 @@ def gap_somewhere(rate, total, length):
     the gaps, see gap_given(), taken over the
     Poisson count. The terms of gap_terms()
     alternate in sign, and chance() returns
-    the float nearest to their sum."""
+    the nearest float, or refuses the sum."""
     return chance(gap_terms(rate, total, length))
 
 
 def gap_terms(rate, total, length):
     """The chance of gap_somewhere() as pairs
     (c, x), of which it is the sum of
-    c * exp(-x). The three arguments are
-    taken as the numbers that they are, and
-    the pairs are fractions."""
+    c * exp(-x). The arguments are taken as
+    number() gives them before a product or
+    a comparison, and the pairs are fractions."""
     rate, total, length = map(
-        native, (rate, total, length))
+        number, (rate, total, length))
     if not 0 < length <= total < math.inf:
         raise ValueError("no room for the gap")
     if total > 20 * length:
         raise ValueError("need 20 gaps or fewer")
     if not 0 <= rate < math.inf:
         raise ValueError("need rate >= 0")
-    rate, total, length = map(
-        Fraction, (rate, total, length))
     out = []
     for k in range(1, int(total // length) + 1):
         m = rate * (total - k * length)
@@ -318,16 +314,16 @@ def gap_given(n, total, length):
     and count: a heartbeat leaves none
     above its period. The terms alternate
     and can be far larger than their sum,
-    which is taken in fractions. No rate
-    enters, and no bound for a source comes
-    out."""
+    which is taken in fractions, the times
+    as number() gives them. No rate enters,
+    and no bound for a source comes out."""
     n = as_count(n)
-    if not 0 < length <= total:
+    total, length = number(total), number(length)
+    if not 0 < length <= total < math.inf:
         raise ValueError("no room for the gap")
-    share = Fraction(length) / Fraction(total)
     out = Fraction(0)
     for k in range(1, n + 2):
-        rest = 1 - k * share
+        rest = 1 - k * length / total
         if rest < 0:
             break
         term = math.comb(n + 1, k) * rest ** n
@@ -343,13 +339,17 @@ QUIET = ((60, 90), (210, 240))
 def expected(t, pieces=RISE):
     """Messages expected up to time t from a
     reference rate that is constant on each
-    of its pieces, (seconds, rate). On this
-    scale the messages of a Poisson process
-    with that rate are uniform points again,
-    given their number, and gap_given()
-    holds for a gap in expected messages."""
-    t, out = Fraction(t), Fraction(0)
-    for seconds, rate in pieces:
+    of its pieces, (seconds > 0, rate >= 0).
+    On this scale the messages of a Poisson
+    process with that rate are uniform
+    points again, given their number, and
+    gap_given() holds for a gap in expected
+    messages."""
+    t, out = Fraction(native(t)), Fraction(0)
+    for piece in pieces:
+        seconds, rate = map(number, piece)
+        if not 0 < seconds < math.inf > rate >= 0:
+            raise ValueError("no such piece")
         out += min(max(t, 0), seconds) * rate
         t -= seconds
     return out

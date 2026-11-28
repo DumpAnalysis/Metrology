@@ -7,19 +7,25 @@
 
 Each example declares its replay mode in its first line:
 
-    # replay: exact   seeded and deterministic; every number must be written
-                      in the notation of the transcript (an exponent or
-                      none, no added plus sign or leading zeros) and printed
-                      to the same place; a whole number must be identical,
-                      and a number with decimals must agree to one unit in
-                      its last place
+    # replay: exact   deterministic, a simulation with a fixed seed; the text
+                      around the numbers must be identical, white space
+                      included; every number must be written in the notation
+                      of the transcript (an exponent or none, no added plus
+                      sign or leading zeros) and printed to the same place;
+                      a whole number must be identical, and a number with
+                      decimals must agree to one unit in its last place,
+                      compared as the decimals that are printed and not as
+                      floats
     # replay: live    measures this machine; only the shape of the output
-                      is compared (numbers masked, 'env:' lines ignored)
+                      is compared (numbers masked, white space collapsed,
+                      'env:' lines ignored)
 """
 import os
 import re
 import subprocess
 import sys
+from decimal import Decimal
+from fractions import Fraction
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
@@ -48,16 +54,26 @@ def run(name):
     return proc.stdout
 
 
-def skeleton(line):
-    """The line with numbers masked and white space collapsed."""
-    return " ".join(NUM.sub("#", line).split())
+def skeleton(line, exact=False):
+    """The line with numbers masked: as it stands for an exact replay, and
+    with white space collapsed for a live one, where a number of another
+    width moves the padding."""
+    masked = NUM.sub("#", line)
+    return masked if exact else " ".join(masked.split())
+
+
+def value(token):
+    """A numeric token as the fraction that it writes. As floats, 200 and
+    4 units of its 17th decimal is the same number as 200 less 2 of them,
+    and a change across a limit would pass."""
+    return Fraction(Decimal(token))
 
 
 def last_place(token):
-    """One unit in the last printed digit of a numeric token."""
+    """One unit in the last printed digit of a numeric token, exactly."""
     mantissa, _, exponent = token.lower().partition("e")
     digits = len(mantissa.partition(".")[2])
-    return 10.0 ** (int(exponent or 0) - digits)
+    return Fraction(10) ** (int(exponent or 0) - digits)
 
 
 def notation(token):
@@ -86,8 +102,9 @@ def compare(mode, expected, actual):
     if len(exp) != len(act):
         return [f"{len(exp)} lines expected, {len(act)} produced"]
     diffs = []
+    exact = mode == "exact"
     for i, (e, a) in enumerate(zip(exp, act), 1):
-        if skeleton(e) != skeleton(a):
+        if skeleton(e, exact) != skeleton(a, exact):
             diffs.append(f"line {i}: text differs\n  - {e}\n  + {a}")
         elif mode == "exact":
             for x, y in zip(NUM.findall(e), NUM.findall(a)):
@@ -98,10 +115,10 @@ def compare(mode, expected, actual):
                     diffs.append(f"line {i}: {x} expected, {y} produced, "
                                  "printed to another place")
                 elif WHOLE.fullmatch(x):
-                    if int(x) != int(y):
+                    if value(x) != value(y):
                         diffs.append(f"line {i}: {x} expected, {y} produced; "
                                      "a whole number must be identical")
-                elif abs(float(x) - float(y)) > 1.0001 * last_place(x):
+                elif abs(value(x) - value(y)) > last_place(x):
                     diffs.append(f"line {i}: {x} expected, {y} produced")
     return diffs
 

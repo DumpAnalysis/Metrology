@@ -7,7 +7,7 @@ from fractions import Fraction
 from examples import ch09_histogram as h9
 from swmetro import Budget, Result, u_rect
 from swmetro.stats import bootstrap, enclosed
-from swmetro.stats import known, wilson
+from swmetro.stats import known, number, wilson
 from swmetro.stats import ecdf_quantile, ecdf_rank
 
 LIMIT = 200.0  # objective: p95 <= 200 ms
@@ -79,8 +79,9 @@ def bracket(xs, bounds, q=0.95):
     turned into floats, a bound next to the
     limit can become the limit itself."""
     xs, bounds = known(xs), tuple(bounds)
-    pairs = zip([float("-inf"), *bounds], bounds)
-    if not all(a < b for a, b in pairs):
+    ends = [float("-inf"), *map(number, bounds)]
+    if not all(a < b for a, b
+               in zip(ends, ends[1:])):
         raise ValueError("bounds do not rise")
     need = ecdf_rank(q, len(xs))
     lo = float("-inf")

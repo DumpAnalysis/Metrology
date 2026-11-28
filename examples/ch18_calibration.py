@@ -8,7 +8,7 @@ from fractions import Fraction
 
 from examples.ch20_judge import exact_interval
 from swmetro.stats import as_count, downward
-from swmetro.stats import fraction, known, native
+from swmetro.stats import fraction, known, number
 from swmetro.stats import stated, upward
 
 LEAST = 2.0 ** -1022  # the least normal float
@@ -399,7 +399,7 @@ def at_one_logit(logit, p):
     logits is formed from the numbers that they
     are and rounded once; a T that is no finite
     float above zero is refused."""
-    logit, p = native(logit), native(p)
+    logit, p = number(logit), number(p)
     side = (logit > 0) - (logit < 0)
     leans = (p > 0.5) - (p < 0.5)
     if not (0 < p < 1 and side and leans == side):

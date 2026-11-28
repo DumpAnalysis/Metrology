@@ -2,7 +2,7 @@
 
 Code examples for the book *Metrology in Software Diagnostics, Observability,
 and Debugging: With Applications to Machine Learning and AI* by Dmitry Vostokov
-(OpenTask, ISBN 978-1-919135-15-1). Book Version 72, November 2026.
+(OpenTask, ISBN 978-1-919135-15-1). Book Version 73, November 2026.
 
 Repository: https://github.com/DumpAnalysis/Metrology
 
@@ -10,8 +10,9 @@ The listings of the book are these programs, and they print its
 transcripts. A few values that the discussion uses beside them, such as a
 median read from a figure, a percentile between two printed ones or a
 confidence bound on a simulated count, are checked in the tests.
-The programs are seeded, use only the Python standard library, and are stored
-with their transcripts so that they can be replayed.
+The programs use only the Python standard library, their simulations use
+fixed seeds, and they are stored with their transcripts so that they can be
+replayed.
 
 A successful replay shows that the book and the programs agree. It does not
 show that a model fits your system; each chapter states the model on which its
@@ -59,7 +60,7 @@ Each example declares its mode in its first line.
 
 | Mode | Meaning | What `run_all.py` compares |
 |------|---------|----------------------------|
-| `# replay: exact` | Seeded and deterministic. | Text identical; every number written in the notation of the transcript (an exponent or none, no added plus sign or leading zeros) and printed to the same place; a whole number identical, and a number with decimals within one unit of its last place. |
+| `# replay: exact` | Deterministic; a simulation has a fixed seed. | Text identical, white space included; every number written in the notation of the transcript (an exponent or none, no added plus sign or leading zeros) and printed to the same place; a whole number identical, and a number with decimals within one unit of its last place, compared as the decimal that is printed. |
 | `# replay: live` | Measures the machine it runs on. | The form of the output only: numbers are masked, and lines starting with `env:` are ignored. |
 
 The tolerance of the exact mode allows for differences in the last bit of
@@ -78,7 +79,7 @@ will print different numbers on your machine; that is what they are for.
 | `expected/` | The transcript of each example, as printed in the book. |
 | `data/` | The trace fixture of Chapter 16 (`app_trace.log`) and its seeded generator (`make_trace.py`); the measurement record of Chapter 22 (`measurement_record.json`), a blank template with the same fields (`record_template.json`), a description of the form, of the decision procedure and of what the checker examines (`RECORD_FORMAT.md`), and the program that writes both (`make_record.py`). |
 | `figures/` | `make_figures.py` draws the book's thirty-two figures from the same functions as the examples. Needs matplotlib and Pillow at the versions in `requirements.txt`; output goes to `figures/out/`. |
-| `tests/` | `test_swmetro.py`: unit tests of the package. `test_review.py`, `test_review2.py` to `test_review5.py`, `test_review7.py` to `test_review46.py` and `test_review48.py` to `test_review71.py`: regression tests, numbered by the version of the book whose review they followed; each checks the code against an independent fact (a closed form, a definition evaluated by brute force, a published table, a simulated coverage), not against saved output. `test_release.py`: the license text is the published one, and the record and this file name the repository and the release. |
+| `tests/` | `test_swmetro.py`: unit tests of the package. `test_review.py`, `test_review2.py` to `test_review5.py`, `test_review7.py` to `test_review46.py` and `test_review48.py` to `test_review72.py`: regression tests, numbered by the version of the book whose review they followed; each checks the code against an independent fact (a closed form, a definition evaluated by brute force, a published table, a simulated coverage), not against saved output. `test_release.py`: the license text is the published one, and the record and this file name the repository and the release. |
 | `tools/` | Two optional checks of the Student t quantile against high-precision arithmetic. They need mpmath. |
 | `run_all.py` | The replay program. |
 | `LICENSE` | PolyForm Strict License 1.0.0. |
@@ -218,9 +219,16 @@ itself does, below it, on it or above it, and adds places until it does:
 limit of 200.003 as 200.003 and not as 200.01. `nearest()` does the same
 for a value: against a limit of 200.003 a value of 200.004 prints as
 200.004, where two places would put it below the limit that it exceeds.
+A number on its limit is printed as equal to it where the two are a decimal
+of finitely many places, as the limit of a record of Chapter 22 is. One
+third on a limit of one third has no such text and keeps the places that
+were asked for: 0.33 downward and to the nearest, 0.34 upward.
 The replay compares a transcript to one unit in the last place of
 a number, in either direction, and so cannot tell a bound from its
 neighbor; the tests compare the printed ends with references of their own.
+It compares the numbers as the decimals that are printed. As floats,
+200.00000000000000004 and 199.99999999999999998 are one number, and a
+change across a limit of 200 would pass.
 
 The rounding begins before the printing. A confidence limit for a count is
 returned as the float next to the limit of the model on its outer side: the
@@ -241,8 +249,11 @@ is the number that it is, of whatever width, and is read by `as_level()`,
 which takes it as `native()` gives it and refuses a flag: the float `0.95`
 lies a little below 95 %, `numpy.float32(0.95)` a little further below,
 and a level of 95 % exactly is `Fraction(19, 20)`. The times, rates and
-shares of `ch16_silence` pass through `native()` in the same way before
-they are compared or converted, and so do the arguments that helpers of
+shares of `ch16_silence` pass through `number()`, which is `native()` with
+a finite number as the fraction that it is, before they are multiplied,
+compared or converted: `gap_given()` and `expected()` refuse a flag and a
+text, a time that is not finite, a piece of no length and a rate below
+zero. So do the arguments that helpers of
 `ch05_propagation`, `ch08_selection`, `ch16_trace_measurements`,
 `ch18_calibration`, `ch23_case` and `ch23_mix` turn into fractions, through
 `fraction()` of the package: a flag is no time, no weight and no margin, and
@@ -254,23 +265,43 @@ that is too low. A
 probability that is a sum of signed terms, as in `gap_somewhere()` and
 `some_empty()`, is returned by `chance()`: the sum is enclosed, with more
 digits until its two ends round to one float, and the float is not below 0
-and not above 1. A level so near 1 that it is 1
+and not above 1. A sum that 5120 digits leave between two floats, as one
+halfway between them can be, is refused: neither is known to be the nearest.
+A level so near 1 that it is 1
 as a float, or whose tail is zero as a float, keeps its complement as a
 fraction; a positive bound below every float is the least float above zero,
 and a bound above every float is refused. Other intervals of the examples,
 a Student interval or the Wilson interval among them, are computed in
 floats and printed outward from what was computed.
 
-The decimal settings of the caller have no part in a result. An operator
-between two decimals takes its precision, its rounding and its traps from
-the context of the thread, and a context that leaves something unstated
-takes it from a default that a program can change. The package takes its
-decimal steps through contexts that state everything (`stated()`), builds
-a power of ten from its digits, takes the square roots of a record in whole
-numbers, and rounds a decimal of a record with `rounded()` of
-`swmetro/record.py` and not with `round()`. Under a context of three digits
-with every trap set, the examples print the transcripts that they print
-otherwise.
+The decimal settings of the caller have no part in a result of the package.
+An operator between two decimals takes its precision, its rounding and its
+traps from the context of the thread, and a context that leaves something
+unstated takes it from a default that a program can change. The package
+takes its decimal steps through contexts that state everything
+(`stated()`), builds a power of ten and the text of a whole number from
+digits (`tens()`), takes the square roots of a record in whole numbers, and
+rounds a number of a record with `rounded()` of `swmetro/record.py` and not
+with `round()`. A number whose range is tested passes through `number()`
+first, which gives the fraction that it is, or the float for an infinity
+and a NaN: twenty times a decimal length is then an exact product, a
+decimal NaN is refused as a float NaN is, whatever the traps, and no decimal
+meets a float constant of the package. Under a context of three digits with
+all nine traps set, `decimal.FloatOperation` among them, the examples print
+the transcripts that they print otherwise, and the package returns for
+decimals what it returns otherwise.
+
+One setting is the caller's own refusal. Under `decimal.FloatOperation`
+Python compares no decimal with a float, and a call that sets the two side
+by side ends there: a list of readings that holds both, or a decimal given
+to a listing that computes in floats or compares with a float constant of
+its own. Without that trap the comparison is exact. A function that is
+passed to `lpu()` or to `bootstrap()` computes as it was written.
+
+Python refuses the text of a whole number of more than 4300 digits, at a
+length that a program can set. The package makes no such text of a number
+that it shows, so that a decimal of 4301 places in a record is shown as it
+is decided.
 
 The limits of a span in `ch23_mix` are printed by that convention, to the
 hundredth of a millisecond: rounded to the nearest, a
@@ -358,12 +389,13 @@ number:
 
 ```
 from pathlib import Path
-from swmetro.record import read, missing, invalid, combined, guard, decide, stale, comparable, in_unit
+from swmetro.record import read, missing, invalid, combined, stopped, guard, decide, stale, comparable, in_unit
 record = read(Path("data/measurement_record.json").read_text(encoding="utf-8"))
 missing(record)         # inputs of the decision that are unknown
 invalid(record)         # values that cannot be; statements that contradict
 combined(record)        # bounds of the combined u that the whole record supports
-guard(record)           # bounds of the estimate plus, and less, the guard band
+stopped(record)         # the status and the reasons of a record for which no decision is formed, or None
+guard(record)           # bounds of the estimate plus, and less, the guard band, for a record that passed
 decide(record)          # a status, with reasons when it is not a decision
 stale(record)           # the stored outcome, if it is known and is not that status
 comparable(a, b)        # reasons why two records are not one quantity; unit notes
@@ -382,7 +414,10 @@ and it refuses a name that occurs twice in one object and the bare words
 and `in_unit` return decimals too, so that what they show is the number of
 the record and not the float nearest to it. The bounds of `combined` and
 `spread` are square roots rounded outward, and exact where the root is a
-fraction.
+fraction. A converted value is written in full, however many digits the
+product has: every factor is a power of two times a power of ten, and cut
+to forty digits, 0.2 s and 10^-41 s more would be 200 ms, on a limit that
+the value exceeds.
 
 `decide` returns `accept`, `reject` or `undecided` under the one procedure it
 supports, a guarded decision against an upper limit with a Student t
@@ -427,6 +462,19 @@ a fraction, the band is exact and the two bounds are one number: 199 ms
 with an uncertainty of 1.00000000000000004 ms is 200.00000000000000004 ms,
 above a limit of 200 ms. `ch22_record_check` prints the bounds against the
 limit as `decide` reads it, a float as the decimal that Python prints.
+`guard` refuses a record for which no decision is formed, and the example
+prints no band for one: `stopped(record)` returns its status and its
+reasons, as `decide` does, and `None` for a record that has passed the
+checks, the one whose rounding alone leaves it `unresolved` included.
+
+A record is rounded for display by `rounded(x, places)`, a half to the even
+digit, as the number that it states: the float 2.675 is the decimal 2.675
+and rounds to 2.68 like that decimal, where `round()` takes the binary
+number below it and gives 2.67. `ch22_record_check` rounds the
+uncertainties and the degrees of freedom by the same rule, and states the
+increment of the rounded estimate as the float that prints as the power of
+ten. Below the least float there is no such number, in the example or in
+the format, and no rounded record is issued.
 `data/RECORD_FORMAT.md` has the rules, and a note on records of earlier
 formats.
 
@@ -459,7 +507,7 @@ of the versions before it. Seeds alone do not specify a result: the stored
 transcripts, the trace fixture and the measurement record are part of the
 repository for that reason.
 
-These are the files for Version 72 of the book.
+These are the files for Version 73 of the book.
 
 ## License
 
